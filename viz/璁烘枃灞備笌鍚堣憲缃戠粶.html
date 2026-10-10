@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诺奖师承本体 · 论文与合著网络</title>
+<script src="../lib/vendors/tailwindcss.3.4.17.js"></script>
+<script src="../lib/vendors/echarts.min.js"></script>
+<style>
+  :root{ --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --brand:#2563eb; }
+  html,body{ margin:0; }
+  body{ font-family:'PingFang SC','HarmonyOS Sans SC','Microsoft YaHei',-apple-system,'Segoe UI',sans-serif;
+        color:var(--ink); min-height:100vh;
+        background: radial-gradient(1100px 500px at 8% -8%, #e8f0ff 0%, rgba(232,240,255,0) 60%),
+                    radial-gradient(900px 480px at 100% 0%, #e8fbf3 0%, rgba(232,251,243,0) 55%),
+                    linear-gradient(180deg,#ffffff 0%,#f7f9fc 100%); }
+  .wrap{ max-width:1240px; margin:0 auto; padding:0 20px; }
+  .kpi{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 18px;
+        box-shadow:0 1px 2px rgba(15,23,42,.04); }
+  .kpi .num{ font-size:30px; font-weight:800; letter-spacing:-.02em; color:var(--brand); }
+  .kpi .lb{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 18px;
+         box-shadow:0 1px 3px rgba(15,23,42,.05); }
+  .chip{ display:inline-flex; align-items:center; font-size:12px; color:#334155;
+         background:rgba(37,99,235,.07); border:1px solid rgba(37,99,235,.18);
+         padding:4px 11px; border-radius:999px; margin:0 8px 8px 0; }
+  table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  th,td{ padding:7px 9px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  th{ background:#f3f6fc; position:sticky; top:0; font-weight:700; }
+  tr:hover td{ background:#f8fbff; }
+  .tag{ font-size:11px; padding:1px 7px; border-radius:999px; white-space:nowrap; }
+  .t-phy{ background:#e6efff; color:#1d4ed8; } .t-chem{ background:#e2f6ef; color:#047857; }
+  .t-med{ background:#fdeee4; color:#c2410c; } .t-oth{ background:#eef1f6; color:#475569; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="padding:38px 0 8px;">
+    <span class="chip">诺贝尔奖师承本体 · 论文/著作层</span>
+    <h1 style="font-size:30px;font-weight:800;margin:6px 0 4px;">论文与合著网络</h1>
+    <p style="color:var(--muted);margin:0 0 18px;">
+      将「代表性工作」下沉到原始论文/著作（含期刊、年份、卷页、DOI），并派生署名与合著关系——
+      合著边把原本仅靠师承相连的师门连接成图。</p>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-6 gap-3" id="kpis"></div>
+
+  <div class="grid md:grid-cols-2 gap-4" style="margin-top:20px;">
+    <div class="card"><div id="timeline" style="height:420px;"></div></div>
+    <div class="card"><div id="graph" style="height:420px;"></div></div>
+    <div class="card"><div id="journals" style="height:420px;"></div></div>
+    <div class="card"><div id="lag" style="height:420px;"></div></div>
+  </div>
+
+  <div class="card" style="margin:20px 0 10px;">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;">
+      <strong style="font-size:16px;">里程碑论文/著作明细</strong>
+      <input id="q" placeholder="搜索标题 / 作者 / 期刊" style="border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:13px;min-width:220px;">
+      <select id="disc" style="border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:13px;">
+        <option value="">全部门类</option><option>物理学</option><option>化学</option><option>生理学或医学</option>
+      </select>
+      <label style="font-size:13px;color:var(--muted);"><input type="checkbox" id="lmonly" checked> 仅里程碑</label>
+      <span id="cnt" style="font-size:13px;color:var(--muted);"></span>
+    </div>
+    <div style="overflow:auto;max-height:520px;"><table id="tbl">
+      <thead><tr><th>年份</th><th>论文/著作</th><th>作者</th><th>期刊/出版方</th><th>卷页</th><th>研究方向</th><th>里程碑</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+  <p style="color:var(--muted);font-size:12px;padding-bottom:34px;">
+    数据来源：诺奖师承本体 DuckDB（论文著作 / 论文作者 / v_合作网络 / v_论文诺奖时滞 / v_期刊分布）。
+    ★ 里程碑 = 该项代表性工作的原始奠定性发表。</p>
+</div>
+
+<script>
+const DATA = {"kpi": {"papers": 58, "lm": 44, "jr": 23, "doi": 46, "lag": 13.6, "co": 11}, "papers": [{"id": "PA051", "tz": "关于细微分散体光学性质的研究", "t": "Untersuchungen über die optischen Eigenschaften von fein vertheilten Körpern", "au": "C. Christiansen", "j": "Annalen der Physik", "y": 1884, "type": "期刊论文", "lm": false, "vp": "23: 298-306", "doi": "10.1002/andp.18842580611", "work": "詹森效应/光散射研究", "disc": "物理学", "field": "光学与光谱学"}, {"id": "PA003", "tz": "阴极射线", "t": "Cathode Rays", "au": "J. J. Thomson", "j": "Philosophical Magazine", "y": 1897, "type": "期刊论文", "lm": true, "vp": "44: 293-316", "doi": null, "work": "电子的发现", "disc": "物理学", "field": "电子物理"}, {"id": "PA029", "tz": "论沥青铀矿中一种强放射性新物质", "t": "Sur une nouvelle substance fortement radio-active contenue dans la pechblende", "au": "P. Curie, M. Curie, G. Bémont", "j": "Comptes Rendus de l'Académie des Sciences", "y": 1898, "type": "期刊论文", "lm": true, "vp": "127: 175-178", "doi": null, "work": "镭和钋的发现", "disc": "化学", "field": "放射化学"}, {"id": "PA004", "tz": "α与β粒子被物质散射及原子结构", "t": "The Scattering of α and β Particles by Matter and the Structure of the Atom", "au": "E. Rutherford", "j": "Philosophical Magazine", "y": 1911, "type": "期刊论文", "lm": true, "vp": "21: 669-688", "doi": null, "work": "原子核的发现", "disc": "物理学", "field": "核物理"}, {"id": "PA022", "tz": "比热理论", "t": "Zur Theorie der spezifischen Wärmen", "au": "P. Debye", "j": "Annalen der Physik", "y": 1912, "type": "期刊论文", "lm": true, "vp": "39: 789-839", "doi": "10.1002/andp.19123441404", "work": "德拜模型与偶极矩理论", "disc": "化学", "field": "物理化学"}, {"id": "PA019", "tz": "短电磁波被晶体的衍射", "t": "The Diffraction of Short Electromagnetic Waves by a Crystal", "au": "W. L. Bragg", "j": "Proceedings of the Cambridge Philosophical Society", "y": 1913, "type": "期刊论文", "lm": true, "vp": "17: 43-57", "doi": null, "work": "布拉格定律与X射线晶体分析", "disc": "物理学", "field": "固体物理与晶体学"}, {"id": "PA001", "tz": "论原子和分子的构造（玻尔三部曲）", "t": "On the Constitution of Atoms and Molecules", "au": "N. Bohr", "j": "Philosophical Magazine", "y": 1913, "type": "期刊论文", "lm": true, "vp": "26: 1-25, 476-502, 857-875", "doi": null, "work": "玻尔原子模型", "disc": "物理学", "field": "原子与分子物理"}, {"id": "PA002", "tz": "光谱线的量子理论", "t": "Zur Quantentheorie der Spektrallinien", "au": "A. Sommerfeld", "j": "Annalen der Physik", "y": 1916, "type": "期刊论文", "lm": true, "vp": "51: 1-94, 125-167", "doi": null, "work": "索末菲精细结构理论", "disc": "物理学", "field": "原子与分子物理"}, {"id": "PA055", "tz": "量子力学", "t": "Zur Quantenmechanik", "au": "M. Born, P. Jordan", "j": "Zeitschrift für Physik", "y": 1925, "type": "期刊论文", "lm": false, "vp": "34: 858-888", "doi": "10.1007/BF01328531", "work": "矩阵力学", "disc": "物理学", "field": "量子力学"}, {"id": "PA007", "tz": "关于运动学与力学关系的量子论重构", "t": "Über quantentheoretische Umdeutung kinematischer und mechanischer Beziehungen", "au": "W. Heisenberg", "j": "Zeitschrift für Physik", "y": 1925, "type": "期刊论文", "lm": true, "vp": "33: 879-893", "doi": "10.1007/BF01328377", "work": "矩阵力学", "disc": "物理学", "field": "量子力学"}, {"id": "PA009", "tz": "论原子电子壳层闭合与光谱复杂结构的关系", "t": "Über den Zusammenhang des Abschlusses der Elektronengruppen im Atom mit der Komplexstruktur der Spektren", "au": "W. Pauli", "j": "Zeitschrift für Physik", "y": 1925, "type": "期刊论文", "lm": true, "vp": "31: 765-783", "doi": "10.1007/BF02980631", "work": "泡利不相容原理", "disc": "物理学", "field": "量子力学"}, {"id": "PA056", "tz": "量子力学 II", "t": "Zur Quantenmechanik II", "au": "M. Born, W. Heisenberg, P. Jordan", "j": "Zeitschrift für Physik", "y": 1926, "type": "期刊论文", "lm": true, "vp": "35: 557-615", "doi": "10.1007/BF01379806", "work": "矩阵力学", "disc": "物理学", "field": "量子力学"}, {"id": "PA013", "tz": "理想单原子气体的量子化", "t": "Zur Quantelung des idealen einatomigen Gases", "au": "E. Fermi", "j": "Zeitschrift für Physik", "y": 1926, "type": "期刊论文", "lm": true, "vp": "36: 902-912", "doi": "10.1007/BF01400221", "work": "费米-狄拉克统计", "disc": "物理学", "field": "统计力学"}, {"id": "PA012", "tz": "量子力学中的碰撞过程", "t": "Zur Quantenmechanik der Stoßvorgänge", "au": "M. Born", "j": "Zeitschrift für Physik", "y": 1926, "type": "期刊论文", "lm": true, "vp": "37: 863-867", "doi": "10.1007/BF01397477", "work": "波函数统计解释", "disc": "物理学", "field": "量子力学"}, {"id": "PA020", "tz": "电子被镍晶体的衍射", "t": "Diffraction of Electrons by a Crystal of Nickel", "au": "C. J. Davisson, L. H. Germer", "j": "Physical Review", "y": 1927, "type": "期刊论文", "lm": true, "vp": "30: 705-740", "doi": "10.1103/PhysRev.30.705", "work": "电子衍射实验", "disc": "物理学", "field": "电子物理"}, {"id": "PA008", "tz": "量子论运动学与力学的直观内容", "t": "Über den anschaulichen Inhalt der quantentheoretischen Kinematik und Mechanik", "au": "W. Heisenberg", "j": "Zeitschrift für Physik", "y": 1927, "type": "期刊论文", "lm": true, "vp": "43: 172-198", "doi": "10.1007/BF01397280", "work": "不确定性原理", "disc": "物理学", "field": "量子力学"}, {"id": "PA021", "tz": "阴极射线被薄膜的衍射", "t": "Diffraction of Cathode Rays by a Thin Film", "au": "G. P. Thomson, A. Reid", "j": "Nature", "y": 1927, "type": "期刊论文", "lm": true, "vp": "119: 890", "doi": "10.1038/119890b0", "work": "电子衍射实验", "disc": "物理学", "field": "电子物理"}, {"id": "PA011", "tz": "电子的量子理论（第二部分）", "t": "The Quantum Theory of the Electron. Part II", "au": "P. A. M. Dirac", "j": "Proceedings of the Royal Society A", "y": 1928, "type": "期刊论文", "lm": false, "vp": "118: 351-361", "doi": "10.1098/rspa.1928.0056", "work": "反粒子预言", "disc": "物理学", "field": "粒子物理"}, {"id": "PA010", "tz": "电子的量子理论", "t": "The Quantum Theory of the Electron", "au": "P. A. M. Dirac", "j": "Proceedings of the Royal Society A", "y": 1928, "type": "期刊论文", "lm": true, "vp": "117: 610-624", "doi": "10.1098/rspa.1928.0023", "work": "狄拉克方程", "disc": "物理学", "field": "量子力学"}, {"id": "PA005", "tz": "中子的可能存在", "t": "Possible Existence of a Neutron", "au": "J. Chadwick", "j": "Nature", "y": 1932, "type": "期刊论文", "lm": true, "vp": "129: 312", "doi": "10.1038/129312a0", "work": "中子的发现", "disc": "物理学", "field": "核物理"}, {"id": "PA006", "tz": "中子的存在", "t": "The Existence of a Neutron", "au": "J. Chadwick", "j": "Proceedings of the Royal Society A", "y": 1932, "type": "期刊论文", "lm": false, "vp": "136: 692-708", "doi": "10.1098/rspa.1932.0112", "work": "中子的发现", "disc": "物理学", "field": "核物理"}, {"id": "PA054", "tz": "原子序数大于92的元素之可能生成", "t": "Possible Production of Elements of Atomic Number Higher than 92", "au": "E. Fermi", "j": "Nature", "y": 1934, "type": "期刊论文", "lm": false, "vp": "133: 898-899", "doi": "10.1038/133898a0", "work": "慢中子诱发放射性", "disc": "物理学", "field": "核物理"}, {"id": "PA030", "tz": "一种新型放射性", "t": "Un nouveau type de radioactivité", "au": "F. Joliot, I. Curie", "j": "Comptes Rendus de l'Académie des Sciences", "y": 1934, "type": "期刊论文", "lm": true, "vp": "198: 254-256", "doi": null, "work": "人工放射性", "disc": "化学", "field": "放射化学"}, {"id": "PA032", "tz": "结晶胃蛋白酶的X射线照片", "t": "X-ray Photographs of Crystalline Pepsin", "au": "J. D. Bernal, D. Crowfoot", "j": "Nature", "y": 1934, "type": "期刊论文", "lm": true, "vp": "133: 794-795", "doi": "10.1038/133794b0", "work": "蛋白质与病毒X射线衍射", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA052", "tz": "恒星内部的元素转变 II", "t": "Über Elementumwandlungen in Innern der Sterne II", "au": "C. F. von Weizsäcker", "j": "Physikalische Zeitschrift", "y": 1938, "type": "期刊论文", "lm": false, "vp": "39: 633-646", "doi": null, "work": "碳-氮-氧循环（CNO循环）", "disc": "物理学", "field": "核物理"}, {"id": "PA024", "tz": "统计热力学", "t": "Statistical Thermodynamics", "au": "R. H. Fowler, E. A. Guggenheim", "j": "Cambridge University Press", "y": 1939, "type": "专著", "lm": true, "vp": null, "doi": null, "work": "热力学第零定律", "disc": "物理学", "field": "统计力学"}, {"id": "PA018", "tz": "恒星中的能量产生", "t": "Energy Production in Stars", "au": "H. A. Bethe", "j": "Physical Review", "y": 1939, "type": "期刊论文", "lm": true, "vp": "55: 434-456", "doi": "10.1103/PhysRev.55.434", "work": "恒星核合成理论", "disc": "物理学", "field": "核物理"}, {"id": "PA025", "tz": "第一个反应堆", "t": "The First Reactor（芝加哥一号堆）", "au": "E. Fermi et al.", "j": "技术报告", "y": 1942, "type": "报告", "lm": true, "vp": null, "doi": null, "work": "芝加哥一号堆", "disc": "物理学", "field": "核物理"}, {"id": "PA050", "tz": "细菌由病毒敏感向病毒抗性的突变", "t": "Mutations of Bacteria from Virus Sensitivity to Virus Resistance", "au": "S. E. Luria, M. Delbrück", "j": "Genetics", "y": 1943, "type": "期刊论文", "lm": true, "vp": "28: 491-511", "doi": "10.1093/genetics/28.6.491", "work": "噬菌体遗传机制研究", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA016", "tz": "论原子核中的闭合壳层", "t": "On Closed Shells in Nuclei", "au": "M. Goeppert-Mayer", "j": "Physical Review", "y": 1948, "type": "期刊论文", "lm": true, "vp": "74: 235-239", "doi": "10.1103/PhysRev.74.235", "work": "原子核壳层模型", "disc": "物理学", "field": "核物理"}, {"id": "PA017", "tz": "若干闭壳核的解释", "t": "On the Interpretation of Some Closed-Shell Nuclei", "au": "M. Goeppert-Mayer", "j": "Physical Review", "y": 1949, "type": "期刊论文", "lm": false, "vp": "75: 1969-1970", "doi": "10.1103/PhysRev.75.1969", "work": "原子核壳层模型", "disc": "物理学", "field": "核物理"}, {"id": "PA026", "tz": "论异催化爆轰 I", "t": "On Heterocatalytic Detonations I（Teller-Ulam 构型）", "au": "E. Teller, S. Ulam", "j": "机密技术报告", "y": 1951, "type": "报告", "lm": true, "vp": null, "doi": null, "work": "Teller-Ulam热核构型", "disc": "物理学", "field": "核物理"}, {"id": "PA031", "tz": "核酸的分子结构——脱氧核糖核酸的一种结构", "t": "Molecular Structure of Nucleic Acids: A Structure for Deoxyribose Nucleic Acid", "au": "J. D. Watson, F. H. C. Crick", "j": "Nature", "y": 1953, "type": "期刊论文", "lm": true, "vp": "171: 737-738", "doi": "10.1038/171737a0", "work": "DNA双螺旋结构模型", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA057", "tz": "胸腺核酸钠盐的分子构型", "t": "Molecular Configuration in Sodium Thymonucleate", "au": "R. E. Franklin, R. G. Gosling", "j": "Nature", "y": 1953, "type": "期刊论文", "lm": true, "vp": "171: 740-741", "doi": "10.1038/171740a0", "work": "DNA X射线衍射证据", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA023", "tz": "核结构的集体与单粒子图像", "t": "Collective and Individual-Particle Aspects of Nuclear Structure", "au": "A. Bohr, B. R. Mottelson", "j": "Matematisk-fysiske Meddelelser (Dan. Vid. Selsk.)", "y": 1953, "type": "期刊论文", "lm": true, "vp": "27(16)", "doi": null, "work": "原子核集体运动模型", "disc": "物理学", "field": "核物理"}, {"id": "PA058", "tz": "脱氧戊糖核酸的分子结构", "t": "Molecular Structure of Deoxypentose Nucleic Acids", "au": "M. H. F. Wilkins, A. R. Stokes, H. R. Wilson", "j": "Nature", "y": 1953, "type": "期刊论文", "lm": false, "vp": "171: 738-740", "doi": "10.1038/171738a0", "work": "DNA X射线衍射证据", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA015", "tz": "同位旋守恒与同位旋规范不变性", "t": "Conservation of Isotopic Spin and Isotopic Gauge Invariance", "au": "C. N. Yang, R. L. Mills", "j": "Physical Review", "y": 1954, "type": "期刊论文", "lm": true, "vp": "96: 191-195", "doi": "10.1103/PhysRev.96.191", "work": "杨-米尔斯规范场论", "disc": "物理学", "field": "粒子物理"}, {"id": "PA033", "tz": "血红蛋白结构 IV：同晶置换法确定相位", "t": "The Structure of Haemoglobin IV. Sign Determination by the Isomorphous Replacement Method", "au": "D. W. Green, V. M. Ingham, M. F. Perutz", "j": "Proceedings of the Royal Society A", "y": 1954, "type": "期刊论文", "lm": true, "vp": "225: 287-307", "doi": "10.1098/rspa.1954.0203", "work": "同晶置换法", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA014", "tz": "弱相互作用中宇称守恒问题", "t": "Question of Parity Conservation in Weak Interactions", "au": "T. D. Lee, C. N. Yang", "j": "Physical Review", "y": 1956, "type": "期刊论文", "lm": true, "vp": "104: 254-258", "doi": "10.1103/PhysRev.104.254", "work": "宇称不守恒", "disc": "物理学", "field": "粒子物理"}, {"id": "PA035", "tz": "由X射线分析获得的肌红蛋白三维模型", "t": "A Three-Dimensional Model of the Myoglobin Molecule Obtained by X-Ray Analysis", "au": "J. C. Kendrew et al.", "j": "Nature", "y": 1958, "type": "期刊论文", "lm": true, "vp": "181: 662-666", "doi": "10.1038/181662a0", "work": "肌红蛋白三维结构解析", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA034", "tz": "血红蛋白结构：5.5埃分辨率三维傅里叶合成", "t": "Structure of Haemoglobin: A Three-Dimensional Fourier Synthesis at 5.5-Å Resolution", "au": "M. F. Perutz et al.", "j": "Nature", "y": 1960, "type": "期刊论文", "lm": true, "vp": "185: 416-422", "doi": "10.1038/185416a0", "work": "血红蛋白三维结构解析", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA036", "tz": "盐生盐杆菌紫膜中的视紫红质样蛋白", "t": "Rhodopsin-like Protein from the Purple Membrane of Halobacterium halobium", "au": "D. Oesterhelt, W. Stoeckenius", "j": "Nature New Biology", "y": 1971, "type": "期刊论文", "lm": true, "vp": "233: 149-152", "doi": "10.1038/newbio233149a0", "work": "细菌视紫红质", "disc": "生理学或医学", "field": "生物化学"}, {"id": "PA045", "tz": "过渡金属配合物的不对称催化还原 I：一种新手性双膦配体 DIOP", "t": "Asymmetric Catalytic Reduction with Transition Metal Complexes. I. A New Chiral Diphosphine (DIOP)", "au": "H. B. Kagan, T.-P. Dang", "j": "Journal of the American Chemical Society", "y": 1972, "type": "期刊论文", "lm": false, "vp": "94: 6429-6433", "doi": "10.1021/ja00773a028", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA053", "tz": "新型羟醛反应（向山反应）", "t": "New Aldol Type Reaction", "au": "T. Mukaiyama, K. Narasaka, K. Banno", "j": "Chemistry Letters", "y": 1973, "type": "期刊论文", "lm": false, "vp": "2: 1011-1014", "doi": "10.1246/cl.1973.1011", "work": "向山羟醛反应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA046", "tz": "硫醚高效不对称氧化为亚砜", "t": "An Efficient Asymmetric Oxidation of Sulfides to Sulfoxides", "au": "P. Pitchen, E. Duñach, M. N. Deshmukh, H. B. Kagan", "j": "Journal of the American Chemical Society", "y": 1984, "type": "期刊论文", "lm": false, "vp": "106: 8188-8193", "doi": "10.1021/ja00338a030", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA043", "tz": "三种具有不同钙激动剂敏感性的神经元钙通道", "t": "Three Types of Neuronal Calcium Channel with Different Calcium Agonist Sensitivity", "au": "M. C. Nowycky, A. P. Fox, R. W. Tsien", "j": "Nature", "y": 1985, "type": "期刊论文", "lm": true, "vp": "316: 440-443", "doi": "10.1038/316440a0", "work": "钙离子通道与突触传递研究", "disc": "生理学或医学", "field": "神经科学"}, {"id": "PA044", "tz": "不对称合成中的非线性效应：不对称氧化与羟醛反应中的实例", "t": "Nonlinear Effects in Asymmetric Synthesis. Examples in Asymmetric Oxidations and Aldolization Reactions", "au": "C. Puchot, O. Samuel, E. Duñach, S. Zhao, C. Agami, H. B. Kagan", "j": "Journal of the American Chemical Society", "y": 1986, "type": "期刊论文", "lm": true, "vp": "108: 2353-2357", "doi": "10.1021/ja00269a036", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA042", "tz": "改进的绿色荧光", "t": "Improved Green Fluorescence", "au": "R. Heim, A. B. Cubitt, R. Y. Tsien", "j": "Nature", "y": 1994, "type": "期刊论文", "lm": true, "vp": "373: 663-664", "doi": "10.1038/373663b0", "work": "绿色荧光蛋白GFP", "disc": "生理学或医学", "field": "生物化学"}, {"id": "PA048", "tz": "不对称催化中的非线性效应", "t": "Nonlinear Effects in Asymmetric Catalysis", "au": "D. Guillaneux, S.-H. Zhao, O. Samuel, D. Rainford, H. B. Kagan", "j": "Journal of the American Chemical Society", "y": 1994, "type": "期刊论文", "lm": false, "vp": "116: 9430-9439", "doi": "10.1021/ja00100a004", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA039", "tz": "卵母细胞中细菌视紫红质的功能表达实现光驱动质子转运", "t": "Functional Expression of Bacteriorhodopsin in Oocytes Allows Light-Driven Proton Transport", "au": "G. Nagel, B. Möckel, G. Büldt, E. Bamberg", "j": "FEBS Letters", "y": 1995, "type": "期刊论文", "lm": true, "vp": "377: 263-266", "doi": "10.1016/0014-5793(95)01364-4", "work": "古菌光控离子泵在动物细胞的表达", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA049", "tz": "手性分子的不对称自催化与对映体过量放大", "t": "Asymmetric Autocatalysis and Amplification of Enantiomeric Excess of a Chiral Molecule", "au": "K. Soai, T. Shibata, H. Morioka, K. Choji", "j": "Nature", "y": 1995, "type": "期刊论文", "lm": true, "vp": "378: 767-768", "doi": "10.1038/378767a0", "work": "Soai反应（不对称自催化）", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA047", "tz": "不对称合成与立体选择反应中的非线性效应：十年研究", "t": "Nonlinear Effects in Asymmetric Synthesis and Stereoselective Reactions: Ten Years of Investigation", "au": "C. Girard, H. B. Kagan", "j": "Angewandte Chemie International Edition", "y": 1998, "type": "期刊论文", "lm": false, "vp": "37: 2922-2959", "doi": "10.1002/(SICI)1521-3773(19981116)37:21<2922::AID-ANIE2922>3.0.CO;2-1", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA037", "tz": "通道视紫红质-1：绿藻中的光门控质子通道", "t": "Channelrhodopsin-1: A Light-Gated Proton Channel in Green Algae", "au": "G. Nagel et al.", "j": "Science", "y": 2002, "type": "期刊论文", "lm": true, "vp": "296: 2395-2398", "doi": "10.1126/science.1072068", "work": "通道视紫红质ChR1/ChR2", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA038", "tz": "通道视紫红质-2：直接光门控的阳离子选择通道", "t": "Channelrhodopsin-2, a Directly Light-Gated Cation-Selective Membrane Channel", "au": "G. Nagel et al.", "j": "PNAS", "y": 2003, "type": "期刊论文", "lm": true, "vp": "100: 13940-13945", "doi": "10.1073/pnas.1936192100", "work": "通道视紫红质ChR1/ChR2", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA040", "tz": "毫秒级、基因靶向的神经活动光学控制", "t": "Millisecond-Timescale, Genetically Targeted Optical Control of Neural Activity", "au": "E. S. Boyden, F. Zhang, E. Bamberg, G. Nagel, K. Deisseroth", "j": "Nature Neuroscience", "y": 2005, "type": "期刊论文", "lm": true, "vp": "8: 1263-1268", "doi": "10.1038/nn1525", "work": "光遗传学技术体系", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA027", "tz": "冰立方探测器高能宇宙中微子证据", "t": "Evidence for High-Energy Extraterrestrial Neutrinos at the IceCube Detector", "au": "IceCube Collaboration (M. G. Aartsen et al.)", "j": "Science", "y": 2013, "type": "期刊论文", "lm": true, "vp": "342: 1242856", "doi": "10.1126/science.1242856", "work": "高能天体中微子的发现", "disc": "物理学", "field": "天体物理与中微子天文学"}, {"id": "PA041", "tz": "完整生物系统的结构与分子探查", "t": "Structural and Molecular Interrogation of Intact Biological Systems", "au": "K. Chung, K. Deisseroth", "j": "Nature", "y": 2013, "type": "期刊论文", "lm": true, "vp": "497: 332-337", "doi": "10.1038/nature12107", "work": "CLARITY透明脑成像技术", "disc": "生理学或医学", "field": "神经科学"}, {"id": "PA028", "tz": "三年冰立方数据中的高能天体物理中微子观测", "t": "Observation of High-Energy Astrophysical Neutrinos in Three Years of IceCube Data", "au": "IceCube Collaboration", "j": "Physical Review Letters", "y": 2014, "type": "期刊论文", "lm": false, "vp": "113: 101101", "doi": "10.1103/PhysRevLett.113.101101", "work": "高能天体中微子的发现", "disc": "物理学", "field": "天体物理与中微子天文学"}], "lag": [{"n": "亨利·B·卡甘", "py": 1972, "ny": 2026, "lag": 54, "cat": "化学"}, {"n": "硖合宪三", "py": 1995, "ny": 2026, "lag": 31, "cat": "化学"}, {"n": "格奥尔格·纳格尔", "py": 1995, "ny": 2026, "lag": 31, "cat": "生理学或医学"}, {"n": "马克斯·玻恩", "py": 1925, "ny": 1954, "lag": 29, "cat": "物理学"}, {"n": "马克斯·玻恩", "py": 1926, "ny": 1954, "lag": 28, "cat": "物理学"}, {"n": "马克斯·玻恩", "py": 1926, "ny": 1954, "lag": 28, "cat": "物理学"}, {"n": "汉斯·贝特", "py": 1939, "ny": 1967, "lag": 28, "cat": "物理学"}, {"n": "萨尔瓦多·卢里亚", "py": 1943, "ny": 1969, "lag": 26, "cat": "生理学或医学"}, {"n": "格奥尔格·纳格尔", "py": 2002, "ny": 2026, "lag": 24, "cat": "生理学或医学"}, {"n": "彼得·德拜", "py": 1912, "ny": 1936, "lag": 24, "cat": "化学"}, {"n": "格奥尔格·纳格尔", "py": 2003, "ny": 2026, "lag": 23, "cat": "生理学或医学"}, {"n": "奥格·玻尔", "py": 1953, "ny": 1975, "lag": 22, "cat": "物理学"}, {"n": "沃尔夫冈·泡利", "py": 1925, "ny": 1945, "lag": 20, "cat": "物理学"}, {"n": "玛丽亚·格佩特-梅耶", "py": 1948, "ny": 1963, "lag": 15, "cat": "物理学"}, {"n": "玛丽亚·格佩特-梅耶", "py": 1949, "ny": 1963, "lag": 14, "cat": "物理学"}, {"n": "玛丽·居里", "py": 1898, "ny": 1911, "lag": 13, "cat": "化学"}, {"n": "弗朗西斯·哈尔岑", "py": 2013, "ny": 2026, "lag": 13, "cat": "物理学"}, {"n": "恩里科·费米", "py": 1926, "ny": 1938, "lag": 12, "cat": "物理学"}, {"n": "弗朗西斯·哈尔岑", "py": 2014, "ny": 2026, "lag": 12, "cat": "物理学"}, {"n": "乔治·佩吉特·汤姆孙", "py": 1927, "ny": 1937, "lag": 10, "cat": "物理学"}, {"n": "尼尔斯·玻尔", "py": 1913, "ny": 1922, "lag": 9, "cat": "物理学"}, {"n": "詹姆斯·沃森", "py": 1953, "ny": 1962, "lag": 9, "cat": "生理学或医学"}, {"n": "莫里斯·威尔金斯", "py": 1953, "ny": 1962, "lag": 9, "cat": "生理学或医学"}, {"n": "约瑟夫·约翰·汤姆孙", "py": 1897, "ny": 1906, "lag": 9, "cat": "物理学"}, {"n": "维尔纳·海森堡", "py": 1925, "ny": 1932, "lag": 7, "cat": "物理学"}, {"n": "保罗·狄拉克", "py": 1928, "ny": 1933, "lag": 5, "cat": "物理学"}, {"n": "保罗·狄拉克", "py": 1928, "ny": 1933, "lag": 5, "cat": "物理学"}, {"n": "维尔纳·海森堡", "py": 1927, "ny": 1932, "lag": 5, "cat": "物理学"}, {"n": "约翰·肯德鲁", "py": 1958, "ny": 1962, "lag": 4, "cat": "化学"}, {"n": "恩里科·费米", "py": 1934, "ny": 1938, "lag": 4, "cat": "物理学"}, {"n": "杨振宁", "py": 1954, "ny": 1957, "lag": 3, "cat": "物理学"}, {"n": "詹姆斯·查德威克", "py": 1932, "ny": 1935, "lag": 3, "cat": "物理学"}, {"n": "詹姆斯·查德威克", "py": 1932, "ny": 1935, "lag": 3, "cat": "物理学"}, {"n": "威廉·劳伦斯·布拉格", "py": 1913, "ny": 1915, "lag": 2, "cat": "物理学"}, {"n": "马克斯·佩鲁茨", "py": 1960, "ny": 1962, "lag": 2, "cat": "化学"}, {"n": "李政道", "py": 1956, "ny": 1957, "lag": 1, "cat": "物理学"}, {"n": "弗雷德里克·约里奥-居里", "py": 1934, "ny": 1935, "lag": 1, "cat": "化学"}, {"n": "欧内斯特·卢瑟福", "py": 1911, "ny": 1908, "lag": -3, "cat": "化学"}, {"n": "恩里科·费米", "py": 1942, "ny": 1938, "lag": -4, "cat": "物理学"}], "journals": [{"j": "Nature", "c": 13, "lm": 11}, {"j": "Zeitschrift für Physik", "c": 7, "lm": 6}, {"j": "Physical Review", "c": 6, "lm": 5}, {"j": "Journal of the American Chemical Society", "c": 4, "lm": 1}, {"j": "Proceedings of the Royal Society A", "c": 4, "lm": 2}, {"j": "Philosophical Magazine", "c": 3, "lm": 3}, {"j": "Annalen der Physik", "c": 3, "lm": 2}, {"j": "Comptes Rendus de l'Académie des Sciences", "c": 2, "lm": 2}, {"j": "Science", "c": 2, "lm": 2}, {"j": "技术报告", "c": 1, "lm": 1}, {"j": "Chemistry Letters", "c": 1, "lm": 0}, {"j": "Genetics", "c": 1, "lm": 1}, {"j": "Physikalische Zeitschrift", "c": 1, "lm": 0}, {"j": "Proceedings of the Cambridge Philosophical Society", "c": 1, "lm": 1}, {"j": "Cambridge University Press", "c": 1, "lm": 1}, {"j": "Nature New Biology", "c": 1, "lm": 1}, {"j": "Matematisk-fysiske Meddelelser (Dan. Vid. Selsk.)", "c": 1, "lm": 1}, {"j": "PNAS", "c": 1, "lm": 1}, {"j": "FEBS Letters", "c": 1, "lm": 1}, {"j": "Nature Neuroscience", "c": 1, "lm": 1}, {"j": "Angewandte Chemie International Edition", "c": 1, "lm": 0}, {"j": "机密技术报告", "c": 1, "lm": 1}, {"j": "Physical Review Letters", "c": 1, "lm": 0}], "graph": {"nodes": [{"id": "P009", "name": "杨振宁", "cat": "物理学"}, {"id": "P010", "name": "李政道", "cat": "物理学"}, {"id": "P002", "name": "维尔纳·海森堡", "cat": "物理学"}, {"id": "P033", "name": "马克斯·玻恩", "cat": "物理学"}, {"id": "P023", "name": "格奥尔格·纳格尔", "cat": "生理学或医学"}, {"id": "P030", "name": "恩斯特·班贝格", "cat": "其他学者"}, {"id": "P021", "name": "卡尔·戴塞罗思", "cat": "生理学或医学"}, {"id": "P026", "name": "爱德华·博伊登", "cat": "其他学者"}, {"id": "P014", "name": "詹姆斯·沃森", "cat": "生理学或医学"}, {"id": "P015", "name": "弗朗西斯·克里克", "cat": "生理学或医学"}, {"id": "P019", "name": "伊雷娜·约里奥-居里", "cat": "化学"}, {"id": "P044", "name": "弗雷德里克·约里奥-居里", "cat": "化学"}], "edges": [{"source": "P009", "target": "P010", "paper": "弱相互作用中宇称守恒问题"}, {"source": "P002", "target": "P033", "paper": "量子力学 II"}, {"source": "P023", "target": "P030", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P023", "target": "P030", "paper": "卵母细胞中细菌视紫红质的功能表达实现光驱动质子转运"}, {"source": "P021", "target": "P023", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P021", "target": "P026", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P021", "target": "P030", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P014", "target": "P015", "paper": "核酸的分子结构——脱氧核糖核酸的一种结构"}, {"source": "P023", "target": "P026", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P026", "target": "P030", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P019", "target": "P044", "paper": "一种新型放射性"}]}};
+const PAL = {"物理学":"#2563eb","化学":"#0f9d76","生理学或医学":"#e0602a","其他":"#94a3b8","其他学者":"#94a3b8"};
+const CATPAL = {"物理学":"#2563eb","化学":"#0f9d76","生理学或医学":"#e0602a","其他学者":"#94a3b8"};
+
+// KPIs
+const KL=[["papers","论文/著作"],["lm","其中里程碑"],["jr","期刊/出版方"],["doi","含DOI"],["lag","平均时滞(年)"],["co","合著边"]];
+document.getElementById("kpis").innerHTML = KL.map(([k,lb])=>
+  `<div class="kpi"><div class="num">${DATA.kpi[k]}</div><div class="lb">${lb}</div></div>`).join("");
+
+// 时间轴
+const discs=[...new Set(DATA.papers.map(p=>p.disc))];
+const tl=echarts.init(document.getElementById("timeline"));
+tl.setOption({
+  title:{text:"论文发表时间线",left:12,top:8,textStyle:{fontSize:15}},
+  tooltip:{formatter:p=>`<b>${p.data.tz}</b><br>${p.data.au}<br>${p.data.j} (${p.data.y})`+(p.data.vp?`<br>${p.data.vp}`:"")+(p.data.doi?`<br>DOI: ${p.data.doi}`:"")+(p.data.work?`<br>对应工作：${p.data.work}`:"")},
+  grid:{left:96,right:26,top:56,bottom:44},
+  xAxis:{type:"value",min:1884,max:2028,name:"年份",axisLabel:{fontSize:11}},
+  yAxis:{type:"category",data:discs,axisLabel:{fontSize:11}},
+  series:[{type:"scatter",data:DATA.papers.map(p=>({value:[p.y,discs.indexOf(p.disc)],tz:p.tz,au:p.au,j:p.j,y:p.y,vp:p.vp,doi:p.doi,work:p.work,
+      symbolSize:p.lm?15:8,itemStyle:{color:PAL[p.disc]||"#94a3b8",opacity:p.lm?1:.55,borderColor:"#fff",borderWidth:p.lm?1:0}}))}]
+});
+
+// 合著网络
+const g=echarts.init(document.getElementById("graph"));
+g.setOption({
+  title:{text:"论文合著网络",left:12,top:8,textStyle:{fontSize:15}},
+  tooltip:{},
+  legend:[{top:10,right:12,data:["物理学","化学","生理学或医学","其他学者"],textStyle:{fontSize:11}}],
+  series:[{type:"graph",layout:"force",roam:true,draggable:true,
+    categories:[{name:"物理学"},{name:"化学"},{name:"生理学或医学"},{name:"其他学者"}],
+    data:DATA.graph.nodes.map(n=>({id:n.id,name:n.name,category:["物理学","化学","生理学或医学","其他学者"].indexOf(n.cat),
+      symbolSize:26,itemStyle:{color:CATPAL[n.cat]||"#94a3b8",borderColor:"#fff",borderWidth:1.5},
+      label:{show:true,fontSize:10,formatter:n.name}})),
+    links:DATA.graph.edges.map(e=>({source:e.source,target:e.target,tooltip:e.paper})),
+    force:{repulsion:420,edgeLength:120,gravity:0.09},
+    lineStyle:{color:"#cbd5e1",width:1.6,curveness:0.05},
+    label:{position:"bottom",color:"#334155"}}]
+});
+
+// 期刊分布
+const jr=echarts.init(document.getElementById("journals"));
+const jrdata=[...DATA.journals].sort((a,b)=>a.c-b.c);
+jr.setOption({
+  title:{text:"期刊/出版方分布",left:12,top:8,textStyle:{fontSize:15}},
+  tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+  legend:{top:10,right:12,textStyle:{fontSize:11}},
+  grid:{left:230,right:30,top:52,bottom:34},
+  xAxis:{type:"value"}, yAxis:{type:"category",data:jrdata.map(x=>x.j),axisLabel:{fontSize:10.5}},
+  series:[
+    {name:"论文数",type:"bar",stack:"a",data:jrdata.map(x=>x.c),itemStyle:{color:"#c7d7fb"}},
+    {name:"里程碑",type:"bar",stack:"a",data:jrdata.map(x=>x.lm),itemStyle:{color:"#2563eb"}}]
+});
+
+// 时滞
+const lg=echarts.init(document.getElementById("lag"));
+const lgdata=[...DATA.lag].reverse();
+lg.setOption({
+  title:{text:"论文发表→获诺奖 时滞（年）",left:12,top:8,textStyle:{fontSize:15}},
+  tooltip:{trigger:"axis",formatter:p=>{const d=lgdata[p[0].dataIndex];return `<b>${d.n}</b><br>${d.py} 年论文 → ${d.ny} 年（${d.cat}奖）<br>时滞 ${d.lag} 年`;}},
+  grid:{left:150,right:40,top:44,bottom:34},
+  xAxis:{type:"value"},
+  yAxis:{type:"category",data:lgdata.map(d=>d.n+" ⏱"+d.lag),axisLabel:{fontSize:10.5}},
+  series:[{type:"bar",data:lgdata.map(d=>({value:d.lag,itemStyle:{color:PAL[d.cat]||"#94a3b8"}})),label:{show:true,position:"right",fontSize:10}}]
+});
+
+// 表格
+const tb=document.querySelector("#tbl tbody");
+const qEl=document.getElementById("q"), dEl=document.getElementById("disc"), lmEl=document.getElementById("lmonly");
+function render(){
+  const q=qEl.value.trim().toLowerCase(), d=dEl.value, lm=lmEl.checked;
+  const rows=DATA.papers.filter(p=>(!lm||p.lm)&&(!d||p.disc===d)&&
+    (!q||(p.tz+p.t+p.au+p.j).toLowerCase().includes(q)));
+  rows.sort((a,b)=>b.y-a.y);
+  tb.innerHTML=rows.map(p=>{
+    const cls=p.disc==="物理学"?"t-phy":p.disc==="化学"?"t-chem":p.disc==="生理学或医学"?"t-med":"t-oth";
+    const doi=p.doi?`<br><span style="color:#94a3b8;font-size:11px;">DOI: ${p.doi}</span>`:"";
+    return `<tr><td>${p.y}</td><td><b>${p.tz}</b><div style="color:#94a3b8;font-size:11px;">${p.t}</div>${doi}</td>
+      <td>${p.au}</td><td>${p.j}</td><td>${p.vp||"—"}</td>
+      <td><span class="tag ${cls}">${p.field}</span></td>
+      <td>${p.lm?"★":""}</td></tr>`;
+  }).join("");
+  document.getElementById("cnt").textContent=`共 ${rows.length} 条`;
+}
+qEl.oninput=render; dEl.onchange=render; lmEl.onchange=render; render();
+window.addEventListener("resize",()=>{tl.resize();g.resize();jr.resize();lg.resize();});
+</script>
+</body>
+</html>

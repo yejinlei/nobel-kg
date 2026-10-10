@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诺贝尔文学奖 · 作品与传承图谱</title>
+<script src="../lib/d3.min.js"></script>
+<script src="../lib/echarts.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+:root { --lit-bg: #f7f3ed; --lit-accent: #8B4513; --lit-secondary: #D2691E; }
+body { background: var(--lit-bg); margin: 0; font-family: -apple-system, system-ui, sans-serif; }
+.header { background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); color: white; padding: 2rem 3rem; }
+.header h1 { margin: 0; font-size: 2rem; }
+.header p { margin: 0.5rem 0 0; opacity: 0.9; }
+.container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+.loading { text-align: center; padding: 4rem; color: #666; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.card h3 { margin: 0 0 1rem; color: var(--lit-accent); font-size: 1.1rem; border-left: 4px solid var(--lit-accent); padding-left: 0.75rem; }
+.chart { width: 100%; height: 380px; }
+.chart-wide { width: 100%; height: 500px; }
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.stat-card { background: white; border-radius: 12px; padding: 1.25rem; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.stat-num { font-size: 2.2rem; font-weight: 700; color: var(--lit-accent); }
+.stat-label { color: #666; font-size: 0.9rem; margin-top: 0.3rem; }
+.writer-list { max-height: 500px; overflow-y: auto; }
+.writer-item { padding: 0.75rem; border-bottom: 1px solid #f0ebe4; cursor: pointer; transition: background 0.2s; }
+.writer-item:hover { background: #faf7f2; }
+.writer-year { color: var(--lit-secondary); font-size: 0.85rem; font-weight: 600; }
+.writer-name { font-weight: 500; margin: 0.2rem 0; }
+.writer-country { color: #888; font-size: 0.8rem; }
+.full { grid-column: 1 / -1; }
+.back-link { position: fixed; top: 1rem; left: 1rem; background: rgba(255,255,255,0.9); padding: 0.5rem 1rem; border-radius: 20px; text-decoration: none; color: var(--lit-accent); box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 100; }
+.back-link:hover { background: white; }
+</style>
+</head>
+<body>
+<a href="../index.html" class="back-link">← 返回主页</a>
+<div class="header">
+  <h1>📖 诺贝尔文学奖 · 作品与传承图谱</h1>
+  <p>1901-2026 · 123位得主 · 作品、流派、语言、地域的多维可视化</p>
+</div>
+<div class="container">
+  <div class="loading" id="loading">正在加载本体数据…</div>
+  <div id="content" style="display:none">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num" id="s1">0</div><div class="stat-label">获奖作家</div></div>
+      <div class="stat-card"><div class="stat-num" id="s2">0</div><div class="stat-label">国家/地区</div></div>
+      <div class="stat-card"><div class="stat-num" id="s3">0</div><div class="stat-label">文学流派</div></div>
+      <div class="stat-card"><div class="stat-num" id="s4">0</div><div class="stat-label">可考影响关系</div></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>🏆 历年获奖人数（按国家）</h3>
+        <div id="chart_year" class="chart-wide"></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>🌍 获奖国家分布</h3>
+        <div id="chart_country" class="chart"></div>
+      </div>
+      <div class="card">
+        <h3>📚 作品体裁分布</h3>
+        <div id="chart_genre" class="chart"></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card full">
+        <h3>🌱 文学流派传承网络</h3>
+        <svg id="chart_network" width="100%" height="550"></svg>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>📅 世纪分布</h3>
+        <div id="chart_century" class="chart"></div>
+      </div>
+      <div class="card">
+        <h3>📋 作家名录</h3>
+        <div class="writer-list" id="writer_list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as db from '../js/db.js';
+const log = msg => document.getElementById('loading').textContent = msg;
+
+await db.initDB(log);
+log('正在查询文学奖数据…');
+
+// 查数据
+const writers = await db.query('SELECT * FROM writers ORDER BY nobel_year');
+const movements = await db.query('SELECT * FROM literary_movements');
+const genres = await db.query('SELECT * FROM literary_genres');
+const wm = await db.query('SELECT * FROM writer_movement');
+const wg = await db.query('SELECT * FROM writer_genre');
+const influence = await db.query('SELECT * FROM literary_influence');
+
+// 统计
+const countries = new Set(writers.map(w=>w.country));
+document.getElementById('s1').textContent = writers.length;
+document.getElementById('s2').textContent = countries.size;
+document.getElementById('s3').textContent = movements.length;
+document.getElementById('s4').textContent = influence.length;
+
+document.getElementById('loading').style.display = 'none';
+document.getElementById('content').style.display = 'block';
+
+// 作家名录
+const wl = document.getElementById('writer_list');
+writers.forEach(w => {
+  const div = document.createElement('div');
+  div.className = 'writer-item';
+  div.innerHTML = `
+    <div class="writer-year">${w.nobel_year}年</div>
+    <div class="writer-name">${w.name_en}${w.name_native?'（'+w.name_native+'）':''}</div>
+    <div class="writer-country">${w.country}${w.gender==='female'?' · 女作家':''}</div>
+  `;
+  wl.appendChild(div);
+});
+
+// 国家分布饼图
+const countryCount = {};
+writers.forEach(w=>{ countryCount[w.country] = (countryCount[w.country]||0)+1; });
+const countryData = Object.entries(countryCount).map(([k,v])=>({name:k,value:v})).sort((a,b)=>b.value-a.value).slice(0,12);
+echarts.init(document.getElementById('chart_country')).setOption({
+  tooltip: { trigger:'item' },
+  series: [{ type:'pie', radius:['40%','70%'], data:countryData, label:{formatter:'{b}: {c}'},
+    itemStyle:{borderRadius:6,borderColor:'#fff',borderWidth:2} }]
+});
+
+// 体裁分布
+const genreCount = {};
+wg.forEach(r=>{ const g = genres.find(x=>x.genre_id===r.genre_id); if(g) genreCount[g.name_zh]=(genreCount[g.name_zh]||0)+1; });
+const genreData = Object.entries(genreCount).map(([k,v])=>({name:k,value:v}));
+echarts.init(document.getElementById('chart_genre')).setOption({
+  tooltip: { trigger:'item' },
+  series: [{ type:'pie', radius:'70%', data:genreData,
+    itemStyle:{borderRadius:6,borderColor:'#fff',borderWidth:2} }]
+});
+
+// 世纪分布
+const centuryCount = {'20世纪前':0,'20世纪上半叶(1901-1950)':0,'20世纪下半叶(1951-2000)':0,'21世纪(2001-)':0};
+writers.forEach(w=>{
+  const y = w.nobel_year;
+  if(y<1901) centuryCount['20世纪前']++;
+  else if(y<=1950) centuryCount['20世纪上半叶(1901-1950)']++;
+  else if(y<=2000) centuryCount['20世纪下半叶(1951-2000)']++;
+  else centuryCount['21世纪(2001-)']++;
+});
+echarts.init(document.getElementById('chart_century')).setOption({
+  tooltip: {}, xAxis:{type:'category',data:Object.keys(centuryCount)},
+  yAxis:{type:'value'}, series:[{type:'bar',data:Object.values(centuryCount),itemStyle:{color:'#A0522D',borderRadius:[6,6,0,0]}}]
+});
+
+// 历年国家时间线
+const yearMin = Math.min(...writers.map(w=>w.nobel_year));
+const yearMax = Math.max(...writers.map(w=>w.nobel_year));
+const years = [];
+for(let y=yearMin;y<=yearMax;y++) years.push(y);
+const countryTop = countryData.slice(0,6).map(x=>x.name);
+const series = countryTop.map(c=>({
+  name:c, type:'bar', stack:'total',
+  data: years.map(y => writers.filter(w=>w.nobel_year===y && w.country===c).length)
+}));
+echarts.init(document.getElementById('chart_year')).setOption({
+  tooltip:{trigger:'axis'}, legend:{data:countryTop,bottom:0},
+  grid:{left:40,right:20,top:20,bottom:50},
+  xAxis:{type:'category',data:years}, yAxis:{type:'value'},
+  series
+});
+
+// 流派网络力导向图
+const svg = d3.select('#chart_network');
+const width = svg.node().getBoundingClientRect().width;
+const height = 550;
+svg.attr('viewBox',`0 0 ${width} ${height}`);
+
+const nodes = [
+  ...movements.map(m=>({id:m.school_id,name:m.name_zh,type:'movement',r: 20 + wm.filter(w=>w.school_id===m.school_id).length*2})),
+  ...writers.map(w=>({id:w.writer_id,name:w.name_en.split(' ').slice(-1)[0],type:'writer',r:6})),
+];
+const links = [
+  ...wm.map(r=>({source:r.writer_id,target:r.school_id,type:'belong'})),
+  ...influence.map(r=>({source:r.source_writer_id,target:r.target_writer_id,type:'influence'}))
+].filter(l=>nodes.find(n=>n.id===l.source) && nodes.find(n=>n.id===l.target));
+
+const color = d3.scaleOrdinal().domain(['movement','writer']).range(['#8B4513','#D2B48C']);
+const simulation = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d=>d.id).distance(d=>d.type==='belong'?80:120).strength(0.3))
+  .force('charge', d3.forceManyBody().strength(-80))
+  .force('center', d3.forceCenter(width/2, height/2))
+  .force('collide', d3.forceCollide(d=>d.r+3));
+
+const link = svg.append('g').selectAll('line').data(links).join('line')
+  .attr('stroke', d=>d.type==='belong'?'#8B4513':'#aaa')
+  .attr('stroke-opacity', d=>d.type==='belong'?0.4:0.2)
+  .attr('stroke-width', d=>d.type==='belong'?1.5:1);
+const node = svg.append('g').selectAll('g').data(nodes).join('g').call(d3.drag()
+  .on('start',(e,d)=>{if(!e.active) simulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+  .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+  .on('end',(e,d)=>{if(!e.active) simulation.alphaTarget(0);d.fx=null;d.fy=null;}));
+node.append('circle').attr('r',d=>d.r).attr('fill',d=>color(d.type)).attr('stroke','#fff').attr('stroke-width',1.5);
+node.append('text').text(d=>d.name).attr('x',d=>d.r+3).attr('y',3).attr('font-size',d=>d.type==='movement'?'12px':'9px').attr('fill','#333');
+simulation.on('tick',()=>{
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+});
+</script>
+</body>
+</html>

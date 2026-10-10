@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诺贝尔和平奖 · 领域与组织图谱</title>
+<script src="../lib/d3.min.js"></script>
+<script src="../lib/echarts.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+:root { --peace-bg: #eef3f7; --peace-accent: #1e5799; --peace-secondary: #2989d8; --peace-olive: #6B8E23; }
+body { background: var(--peace-bg); margin: 0; font-family: -apple-system, system-ui, sans-serif; }
+.header { background: linear-gradient(135deg, #1e5799 0%, #2989d8 50%, #7db9e8 100%); color: white; padding: 2rem 3rem; }
+.header h1 { margin: 0; font-size: 2rem; }
+.header p { margin: 0.5rem 0 0; opacity: 0.9; }
+.container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+.loading { text-align: center; padding: 4rem; color: #666; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.card h3 { margin: 0 0 1rem; color: var(--peace-accent); font-size: 1.1rem; border-left: 4px solid var(--peace-accent); padding-left: 0.75rem; }
+.chart { width: 100%; height: 380px; }
+.chart-wide { width: 100%; height: 500px; }
+.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.stat-card { background: white; border-radius: 12px; padding: 1.25rem; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.stat-num { font-size: 2.2rem; font-weight: 700; color: var(--peace-accent); }
+.stat-label { color: #666; font-size: 0.85rem; margin-top: 0.3rem; }
+.special-note { background: #fff8e1; border-left: 4px solid #ffc107; padding: 0.75rem 1rem; margin: 0.5rem 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; }
+.subject-list { max-height: 500px; overflow-y: auto; }
+.subject-item { padding: 0.75rem; border-bottom: 1px solid #eef3f7; }
+.subject-year { color: var(--peace-secondary); font-size: 0.85rem; font-weight: 600; }
+.subject-name { font-weight: 500; margin: 0.2rem 0; }
+.subject-type { display: inline-block; background: #e3f2fd; color: var(--peace-accent); padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.75rem; margin-right: 0.5rem; }
+.subject-tag { display: inline-block; background: #f1f8e9; color: var(--peace-olive); padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.75rem; margin-right: 0.3rem; margin-top: 0.3rem; }
+.full { grid-column: 1 / -1; }
+.back-link { position: fixed; top: 1rem; left: 1rem; background: rgba(255,255,255,0.95); padding: 0.5rem 1rem; border-radius: 20px; text-decoration: none; color: var(--peace-accent); box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 100; }
+.back-link:hover { background: white; }
+.badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; color: white; margin-left: 0.3rem; }
+.badge-decline { background: #f44336; }
+.badge-posthumous { background: #9c27b0; }
+.badge-in-office { background: #ff9800; }
+</style>
+</head>
+<body>
+<a href="../index.html" class="back-link">← 返回主页</a>
+<div class="header">
+  <h1>☮️ 诺贝尔和平奖 · 领域与组织图谱</h1>
+  <p>1901-2026 · 141位获奖主体（个人/组织） · 人道、人权、裁军、环保等7大领域</p>
+</div>
+<div class="container">
+  <div class="loading" id="loading">正在加载本体数据…</div>
+  <div id="content" style="display:none">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num" id="s1">0</div><div class="stat-label">获奖主体总数</div></div>
+      <div class="stat-card"><div class="stat-num" id="s2">0</div><div class="stat-label">个人</div></div>
+      <div class="stat-card"><div class="stat-num" id="s3">0</div><div class="stat-label">组织</div></div>
+      <div class="stat-card"><div class="stat-num" id="s4">0</div><div class="stat-label">覆盖领域</div></div>
+      <div class="stat-card"><div class="stat-num" id="s5">0</div><div class="stat-label">国家/地区</div></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>📈 历年获奖趋势</h3>
+        <div id="chart_year" class="chart-wide"></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>🌍 领域分布</h3>
+        <div id="chart_field" class="chart"></div>
+      </div>
+      <div class="card">
+        <h3>🏛️ 个人 vs 组织获奖比例</h3>
+        <div id="chart_type" class="chart"></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card full">
+        <h3>🕸️ 主体-领域关系网络</h3>
+        <svg id="chart_network" width="100%" height="550"></svg>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>🌐 获奖国家分布</h3>
+        <div id="chart_country" class="chart"></div>
+      </div>
+      <div class="card">
+        <h3>📋 获奖主体名录（含特殊案例）</h3>
+        <div class="subject-list" id="subject_list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as db from '../js/db.js';
+const log = msg => document.getElementById('loading').textContent = msg;
+
+await db.initDB(log);
+log('正在查询和平奖数据…');
+
+const subjects = await db.query('SELECT * FROM peace_subjects ORDER BY nobel_year');
+const orgs = await db.query('SELECT * FROM peace_orgs');
+const fields = await db.query('SELECT * FROM peace_fields');
+const sf = await db.query('SELECT * FROM peace_field_rel');
+
+const personSubjects = subjects.filter(s=>s.subject_type==='个人');
+const orgSubjects = subjects.filter(s=>s.subject_type==='组织');
+const countries = new Set(subjects.map(s=>s.country).filter(Boolean));
+
+document.getElementById('s1').textContent = subjects.length;
+document.getElementById('s2').textContent = personSubjects.length;
+document.getElementById('s3').textContent = orgSubjects.length;
+document.getElementById('s4').textContent = fields.length;
+document.getElementById('s5').textContent = countries.size;
+
+document.getElementById('loading').style.display = 'none';
+document.getElementById('content').style.display = 'block';
+
+// 名录
+const sl = document.getElementById('subject_list');
+subjects.forEach(s => {
+  const div = document.createElement('div');
+  div.className = 'subject-item';
+  const fieldRel = sf.filter(r=>r.subject_id===s.subject_id).map(r=>fields.find(f=>f.field_id===r.field_id)?.name_zh).filter(Boolean);
+  let badges = '';
+  if(s.declined === '是') badges += '<span class="badge badge-decline">拒领</span>';
+  if(s.posthumous === '是') badges += '<span class="badge badge-posthumous">追授</span>';
+  if(s.in_office === '是') badges += '<span class="badge badge-in-office">在任时获奖</span>';
+  div.innerHTML = `
+    <div class="subject-year">${s.nobel_year}年 ${badges}</div>
+    <div class="subject-name">
+      <span class="subject-type">${s.subject_type}</span>
+      ${s.name_en}${s.acronym?'（'+s.acronym+'）':''}
+    </div>
+    <div>${s.country||'国际组织'}</div>
+    <div>${fieldRel.map(f=>`<span class="subject-tag">${f}</span>`).join('')}</div>
+  `;
+  sl.appendChild(div);
+});
+
+// 领域分布
+const fieldCount = {};
+sf.forEach(r=>{ const f = fields.find(x=>x.field_id===r.field_id); if(f) fieldCount[f.name_zh]=(fieldCount[f.name_zh]||0)+1; });
+const fieldData = Object.entries(fieldCount).map(([k,v])=>({name:k,value:v})).sort((a,b)=>b.value-a.value);
+echarts.init(document.getElementById('chart_field')).setOption({
+  tooltip:{trigger:'item'},
+  series:[{type:'pie',radius:'70%',data:fieldData,label:{formatter:'{b}: {c}'},
+    itemStyle:{borderRadius:6,borderColor:'#fff',borderWidth:2},
+    color:['#1e5799','#2989d8','#7db9e8','#6B8E23','#95a5a6','#e67e22','#9b59b6']}]
+});
+
+// 个人/组织比例
+echarts.init(document.getElementById('chart_type')).setOption({
+  tooltip:{trigger:'item'},
+  series:[{type:'pie',radius:['40%','70%'],data:[
+    {name:'个人',value:personSubjects.length,itemStyle:{color:'#2989d8'}},
+    {name:'组织',value:orgSubjects.length,itemStyle:{color:'#6B8E23'}}
+  ],label:{formatter:'{b}: {c}人'},itemStyle:{borderRadius:6,borderColor:'#fff',borderWidth:2}}]
+});
+
+// 国家分布
+const countryCount = {};
+subjects.forEach(s=>{ if(s.country) countryCount[s.country]=(countryCount[s.country]||0)+1; });
+const countryData = Object.entries(countryCount).map(([k,v])=>({name:k,value:v})).sort((a,b)=>b.value-a.value).slice(0,12);
+echarts.init(document.getElementById('chart_country')).setOption({
+  tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+  grid:{left:80,right:20,top:10,bottom:20},
+  xAxis:{type:'value'},yAxis:{type:'category',data:countryData.map(d=>d.name).reverse()},
+  series:[{type:'bar',data:countryData.map(d=>d.value).reverse(),itemStyle:{color:'#2989d8',borderRadius:[0,6,6,0]}}]
+});
+
+// 历年趋势
+const yearMin = 1901, yearMax = 2026;
+const years = []; for(let y=yearMin;y<=yearMax;y++) years.push(y);
+const yearPerson = years.map(y=>subjects.filter(s=>s.nobel_year===y && s.subject_type==='个人').length);
+const yearOrg = years.map(y=>subjects.filter(s=>s.nobel_year===y && s.subject_type==='组织').length);
+echarts.init(document.getElementById('chart_year')).setOption({
+  tooltip:{trigger:'axis'}, legend:{data:['个人','组织'],bottom:0},
+  grid:{left:40,right:20,top:20,bottom:50},
+  xAxis:{type:'category',data:years},yAxis:{type:'value'},
+  series:[
+    {name:'个人',type:'bar',stack:'total',data:yearPerson,itemStyle:{color:'#2989d8'}},
+    {name:'组织',type:'bar',stack:'total',data:yearOrg,itemStyle:{color:'#6B8E23'}}
+  ]
+});
+
+// 领域关系网络
+const svg = d3.select('#chart_network');
+const width = svg.node().getBoundingClientRect().width;
+const height = 550;
+svg.attr('viewBox',`0 0 ${width} ${height}`);
+
+const networkNodes = [
+  ...fields.map(f=>({id:f.field_id,name:f.name_zh,type:'field',r: 25 + sf.filter(r=>r.field_id===f.field_id).length*1.5})),
+  ...subjects.map(s=>({id:s.subject_id,name:s.subject_type==='组织'?(s.acronym||s.name_en.slice(0,10)):s.name_en.split(' ').slice(-1)[0],type:s.subject_type,r:s.subject_type==='组织'?10:6})),
+];
+const networkLinks = sf.map(r=>({source:r.subject_id,target:r.field_id})).filter(l=>networkNodes.find(n=>n.id===l.source)&&networkNodes.find(n=>n.id===l.target));
+const color = d3.scaleOrdinal().domain(['field','个人','组织']).range(['#1e5799','#7db9e8','#6B8E23']);
+const simulation = d3.forceSimulation(networkNodes)
+  .force('link',d3.forceLink(networkLinks).id(d=>d.id).distance(100).strength(0.3))
+  .force('charge',d3.forceManyBody().strength(-50))
+  .force('center',d3.forceCenter(width/2,height/2))
+  .force('collide',d3.forceCollide(d=>d.r+3));
+const link = svg.append('g').selectAll('line').data(networkLinks).join('line')
+  .attr('stroke','#1e5799').attr('stroke-opacity',0.2).attr('stroke-width',1);
+const node = svg.append('g').selectAll('g').data(networkNodes).join('g').call(d3.drag()
+  .on('start',(e,d)=>{if(!e.active) simulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+  .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+  .on('end',(e,d)=>{if(!e.active) simulation.alphaTarget(0);d.fx=null;d.fy=null;}));
+node.append('circle').attr('r',d=>d.r).attr('fill',d=>color(d.type)).attr('stroke','#fff').attr('stroke-width',1.5);
+node.append('text').text(d=>d.name).attr('x',d=>d.r+3).attr('y',3).attr('font-size',d=>d.type==='field'?'12px':'9px').attr('fill','#333');
+simulation.on('tick',()=>{
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+});
+</script>
+</body>
+</html>

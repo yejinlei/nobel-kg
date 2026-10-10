@@ -1,0 +1,443 @@
+{
+ "persons": {
+  "source": "01_人物.csv",
+  "rows": 781,
+  "columns": [
+   "person_id",
+   "name_en",
+   "name_zh",
+   "gender",
+   "birth_year",
+   "death_year",
+   "nationality",
+   "is_nobel_laureate",
+   "nobel_year",
+   "nobel_category",
+   "nobel_motivation",
+   "primary_field_id",
+   "role_type",
+   "note",
+   "wikidata_id",
+   "wikipedia_en"
+  ]
+ },
+ "institutions": {
+  "source": "02_机构.csv",
+  "rows": 48,
+  "columns": [
+   "institution_id",
+   "name_en",
+   "name_zh",
+   "country",
+   "type"
+  ]
+ },
+ "fields": {
+  "source": "03_研究方向.csv",
+  "rows": 26,
+  "columns": [
+   "field_id",
+   "name_zh",
+   "name_en",
+   "parent_id",
+   "level",
+   "discipline",
+   "description"
+  ]
+ },
+ "works": {
+  "source": "04_代表性工作.csv",
+  "rows": 57,
+  "columns": [
+   "work_id",
+   "name_zh",
+   "name_en",
+   "field_id",
+   "year",
+   "type",
+   "description"
+  ]
+ },
+ "prizes": {
+  "source": "10_诺贝尔奖.csv",
+  "rows": 412,
+  "columns": [
+   "prize_id",
+   "year",
+   "category",
+   "motivation",
+   "laureate_ids",
+   "share_note"
+  ]
+ },
+ "papers": {
+  "source": "12_论文著作.csv",
+  "rows": 68,
+  "columns": [
+   "paper_id",
+   "title",
+   "title_zh",
+   "authors_display",
+   "journal",
+   "year",
+   "volume_pages",
+   "doi",
+   "paper_type",
+   "is_landmark",
+   "work_id",
+   "field_id",
+   "note"
+  ]
+ },
+ "mentorship": {
+  "source": "05_关系_师承.csv",
+  "rows": 40,
+  "columns": [
+   "edge_id",
+   "student_id",
+   "advisor_id",
+   "relation_type",
+   "is_phd",
+   "start_year",
+   "institution_id",
+   "verification_status",
+   "source",
+   "note"
+  ]
+ },
+ "family": {
+  "source": "06_关系_家族.csv",
+  "rows": 7,
+  "columns": [
+   "rel_id",
+   "person_a_id",
+   "person_b_id",
+   "relation",
+   "note"
+  ]
+ },
+ "person_institution": {
+  "source": "07_关系_人物机构.csv",
+  "rows": 79,
+  "columns": [
+   "rel_id",
+   "person_id",
+   "institution_id",
+   "role",
+   "start_year",
+   "end_year"
+  ]
+ },
+ "person_field": {
+  "source": "08_关系_人物研究方向.csv",
+  "rows": 67,
+  "columns": [
+   "rel_id",
+   "person_id",
+   "field_id",
+   "is_primary",
+   "note"
+  ]
+ },
+ "person_work": {
+  "source": "09_关系_人物工作.csv",
+  "rows": 65,
+  "columns": [
+   "rel_id",
+   "person_id",
+   "work_id",
+   "role",
+   "note"
+  ]
+ },
+ "corrections": {
+  "source": "11_数据订正记录.csv",
+  "rows": 18,
+  "columns": [
+   "corr_id",
+   "target_type",
+   "target",
+   "original_value",
+   "corrected_value",
+   "basis",
+   "verify_date"
+  ]
+ },
+ "paper_author": {
+  "source": "13_关系_论文作者.csv",
+  "rows": 67,
+  "columns": [
+   "rel_id",
+   "paper_id",
+   "person_id",
+   "author_role",
+   "author_order",
+   "note"
+  ]
+ },
+ "paper_lineage": {
+  "source": "19_关系_论文师承.csv",
+  "rows": 35,
+  "columns": [
+   "relation_id",
+   "student_paper_id",
+   "advisor_paper_id",
+   "influence_type",
+   "description"
+  ]
+ },
+ "schools": {
+  "source": "14_学派.csv",
+  "rows": 9,
+  "columns": [
+   "school_id",
+   "name_cn",
+   "name_en",
+   "founder_id",
+   "era_start",
+   "core_inst",
+   "description"
+  ]
+ },
+ "person_school": {
+  "source": "15_关系_人物学派.csv",
+  "rows": 37,
+  "columns": [
+   "rel_id",
+   "person_id",
+   "school_id",
+   "role"
+  ]
+ },
+ "collaboration": {
+  "source": "16_关系_合作.csv",
+  "rows": 12,
+  "columns": [
+   "edge_id",
+   "person_a_id",
+   "person_b_id",
+   "year",
+   "topic",
+   "publication"
+  ]
+ },
+ "paradigms": {
+  "source": "17_研究范式.csv",
+  "rows": 11,
+  "columns": [
+   "paradigm_id",
+   "name",
+   "founder_id",
+   "founder_name",
+   "year",
+   "description"
+  ]
+ },
+ "features": {
+  "source": "18_人物特征.csv",
+  "rows": 781,
+  "columns": [
+   "person_id",
+   "name_cn",
+   "name_en",
+   "is_nobel",
+   "field",
+   "nationality",
+   "birth_year",
+   "age_2026",
+   "students",
+   "mentors",
+   "betweenness",
+   "eigenvector",
+   "pagerank",
+   "academic_depth",
+   "ancestor_nobel",
+   "student_nobel",
+   "nobel_conv_rate",
+   "in_strong_school",
+   "collaborations",
+   "potential_score",
+   "heuristic_score"
+  ]
+ },
+ "laureates": {
+  "source": "20_诺奖得主名录.csv",
+  "rows": 765,
+  "columns": [
+   "laureate_pid",
+   "name_en",
+   "name_zh",
+   "gender",
+   "birth_year",
+   "death_year",
+   "nationality",
+   "nobel_years",
+   "nobel_categories",
+   "in_core_network",
+   "wikidata_id",
+   "wikipedia_en",
+   "note"
+  ]
+ },
+ "archive": {
+  "source": "21_全量诺奖名录归档.csv",
+  "rows": 1026,
+  "columns": [
+   "archive_id",
+   "nobel_id",
+   "entity_type",
+   "name_en",
+   "name_native",
+   "acronym",
+   "gender",
+   "birth_date",
+   "birth_year",
+   "death_date",
+   "death_year",
+   "birth_country",
+   "birth_city",
+   "founded_date",
+   "founded_year",
+   "founded_country",
+   "wikidata_id",
+   "wikipedia_en",
+   "nobel_years",
+   "nobel_categories_en",
+   "nobel_categories_zh",
+   "motivation_en",
+   "portions"
+  ]
+ },
+ "writers": {
+  "source": "22_文学_作家.csv",
+  "rows": 123,
+  "columns": [
+   "writer_id",
+   "nobel_id",
+   "name_en",
+   "name_native",
+   "gender",
+   "birth_year",
+   "death_year",
+   "country",
+   "nobel_year",
+   "motivation_en",
+   "wikidata_id",
+   "wikipedia_en"
+  ]
+ },
+ "literary_movements": {
+  "source": "23_文学_流派.csv",
+  "rows": 23,
+  "columns": [
+   "movement_id",
+   "name_zh",
+   "name_en",
+   "era",
+   "description"
+  ]
+ },
+ "literary_genres": {
+  "source": "24_文学_体裁.csv",
+  "rows": 12,
+  "columns": [
+   "genre_id",
+   "name_zh",
+   "name_en"
+  ]
+ },
+ "writer_movement": {
+  "source": "25_关系_作家流派.csv",
+  "rows": 163,
+  "columns": [
+   "rel_id",
+   "writer_id",
+   "movement_id",
+   "note"
+  ]
+ },
+ "writer_genre": {
+  "source": "26_关系_作家体裁.csv",
+  "rows": 167,
+  "columns": [
+   "rel_id",
+   "writer_id",
+   "genre_id",
+   "role"
+  ]
+ },
+ "literary_influence": {
+  "source": "27_关系_文学影响.csv",
+  "rows": 33,
+  "columns": [
+   "rel_id",
+   "influenced_id",
+   "influencer_type",
+   "influencer_id",
+   "influencer_name",
+   "nature",
+   "note"
+  ]
+ },
+ "peace_subjects": {
+  "source": "28_和平_主体.csv",
+  "rows": 141,
+  "columns": [
+   "peace_id",
+   "nobel_id",
+   "subject_type",
+   "name_en",
+   "acronym",
+   "gender",
+   "birth_year",
+   "death_year",
+   "country",
+   "nobel_year",
+   "motivation_en",
+   "org_id"
+  ]
+ },
+ "peace_orgs": {
+  "source": "29_和平_组织.csv",
+  "rows": 28,
+  "columns": [
+   "org_id",
+   "nobel_id",
+   "name_en",
+   "name_native",
+   "acronym",
+   "founded_year",
+   "founded_country",
+   "wikidata_id"
+  ]
+ },
+ "peace_fields": {
+  "source": "30_和平_领域.csv",
+  "rows": 23,
+  "columns": [
+   "cause_id",
+   "name_zh",
+   "name_en"
+  ]
+ },
+ "peace_field_rel": {
+  "source": "31_关系_和平领域.csv",
+  "rows": 252,
+  "columns": [
+   "rel_id",
+   "peace_id",
+   "cause_id",
+   "role"
+  ]
+ },
+ "peace_org_rel": {
+  "source": "32_关系_和平组织.csv",
+  "rows": 18,
+  "columns": [
+   "rel_id",
+   "peace_id",
+   "org_id",
+   "role"
+  ]
+ }
+}
