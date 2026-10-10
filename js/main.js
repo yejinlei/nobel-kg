@@ -13,9 +13,8 @@ import { renderMarkdown, renderBlocks, renderTrace, escapeHtml } from './render.
 const $ = (id) => document.getElementById(id);
 const el = {
   dbStatus: $('dbStatus'),
-  settingsBtn: $('settingsBtn'),
-  welcomePanel: $('welcomePanel'),
-  chatPanel: $('chatPanel'),
+  chatHero: $('chatHero'),
+  chatScroll: $('chatScroll'),
   chatMessages: $('chatMessages'),
   userInput: $('userInput'),
   sendBtn: $('sendBtn'),
@@ -23,8 +22,8 @@ const el = {
   modeBadge: $('modeBadge'),
   researchToggle: $('researchToggle'),
   researchHint: $('researchHint'),
-  backHome: $('backHome'),
-  settingsModal: $('settingsModal'),
+  newChatBtn: $('newChatBtn'),
+  settingsDetails: $('settingsDetails'),
   loadingOverlay: $('loadingOverlay'),
   loadingText: $('loadingText'),
   // 设置项
@@ -35,18 +34,9 @@ const el = {
   tavilyKey: $('tavilyKey'),
   saveSettings: $('saveSettings'),
   clearSettings: $('clearSettings'),
-  closeSettings: $('closeSettings'),
   testConnection: $('testConnection'),
   testResult: $('testResult'),
 };
-
-/* ------------------------- 内置图谱页 ------------------------- */
-
-const VIZ_PAGES = [
-  { title: '师承关系图谱', desc: '以师承关系为核心，按学派着色、可叠加合作边与关系类型标签', src: 'viz/%E5%B8%88%E6%89%BF%E5%85%B3%E7%B3%BB%E5%9B%BE%E8%B0%B1.html', height: 620 },
-  { title: '师承关系拓扑图（含代表作）', desc: '在师承骨架上叠加论文层的传承关系，节点大小反映门下诺奖学生数', src: 'viz/%E5%B8%88%E6%89%BF%E5%85%B3%E7%B3%BB%E6%8B%93%E6%89%91%E5%9B%BE_%E5%90%AB%E4%BB%A3%E8%A1%A8%E4%BD%9C.html', height: 620 },
-  { title: '论文层与合著网络', desc: '论文时间线、合著网络、期刊分布与「发表→获奖」时滞分析', src: 'viz/%E8%AE%BA%E6%96%87%E5%B1%82%E4%B8%8E%E5%90%88%E8%91%97%E7%BD%91%E7%BB%9C.html', height: 620 },
-];
 
 const QUICK_QUESTIONS = [
   '杨振宁的师承链',
@@ -76,6 +66,7 @@ function setStatus(kind, text) {
 
 async function boot() {
   renderWelcomeExtras();
+  fillSettingsForm();
   bindEvents();
   updateModeUI();
 
@@ -130,18 +121,7 @@ function fillWelcomeStats(ov, info) {
 /* ------------------------- 欢迎页附加内容 ------------------------- */
 
 function renderWelcomeExtras() {
-  // 图谱入口（页面已内置静态卡片，仅当为空时兜底生成）
-  const vg = $('vizGrid');
-  if (vg && !vg.children.length) {
-    vg.innerHTML = VIZ_PAGES.map((v, i) => `
-      <a class="viz-card" href="${escapeHtml(v.src)}" target="_blank" rel="noopener">
-        <div class="viz-icon">${['🕸️', '🧬', '📈'][i] || '📊'}</div>
-        <h4>${escapeHtml(v.title)}</h4>
-        <p>${escapeHtml(v.desc)}</p>
-        <span class="viz-open">打开图谱 ↗</span>
-      </a>`).join('');
-  }
-  // 服务商预设
+  // 服务商预设（图谱入口已固定在左侧边栏）
   const sel = el.providerPreset;
   if (sel) {
     sel.innerHTML = PROVIDER_PRESETS.map((p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`).join('');
@@ -178,9 +158,6 @@ function updateModeUI() {
 /* ------------------------- 事件绑定 ------------------------- */
 
 function bindEvents() {
-  el.settingsBtn.addEventListener('click', openSettings);
-  el.closeSettings.addEventListener('click', closeSettings);
-  el.settingsModal.querySelector('.modal-overlay').addEventListener('click', closeSettings);
   el.saveSettings.addEventListener('click', onSaveSettings);
   el.clearSettings.addEventListener('click', onClearSettings);
   el.testConnection.addEventListener('click', onTestConnection);
@@ -191,11 +168,11 @@ function bindEvents() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   });
   el.userInput.addEventListener('input', autoResize);
-  el.backHome.addEventListener('click', showWelcome);
-
-  // 欢迎页按钮
-  document.querySelectorAll('[data-action="open-chat"]').forEach((b) => b.addEventListener('click', () => { showChat(); el.userInput.focus(); }));
-  document.querySelectorAll('[data-action="open-settings"]').forEach((b) => b.addEventListener('click', openSettings));
+  el.newChatBtn.addEventListener('click', () => {
+    el.chatMessages.innerHTML = '';
+    showWelcome();
+    el.userInput.focus();
+  });
 
   // 快捷问题
   el.quickActions.innerHTML = QUICK_QUESTIONS.map((q) => `<button class="quick-btn" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('');
@@ -213,12 +190,10 @@ function autoResize() {
 /* ------------------------- 面板切换 ------------------------- */
 
 function showChat() {
-  el.welcomePanel.classList.add('hidden');
-  el.chatPanel.classList.remove('hidden');
+  el.chatHero.classList.add('hidden');
 }
 function showWelcome() {
-  el.chatPanel.classList.add('hidden');
-  el.welcomePanel.classList.remove('hidden');
+  el.chatHero.classList.remove('hidden');
 }
 
 /* ------------------------- 消息渲染 ------------------------- */
@@ -236,7 +211,7 @@ function addMessage(role, html) {
 }
 
 function scrollBottom() {
-  el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+  el.chatScroll.scrollTop = el.chatScroll.scrollHeight;
 }
 
 /* ------------------------- 发送 ------------------------- */
@@ -304,7 +279,7 @@ async function send(preset) {
     if (res.mode === 'rule' && res.matched === false) {
       const hint = document.createElement('div');
       hint.className = 'verify-note';
-      hint.innerHTML = '<strong>提示：</strong>上面是本地规则引擎的能力说明。当前<strong>未配置大模型</strong>，只能用固定问法查询结构化数据；如需自然语言任意提问、多步推理与深度研究，请在右上角 <strong>⚙️ 设置</strong> 中填入兼容 OpenAI 的接口（Key 仅保存在你的浏览器本地）。';
+      hint.innerHTML = '<strong>提示：</strong>上面是本地规则引擎的能力说明。当前<strong>未配置大模型</strong>，只能用固定问法查询结构化数据；如需自然语言任意提问、多步推理与深度研究，请在左侧边栏底部 <strong>⚙️ 模型与 Key 设置</strong> 中填入兼容 OpenAI 的接口（Key 仅保存在你的浏览器本地）。';
       content.appendChild(hint);
     }
     if (res.mode === 'llm' && !hasLLM(loadConfig())) updateModeUI();
@@ -318,20 +293,15 @@ async function send(preset) {
   }
 }
 
-/* ------------------------- 设置弹窗 ------------------------- */
+/* ------------------------- 侧栏设置 ------------------------- */
 
-function openSettings() {
+function fillSettingsForm() {
   const cfg = loadConfig();
   el.baseUrl.value = cfg.baseUrl || '';
   el.apiKey.value = cfg.apiKey || '';
   el.modelName.value = cfg.model || '';
   el.tavilyKey.value = cfg.tavilyKey || '';
   if (el.testResult) el.testResult.textContent = '';
-  el.settingsModal.classList.remove('hidden');
-}
-
-function closeSettings() {
-  el.settingsModal.classList.add('hidden');
 }
 
 function onPresetChange() {
@@ -352,14 +322,11 @@ function onSaveSettings() {
   };
   saveConfig(patch);
   updateModeUI();
-  closeSettings();
   if (!hasLLM(loadConfig())) {
-    showChat();
-    addMessage('assistant', renderMarkdown('已保存设置，但**模型接口信息不完整**（需要地址、Key、模型名三者齐全），当前仍为「本地规则引擎」模式。'));
+    el.testResult.textContent = '⚠️ 已保存，但接口信息不完整（需地址、Key、模型名三者齐全），仍为本地规则引擎模式。';
   } else {
-    showChat();
     const web = hasWebSearch(loadConfig()) ? '，深度研究（联网）已启用' : '';
-    addMessage('assistant', renderMarkdown(`✅ 设置已保存在你的浏览器本地。当前为**大模型模式**（${patch.model}）${web}。\n\n现在可以用自然语言任意提问了。`));
+    el.testResult.textContent = `✅ 已保存到浏览器本地，当前为大模型模式（${patch.model}）${web}。`;
   }
 }
 

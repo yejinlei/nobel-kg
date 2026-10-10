@@ -574,7 +574,7 @@ body {
 }
 .welcome-content pre code { background: none; color: inherit; font-size: 12.6px; padding: 0; }
 
-/* ---------------- 响应式 ---------------- */
+/* ---------------- 响应式（旧版布局遗留） ---------------- */
 @media (max-width: 900px) {
   .main-container { max-width: 100%; }
 }
@@ -589,4 +589,198 @@ body {
   .chat-messages { padding: 15px; }
   .chat-input-area { padding: 11px 15px 14px 15px; }
   .msg-content { font-size: 13.5px; }
+}
+
+/* ============================================================
+   文心式布局：左侧边栏 + 主聊天区
+   ============================================================ */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---------------- 左侧边栏 ---------------- */
+.sidebar {
+  width: 252px;
+  flex: 0 0 252px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px;
+  gap: 12px;
+  overflow: hidden;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 2px 6px 4px 6px;
+}
+.brand-logo { font-size: 19px; }
+.brand-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+.brand-sub { font-size: 11px; color: var(--text-muted); }
+
+.btn-new-chat {
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+.btn-new-chat:hover { background: #dce7fb; }
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+}
+.nav-title {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  padding: 10px 8px 4px 8px;
+  user-select: none;
+}
+.nav-link {
+  display: block;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background .12s;
+}
+.nav-link:hover { background: var(--panel-2); color: var(--accent); }
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sidebar-footer .status-indicator {
+  width: 100%;
+  font-size: 12px;
+  overflow: hidden;
+}
+.sidebar-footer .status-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 侧栏内嵌设置 */
+.settings-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
+.settings-details > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+  border-radius: var(--radius-sm);
+}
+.settings-details > summary::-webkit-details-marker { display: none; }
+.settings-details > summary:hover { color: var(--accent); }
+.settings-details[open] > summary {
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--accent);
+}
+.settings-body { padding: 12px; }
+.settings-body .form-group { margin-bottom: 10px; }
+.settings-body .form-group label { font-size: 12px; margin-bottom: 3px; }
+.settings-body .form-group input,
+.settings-body .select-input { font-size: 12.5px; padding: 6px 9px; }
+.settings-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.settings-note {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 10px 0 0 0;
+}
+
+/* ---------------- 主聊天区 ---------------- */
+.chat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* 空态问候（类文心） */
+.chat-hero {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 12vh 26px 10px 26px;
+  text-align: center;
+}
+.chat-hero h2 {
+  font-size: 26px;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.4px;
+}
+.hero-desc { color: var(--text-secondary); font-size: 13.5px; margin: 0 0 22px 0; }
+.chat-hero .stats-row { text-align: center; margin-bottom: 0; }
+
+/* 消息流：占满主区宽度（用户反馈过窄） */
+.chat-main .chat-messages {
+  width: 100%;
+  padding: 26px 32px;
+}
+
+/* 输入区：居中限宽，贴底 */
+.chat-main .chat-input-area {
+  border-top: none;
+  background: var(--bg);
+  padding: 10px 26px 16px 26px;
+}
+.chat-main .input-toolbar,
+.chat-main .input-wrapper,
+.chat-main .quick-actions {
+  width: 100%;
+}
+.chat-main .input-wrapper {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+}
+.chat-main .input-toolbar { margin-bottom: 8px; }
+.chat-main .quick-actions { margin-top: 10px; }
+
+/* 小屏：隐藏侧栏 */
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .chat-hero { padding-top: 8vh; }
 }

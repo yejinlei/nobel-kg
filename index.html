@@ -10,160 +10,82 @@
 </head>
 <body>
 
-<header class="header">
-  <div class="header-left">
-    <h1>🏆 诺奖师承知识本体</h1>
-    <span class="subtitle">LangGraph.js + DuckDB-WASM · 纯静态零后端</span>
-  </div>
-  <div class="header-right">
-    <div class="status-indicator" id="dbStatus">
-      <span class="status-dot loading"></span>
-      <span class="status-text">初始化中…</span>
+<div class="app-shell">
+
+  <!-- ==================== 左侧边栏 ==================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-logo">🏆</span>
+      <span class="brand-name">诺奖师承</span>
+      <span class="brand-sub">Nobel KG</span>
     </div>
-    <button id="settingsBtn" class="btn btn-secondary" title="配置大模型接口">⚙️ 设置</button>
-  </div>
-</header>
 
-<main class="main-container">
+    <button id="newChatBtn" class="btn-new-chat">＋ 新对话</button>
 
-  <!-- ==================== 欢迎面板 ==================== -->
-  <section id="welcomePanel" class="welcome-panel">
-    <div class="welcome-content">
-      <h2>🔬 诺奖师承知识智能体</h2>
-      <p class="welcome-desc">
-        基于 60 位诺奖得主与其导师的<strong>师承关系</strong>构建的知识本体，覆盖 42 条师承边、9 个学术学派、
-        58 篇代表论文与 47 项代表性工作。查询与推理<strong>全部在你的浏览器中完成</strong>——
-        数据经 DuckDB-WASM 本地执行 SQL，智能体由 LangGraph.js 编排，无需任何后端服务器。
-      </p>
+    <nav class="sidebar-nav">
+      <div class="nav-title">知识图谱</div>
+      <a class="nav-link" href="viz/师承关系图谱.html" target="_blank" rel="noopener">🕸️ 师承关系图谱</a>
+      <a class="nav-link" href="viz/师承关系拓扑图_含代表作.html" target="_blank" rel="noopener">🧬 师承拓扑（含代表作）</a>
+      <a class="nav-link" href="viz/论文层与合著网络.html" target="_blank" rel="noopener">📈 论文层与合著网络</a>
+      <a class="nav-link" href="viz/文学奖作品与传承图谱.html" target="_blank" rel="noopener">📖 文学奖图谱</a>
+      <a class="nav-link" href="viz/和平奖领域与组织图谱.html" target="_blank" rel="noopener">☮️ 和平奖图谱</a>
+      <div class="nav-title">项目</div>
+      <a class="nav-link" href="https://github.com/yejinlei/nobel-kg" target="_blank" rel="noopener">⭐ GitHub 仓库</a>
+    </nav>
 
-      <div id="welcomeStats" class="stats-row hidden"></div>
-
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🧬</div>
-          <h3>知识本体</h3>
-          <p>实体层（人物 / 机构 / 研究方向 / 论文 / 学派 / 范式）+ 关系层（师承 / 家族 / 任职 / 合作 / 论文影响），师承关系作为一等概念建模。</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <h3>浏览器内 SQL</h3>
-          <p>DuckDB-WASM 直接读取 Parquet，支持递归 CTE。师承链追溯、最短路径、跨代影响等查询都在本地完成。</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🤖</div>
-          <h3>Agent 编排</h3>
-          <p>LangGraph.js 状态图：规划 → 调用本体工具 → 综合成文。配置大模型后可自然语言任意提问与多步推理。</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🕸️</div>
-          <h3>三类图谱</h3>
-          <p>师承关系图谱、含代表作的师承拓扑、论文层与合著网络，独立页面，随时打开对照查看。</p>
-        </div>
+    <div class="sidebar-footer">
+      <div class="status-indicator" id="dbStatus" title="本体数据库状态">
+        <span class="status-dot loading"></span>
+        <span class="status-text">初始化中…</span>
       </div>
 
-      <div class="start-section">
-        <button class="btn btn-primary btn-large" data-action="open-chat">开始问答 →</button>
-        <button class="btn btn-outline btn-large" data-action="open-settings">配置大模型接口</button>
-      </div>
-
-      <!-- 大模型与 Key 说明 -->
-      <div class="api-info-section">
-        <h3>🔑 关于大模型与 API Key</h3>
-        <div class="api-info-content">
-          <p>
-            本项目是<strong>纯静态页面</strong>，没有后端，因此<strong>不内置任何大模型密钥</strong>。
-            你需要自备一个兼容 OpenAI 接口的服务，填入页面右上角「⚙️ 设置」。Key 只写入你浏览器自己的
-            <code>localStorage</code>，<strong>不会上传到任何服务器</strong>，也不会随页面分发。
-          </p>
-
-          <div class="provider-grid">
-            <div class="provider-card">
-              <h4>✅ 推荐：允许浏览器跨域直连的服务</h4>
-              <ul>
-                <li><strong>OpenRouter</strong>（默认）：聚合数百种模型，官方支持浏览器直连，有免费模型可选</li>
-                <li><strong>硅基流动 / DeepSeek 等国内网关</strong>：多数可用，个别网络环境下可能被跨域策略拦截</li>
-                <li><strong>自建中转</strong>（one-api / new-api 等）：需自行配置 CORS 允许你的 Pages 域名</li>
-              </ul>
-            </div>
-            <div class="provider-card warn">
-              <h4>⚠️ 注意：官方 OpenAI 接口无法直连</h4>
-              <ul>
-                <li><code>api.openai.com</code> 的跨域预检会被拦截，浏览器端必然失败</li>
-                <li>这是官方有意为之（避免密钥暴露在客户端），换任何前端库都无法绕开</li>
-                <li>如需使用 OpenAI 模型，请通过 OpenRouter 或自建中转接入</li>
-              </ul>
-            </div>
+      <details class="settings-details" id="settingsDetails">
+        <summary>⚙️ 模型与 Key 设置</summary>
+        <div class="settings-body">
+          <div class="form-group">
+            <label>服务商预设</label>
+            <select id="providerPreset" class="select-input"></select>
           </div>
-
-          <p class="privacy-note">
-            <strong>未配置大模型时会发生什么？</strong>
-            页面依然完整可用——会切换到<strong>本地规则引擎</strong>模式，用关键词匹配直接查询本体论数据并给出结构化结果（师承链、导师排名、学派成员、论文清单等），只是无法进行自然语言任意提问与多步推理。
-            <br><br>
-            <strong>深度研究（联网检索）</strong>：配置大模型后即可使用。检索端采用"双源"设计——
-            <em>配置了 Tavily Key</em> 时优先调用 Tavily（结果更全面）；
-            <em>未配置 Tavily Key</em> 时自动使用 <strong>维基百科 / Wikidata 零 Key 兜底</strong>（MediaWiki API 与 Wikidata SPARQL 端点原生支持跨域，无需注册即可直接检索人物/奖项/机构的公开资料），
-            让"零配置"也能获得外部事实，而不是完全失去联网能力。
-            <strong>未配置大模型时该能力在代码层面不会启用</strong>，相关开关保持禁用。
-          </p>
+          <div class="form-group">
+            <label>接口地址（Base URL）</label>
+            <input type="text" id="baseUrl" placeholder="https://openrouter.ai/api/v1">
+          </div>
+          <div class="form-group">
+            <label>API Key</label>
+            <input type="password" id="apiKey" placeholder="sk-...">
+          </div>
+          <div class="form-group">
+            <label>模型名称</label>
+            <input type="text" id="modelName" placeholder="openai/gpt-4o-mini">
+          </div>
+          <div class="form-group">
+            <label>Tavily Key（可选，联网检索）</label>
+            <input type="password" id="tavilyKey" placeholder="tvly-...；留空用维基百科兜底">
+          </div>
+          <div class="form-group">
+            <button class="btn btn-secondary btn-small" id="testConnection">测试连接</button>
+            <div id="testResult" style="font-size:12px;margin-top:6px;line-height:1.5;"></div>
+          </div>
+          <div class="settings-actions">
+            <button id="clearSettings" class="btn btn-danger btn-small">清除</button>
+            <button id="saveSettings" class="btn btn-primary btn-small">保存设置</button>
+          </div>
+          <p class="settings-note">Key 仅保存在浏览器 localStorage，不上传任何服务器。未配置时使用本地规则引擎。</p>
         </div>
-      </div>
-
-      <!-- 图谱入口 -->
-      <div class="viz-section">
-        <h3>🕸️ 师承关系图谱</h3>
-        <p>以下页面均已内置于本仓库，点击即可打开交互式图谱。</p>
-        <div class="viz-grid" id="vizGrid">
-          <a class="viz-card" href="viz/师承关系图谱.html" target="_blank" rel="noopener">
-            <div class="viz-icon">🕸️</div>
-            <h4>师承关系图谱</h4>
-            <p>以师承关系为核心，按学派着色，可叠加合作边与关系类型标签，支持筛选与拖拽缩放。</p>
-            <span class="viz-open">打开图谱 ↗</span>
-          </a>
-          <a class="viz-card" href="viz/师承关系拓扑图_含代表作.html" target="_blank" rel="noopener">
-            <div class="viz-icon">🧬</div>
-            <h4>师承拓扑图（含代表作）</h4>
-            <p>在师承骨架上叠加论文层的思想传承，节点大小反映门下诺奖学生数。</p>
-            <span class="viz-open">打开图谱 ↗</span>
-          </a>
-          <a class="viz-card" href="viz/论文层与合著网络.html" target="_blank" rel="noopener">
-            <div class="viz-icon">📈</div>
-            <h4>论文层与合著网络</h4>
-            <p>论文时间线、合著网络、期刊分布，以及「论文发表 → 获奖」时滞分析。</p>
-            <span class="viz-open">打开图谱 ↗</span>
-          </a>
-          <a class="viz-card" href="viz/文学奖作品与传承图谱.html" target="_blank" rel="noopener">
-            <div class="viz-icon">📖</div>
-            <h4>文学奖 · 作品与传承图谱</h4>
-            <p>123位文学奖得主的国家、体裁、流派分布，含文学影响网络力导向图。</p>
-            <span class="viz-open">打开图谱 ↗</span>
-          </a>
-          <a class="viz-card" href="viz/和平奖领域与组织图谱.html" target="_blank" rel="noopener">
-            <div class="viz-icon">☮️</div>
-            <h4>和平奖 · 领域与组织图谱</h4>
-            <p>141位和平奖主体的领域分布、组织网络，标注拒领/追授/在任获奖等特殊案例。</p>
-            <span class="viz-open">打开图谱 ↗</span>
-          </a>
-        </div>
-      </div>
-
-      <!-- 使用说明 -->
-      <div class="viz-section">
-        <h3>📦 本地运行与部署</h3>
-        <p>全部为静态文件，可直接部署到 GitHub Pages。</p>
-        <pre><code># 本地预览（必须通过 HTTP 访问，直接双击打开会受浏览器安全策略限制）
-python3 -m http.server 8080
-# 然后访问 http://localhost:8080/
-
-# 部署到 GitHub Pages
-# Settings → Pages → Source 选择分支与根目录即可
-# 仓库名会作为访问路径，例如 https://&lt;用户名&gt;.github.io/nobel-kg/</code></pre>
-      </div>
+      </details>
     </div>
-  </section>
+  </aside>
 
-  <!-- ==================== 聊天面板 ==================== -->
-  <section id="chatPanel" class="chat-panel hidden">
-    <div class="chat-messages" id="chatMessages"></div>
+  <!-- ==================== 主聊天区 ==================== -->
+  <main class="chat-main">
+    <div class="chat-scroll" id="chatScroll">
+      <div class="chat-hero" id="chatHero">
+        <h2>我已准备好，你随时问我～</h2>
+        <p class="hero-desc">60 位诺奖得主师承本体 · 浏览器内 DuckDB SQL · LangGraph.js 编排</p>
+        <div id="welcomeStats" class="stats-row hidden"></div>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+    </div>
 
     <div class="chat-input-area">
       <div class="input-toolbar">
@@ -173,7 +95,6 @@ python3 -m http.server 8080
           深度研究（联网检索）
         </label>
         <span class="toggle-hint" id="researchHint"></span>
-        <button id="backHome" class="btn btn-secondary btn-small" style="margin-left:auto">← 返回首页</button>
       </div>
       <div class="input-wrapper">
         <textarea id="userInput" rows="1" placeholder="用自然语言提问，例如：索末菲门下有哪些诺奖得主？"></textarea>
@@ -181,66 +102,7 @@ python3 -m http.server 8080
       </div>
       <div class="quick-actions" id="quickActions"></div>
     </div>
-  </section>
-
-</main>
-
-<!-- ==================== 设置弹窗 ==================== -->
-<div id="settingsModal" class="modal hidden">
-  <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>⚙️ 模型与检索设置</h3>
-      <button class="modal-close" id="closeSettings">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label>服务商预设</label>
-        <select id="providerPreset" class="select-input"></select>
-        <small>选择后会自动填入接口地址与默认模型，仍可手动修改。</small>
-      </div>
-
-      <div class="form-group">
-        <label>接口地址（Base URL）</label>
-        <input type="text" id="baseUrl" placeholder="https://openrouter.ai/api/v1">
-        <small>兼容 OpenAI 的 <code>/chat/completions</code> 接口，最后不要带 <code>/chat/completions</code>。</small>
-      </div>
-
-      <div class="form-group">
-        <label>API Key</label>
-        <input type="password" id="apiKey" placeholder="sk-...">
-        <small>仅保存在你的浏览器 localStorage，不会上传到任何服务器。</small>
-      </div>
-
-      <div class="form-group">
-        <label>模型名称</label>
-        <input type="text" id="modelName" placeholder="openai/gpt-4o-mini">
-        <small>OpenRouter 示例：openai/gpt-4o-mini、deepseek/deepseek-chat；硅基流动示例：Qwen/Qwen2.5-7B-Instruct</small>
-      </div>
-
-      <div class="form-group">
-        <button class="btn btn-secondary btn-small" id="testConnection">测试连接</button>
-        <div id="testResult" style="font-size:12.5px;margin-top:8px;line-height:1.6;"></div>
-      </div>
-
-      <hr class="divider">
-
-      <h4 style="margin:0 0 8px 0;">🌐 深度研究（联网检索）</h4>
-      <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px 0;">
-        配置大模型后即可使用。检索采用"双源"设计：<strong>填 Tavily Key → 优先 Tavily</strong>（结果更全面）；
-        <strong>不填 → 自动使用维基百科 / Wikidata 零 Key 兜底</strong>（原生跨域、无需注册）。
-      </p>
-      <div class="form-group">
-        <label>Tavily API Key（可选，更全面）</label>
-        <input type="password" id="tavilyKey" placeholder="tvly-...；留空则使用维基百科兜底">
-        <small>可前往 <a href="https://tavily.com" target="_blank" rel="noopener">tavily.com</a> 申请免费额度；不填也能用（维基兜底）。</small>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button id="clearSettings" class="btn btn-danger btn-small">清除所有配置</button>
-      <button id="saveSettings" class="btn btn-primary">保存设置</button>
-    </div>
-  </div>
+  </main>
 </div>
 
 <!-- ==================== 加载遮罩 ==================== -->
@@ -252,4 +114,3 @@ python3 -m http.server 8080
 <script type="module" src="js/main.js"></script>
 </body>
 </html>
-<!--12551776762395614730101101--><!--12235752692395614730101102-->
