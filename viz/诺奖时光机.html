@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诺奖时光机 · 诺奖智能体</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+body { margin:0; background:#0f172a; color:#e2e8f0; font-family:var(--font); min-height:100vh; }
+header { padding:14px 22px; border-bottom:1px solid #1e293b; display:flex; align-items:center; gap:14px; }
+header h1 { font-size:18px; margin:0; }
+header .sub { font-size:12px; color:#64748b; margin-left:auto; }
+.back-link { color:#94a3b8; text-decoration:none; font-size:13px; }
+.back-link:hover { color:#e2e8f0; }
+main { max-width:1000px; margin:0 auto; padding:22px; }
+.controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.cat-btn {
+  font-family:inherit; font-size:12.5px; padding:6px 14px; border-radius:999px;
+  border:1px solid #334155; background:#1e293b; color:#cbd5f5; cursor:pointer;
+  transition:all .15s;
+}
+.cat-btn.active { background:#2f5fd0; border-color:#2f5fd0; color:#fff; }
+.cat-btn:hover { border-color:#2f5fd0; }
+.timeline-wrap { position:relative; }
+#timeline { width:100%; height:520px; border-radius:12px; background:#111628; border:1px solid #1e293b; }
+.year-mark {
+  position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.06);
+  pointer-events:none;
+}
+.year-label {
+  position:absolute; top:8px; font-size:10px; color:#475569; transform:translateX(-50%);
+  pointer-events:none; user-select:none;
+}
+.node { position:absolute; width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,.3); cursor:pointer; transition:transform .12s; }
+.node:hover { transform:scale(1.5); border-color:#fff; }
+.node.物理学 { background:#60a5fa; }
+.node.化学 { background:#f87171; }
+.node.生理学或医学 { background:#34d399; }
+.node.文学 { background:#fbbf24; }
+.node.和平 { background:#c084fc; }
+.node.经济学 { background:#f97316; }
+.tip {
+  position:fixed; display:none; z-index:20; max-width:300px;
+  background:rgba(15,23,42,.95); border:1px solid #334155; border-radius:10px;
+  padding:12px 14px; color:#e2e8f0; font-size:12.5px; pointer-events:none;
+}
+.tip h4 { margin:0 0 4px 0; font-size:14px; color:#fbbf24; }
+.stats-strip { display:flex; gap:14px; margin-top:16px; flex-wrap:wrap; }
+.stat-chip { background:#111628; border:1px solid #1e293b; border-radius:10px; padding:10px 16px; font-size:13px; }
+.stat-chip b { color:#fbbf24; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⏳ 诺奖时光机</h1>
+  <span class="sub">1901–2026 · 125 年 · 学科河流图</span>
+  <a class="back-link" href="../index.html">← 返回主页</a>
+</header>
+<main>
+  <div class="controls" id="controls"></div>
+  <div class="timeline-wrap" id="wrap">
+    <div id="timeline"></div>
+  </div>
+  <div class="stats-strip" id="stats"></div>
+</main>
+
+<div class="tip" id="tip"></div>
+
+<script type="module">
+import * as db from '../js/db.js';
+
+await db.initDB(()=>{});
+
+const prizes = (await db.query('SELECT year,category,motivation,laureate_ids,share_note FROM prizes ORDER BY year')).rows;
+const persons = (await db.query('SELECT person_id,name_zh,name_en FROM persons')).rows;
+const personMap = {};
+persons.forEach(p=>personMap[p.person_id]=p);
+
+const cats = ['物理学','化学','生理学或医学','文学','和平','经济学'];
+const catColors = {物理学:'#60a5fa',化学:'#f87171',生理学或医学:'#34d399',文学:'#fbbf24',和平:'#c084fc',经济学:'#f97316'};
+const active = new Set(cats);
+
+// 控制按钮
+const controls = document.getElementById('controls');
+cats.forEach(c=>{
+  const b = document.createElement('button');
+  b.className='cat-btn active'; b.textContent=c;
+  b.onclick=()=>{ active.has(c)?active.delete(c):active.add(c); b.classList.toggle('active'); render(); };
+  controls.appendChild(b);
+});
+
+function render(){
+  const box = document.getElementById('timeline');
+  box.innerHTML='';
+  const W = box.clientWidth, H = box.clientHeight;
+  const yearMin=1901, yearMax=2026;
+  const padL=30, padR=20, padT=30, padB=20;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+
+  // 年份刻度
+  for (let y=1900; y<=2025; y+=25){
+    const x = padL + ((y-yearMin)/(yearMax-yearMin))*plotW;
+    const line = document.createElement('div'); line.className='year-mark'; line.style.left=x+'px'; box.appendChild(line);
+    const lab = document.createElement('div'); lab.className='year-label'; lab.style.left=x+'px'; lab.textContent=y; box.appendChild(lab);
+  }
+
+  const data = prizes.filter(p=>active.has(p.category));
+  const catIndex = {};
+  cats.forEach((c,i)=>{ if(active.has(c)) catIndex[c]=Object.keys(catIndex).length; });
+
+  data.forEach(p=>{
+    const year = p.year;
+    const x = padL + ((year-yearMin)/(yearMax-yearMin))*plotW;
+    const catIdx = catIndex[p.category];
+    const catCount = Object.keys(catIndex).length;
+    const y = padT + (catIdx/(catCount-1||1))*plotH;
+
+    const names = p.laureate_ids.split(';').map(id=>{
+      const per = personMap[id];
+      return per ? (per.name_zh||per.name_en||id) : id;
+    });
+
+    const dot = document.createElement('div');
+    dot.className='node '+p.category;
+    dot.style.left=(x-7)+'px';
+    dot.style.top=(y-7)+'px';
+    dot.onmouseover=(e)=>{
+      const tip = document.getElementById('tip');
+      tip.innerHTML = `<h4>${year}年 ${p.category}奖</h4>
+        <div>${names.join('、')}</div>
+        <div style="color:#64748b;margin-top:4px">${p.motivation.slice(0,80)}</div>
+        ${p.share_note?`<div style="color:#94a3b8;margin-top:4px">共享：${p.share_note}</div>`:''}`;
+      tip.style.display='block';
+      tip.style.left=Math.min(e.clientX+14,innerWidth-320)+'px';
+      tip.style.top=Math.min(e.clientY+14,innerHeight-160)+'px';
+    };
+    dot.onmouseout=()=>{ document.getElementById('tip').style.display='none'; };
+    box.appendChild(dot);
+  });
+
+  // 统计
+  const stats = document.getElementById('stats');
+  stats.innerHTML = `
+    <div class="stat-chip">共 <b>${data.length}</b> 个奖项</div>
+    <div class="stat-chip">涉及 <b>${new Set(data.flatMap(p=>p.laureate_ids.split(';'))).size}</b> 位得主</div>
+    <div class="stat-chip">最早 <b>${Math.min(...data.map(p=>p.year))}</b> 年</div>
+    <div class="stat-chip">最近 <b>${Math.max(...data.map(p=>p.year))}</b> 年</div>
+  `;
+}
+
+window.addEventListener('resize', render);
+render();
+</script>
+</body>
+</html>

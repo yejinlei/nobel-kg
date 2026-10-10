@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学术星座图 · 诺奖智能体</title>
+<script src="../lib/vendors/d3.v7.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+body { margin:0; background: radial-gradient(ellipse at 50% 30%, #101736 0%, #05070f 70%); overflow:hidden; font-family:var(--font); }
+#sky { display:block; cursor:grab; }
+.hud { position:fixed; top:16px; left:16px; color:#c7d2fe; z-index:10; pointer-events:none; }
+.hud h1 { font-size:19px; margin:0 0 4px 0; color:#e0e7ff; }
+.hud p { font-size:12px; margin:0; color:#8b93b8; }
+.back-link { position:fixed; top:14px; right:16px; z-index:10; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:#c7d2fe; padding:5px 13px; border-radius:999px; text-decoration:none; font-size:12.5px; }
+.back-link:hover { background:rgba(255,255,255,.16); }
+.legend { position:fixed; bottom:14px; left:16px; z-index:10; display:flex; gap:14px; font-size:12px; color:#aab3d6; }
+.legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; }
+.tip { position:fixed; display:none; z-index:20; max-width:320px; background:rgba(13,18,40,.94); border:1px solid rgba(129,140,248,.4); border-radius:10px; padding:11px 14px; color:#e2e8f0; font-size:12.5px; pointer-events:none; box-shadow:0 8px 30px rgba(0,0,0,.5); }
+.tip h4 { margin:0 0 4px 0; color:#fbbf24; font-size:14px; }
+.tip .en { color:#8b93b8; font-weight:400; font-size:11.5px; }
+.star { animation: twinkle 3s ease-in-out infinite; }
+@keyframes twinkle { 0%,100% { opacity:1; } 50% { opacity:.55; } }
+</style>
+</head>
+<body>
+<div class="hud">
+  <h1>✨ 学术星座图</h1>
+  <p>每颗星星是一位学者 · 星光大小 = 门下诺奖学生数 · 连线 = 师承 · 点击星星点亮它的星座</p>
+</div>
+<a class="back-link" href="../index.html">← 返回主页</a>
+<div class="legend">
+  <span><i style="background:#60a5fa"></i>物理学</span>
+  <span><i style="background:#f87171"></i>化学</span>
+  <span><i style="background:#34d399"></i>生理/医学</span>
+  <span><i style="background:#9ca3af"></i>非诺奖导师</span>
+</div>
+<div class="tip" id="tip"></div>
+<svg id="sky"></svg>
+
+<script type="module">
+import * as db from '../js/db.js';
+
+await db.initDB(()=>{});
+const persons = (await db.query('SELECT person_id,name_zh,name_en,nobel_year,nobel_category,nationality,birth_year,death_year,note FROM persons')).rows;
+const edges = (await db.query("SELECT student_id,advisor_id,relation_type,start_year FROM mentorship")).rows;
+
+// 门下诺奖学生数 → 星光大小
+const cnt = {};
+edges.forEach(e=>{
+  const s = persons.find(p=>p.person_id===e.student_id);
+  if (s && s.nobel_year) cnt[e.advisor_id] = (cnt[e.advisor_id]||0)+1;
+});
+
+const W = innerWidth, H = innerHeight;
+const svg = d3.select('#sky').attr('width',W).attr('height',H);
+const g = svg.append('g');
+svg.call(d3.zoom().scaleExtent([.2,5]).on('zoom',e=>g.attr('transform',e.transform)));
+
+// 背景随机小星
+const bg = g.append('g');
+for (let i=0;i<180;i++) bg.append('circle')
+  .attr('cx',Math.random()*W).attr('cy',Math.random()*H)
+  .attr('r',Math.random()*1.3+.3).attr('fill','#fff').attr('opacity',Math.random()*.4+.08);
+
+const catColor = c => c==='物理学'?'#60a5fa':c==='化学'?'#f87171':c==='生理学或医学'?'#34d399':'#9ca3af';
+const nodes = persons.map(p=>({ ...p, r: 5+Math.sqrt(cnt[p.person_id]||0)*4 }));
+const ids = new Set(nodes.map(n=>n.person_id));
+const links = edges.filter(e=>ids.has(e.student_id)&&ids.has(e.advisor_id))
+  .map(e=>({source:e.student_id,target:e.advisor_id,type:e.relation_type,year:e.start_year}));
+
+const sim = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d=>d.person_id).distance(90).strength(.4))
+  .force('charge', d3.forceManyBody().strength(-260))
+  .force('center', d3.forceCenter(W/2,H/2))
+  .force('collide', d3.forceCollide(d=>d.r+5));
+
+const link = g.append('g').selectAll('line').data(links).join('line')
+  .attr('stroke','#818cf8').attr('stroke-opacity',.28).attr('stroke-width',1);
+
+const node = g.append('g').selectAll('g').data(nodes).join('g').call(d3.drag()
+  .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+  .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+  .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}));
+
+// 光晕 + 星体
+node.append('circle').attr('r',d=>d.r*2.2).attr('fill',d=>catColor(d.nobel_category)).attr('opacity',.12);
+node.append('circle')
+  .attr('class','star')
+  .attr('r',d=>d.r)
+  .attr('fill',d=>catColor(d.nobel_category))
+  .attr('stroke','#fff').attr('stroke-opacity',.85).attr('stroke-width',d=>d.nobel_year?1.6:.6)
+  .style('animation-delay',()=> (Math.random()*3)+'s')
+  .on('mouseover',showTip).on('mouseout',hideTip)
+  .on('click',(e,d)=>lightUp(d));
+
+node.append('text')
+  .text(d=> (d.name_zh||d.name_en||'').slice(0,5))
+  .attr('y',d=>-d.r-6).attr('text-anchor','middle')
+  .attr('fill','#cbd5f5').attr('font-size',10)
+  .style('text-shadow','0 1px 4px #000')
+  .style('pointer-events','none');
+
+sim.on('tick',()=>{
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+});
+
+const tip = document.getElementById('tip');
+function showTip(e,d){
+  tip.innerHTML = `<h4>${d.name_zh||d.name_en} <span class="en">${d.name_en||''}</span></h4>
+    <div>${d.birth_year||'?'}–${d.death_year||''} ｜ ${d.nationality||''}</div>
+    ${d.nobel_year?`<div style="color:#fbbf24;margin-top:3px">🏆 ${d.nobel_year} 年 ${d.nobel_category}奖</div>`:'<div style="color:#8b93b8;margin-top:3px">未获诺奖 · 名师</div>'}
+    ${cnt[d.person_id]?`<div style="margin-top:3px">门下诺奖学生：${cnt[d.person_id]} 位</div>`:''}
+    ${d.note?`<div style="color:#aab3d6;margin-top:4px">${d.note.slice(0,70)}</div>`:''}`;
+  tip.style.display='block';
+  tip.style.left=Math.min(e.clientX+14,innerWidth-340)+'px';
+  tip.style.top=Math.min(e.clientY+14,innerHeight-180)+'px';
+}
+function hideTip(){ tip.style.display='none'; }
+
+// 点击点亮星座（该学者的全部师承相连边与节点）
+let lit = null;
+function lightUp(d){
+  if (lit===d.person_id){ lit=null; node.attr('opacity',1); link.attr('opacity',1); return; }
+  lit = d.person_id;
+  const keep = new Set([d.person_id]);
+  const litLinks = new Set();
+  links.forEach((l,i)=>{
+    const s=l.source.person_id||l.source, t=l.target.person_id||l.target;
+    if (s===d.person_id||t===d.person_id){ litLinks.add(i); keep.add(s); keep.add(t); }
+  });
+  node.attr('opacity',n=>keep.has(n.person_id)?1:.12);
+  link.attr('stroke-opacity',(l,i)=>litLinks.has(i)?.9:.04)
+      .attr('stroke',(l,i)=>litLinks.has(i)?'#fbbf24':'#818cf8');
+}
+</script>
+</body>
+</html>

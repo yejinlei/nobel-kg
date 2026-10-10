@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>师承六度挑战 · 诺奖智能体</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+body { margin:0; background:#0b0f1e; color:#e2e8f0; font-family:var(--font); min-height:100vh; }
+header { padding:14px 22px; border-bottom:1px solid #1e293b; display:flex; align-items:center; gap:14px; }
+header h1 { font-size:18px; margin:0; }
+header .sub { font-size:12px; color:#64748b; margin-left:auto; }
+.back-link { color:#94a3b8; text-decoration:none; font-size:13px; }
+.back-link:hover { color:#e2e8f0; }
+main { max-width:880px; margin:0 auto; padding:22px; }
+.challenge-card {
+  background:#111628; border:1px solid #1e293b; border-radius:14px; padding:20px 22px;
+  margin-bottom:16px;
+}
+.challenge-card h3 { margin:0 0 10px 0; font-size:16px; color:#fbbf24; }
+.challenge-card p { margin:0 0 14px 0; font-size:13px; color:#94a3b8; }
+.pair-box {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;
+}
+.person-tag {
+  background:#1e293b; border:1px solid #334155; border-radius:10px; padding:10px 16px;
+  font-size:15px; font-weight:600; color:#e0e7ff;
+}
+.person-tag .en { font-size:12px; color:#64748b; font-weight:400; display:block; }
+.arrow { color:#fbbf24; font-size:18px; }
+.btn { font-family:inherit; font-size:13.5px; padding:9px 18px; border-radius:10px; border:1px solid transparent; cursor:pointer; }
+.btn-primary { background:#2f5fd0; color:#fff; }
+.btn-secondary { background:#1e293b; color:#e2e8f0; border-color:#334155; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+
+.trace { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:12px 0; }
+.trace-step {
+  background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px 12px;
+  font-size:13px; color:#cbd5f5;
+}
+.trace-arrow { color:#60a5fa; font-size:14px; }
+.hint { font-size:12px; color:#64748b; margin-top:8px; }
+.score { font-size:22px; color:#fbbf24; font-weight:700; margin-top:6px; }
+
+.board { margin-top:16px; }
+.board-row {
+  display:flex; align-items:center; gap:10px; margin-bottom:8px;
+  padding:10px 14px; background:#111628; border-radius:10px; border:1px solid #1e293b;
+}
+.board-rank { width:32px; text-align:center; font-weight:700; color:#fbbf24; }
+.board-name { flex:1; font-size:13px; }
+.board-score { width:50px; text-align:right; font-size:14px; color:#60a5fa; font-weight:600; }
+
+input[type="text"] {
+  background:#0f1629; border:1px solid #334155; color:#e2e8f0;
+  padding:8px 12px; border-radius:8px; font-family:inherit; font-size:14px; outline:none;
+}
+input[type="text"]:focus { border-color:#2f5fd0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎯 师承六度挑战</h1>
+  <span class="sub">任意两位学者之间，师承链最多隔几代？</span>
+  <a class="back-link" href="../index.html">← 返回主页</a>
+</header>
+<main>
+  <div class="challenge-card">
+    <h3>游戏规则</h3>
+    <p>系统随机抽取两位诺奖得主。你猜测他们之间<strong>最短师承链的步数</strong>（直接师徒 = 1 步）。<br>
+    支持自由探索：在下方输入任意两位学者中文名，系统会给出最短师承路径。</p>
+  </div>
+
+  <div class="challenge-card">
+    <h3>🎰 随机挑战</h3>
+    <div class="pair-box" id="randomPair"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="newRound()">换一组</button>
+      <button class="btn btn-secondary" onclick="revealAnswer()">揭晓答案</button>
+    </div>
+    <div id="randomResult" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="challenge-card">
+    <h3>🔍 自由探索</h3>
+    <p>输入两位学者中文名（模糊匹配），查看他们之间的最短师承路径。</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+      <input type="text" id="fromName" placeholder="起点学者，如：杨振宁">
+      <input type="text" id="toName" placeholder="终点学者，如：爱因斯坦">
+      <button class="btn btn-primary" onclick="explore()">查询路径</button>
+    </div>
+    <div id="exploreResult"></div>
+  </div>
+
+  <div class="challenge-card">
+    <h3>🏆 历史最短路径 TOP 10</h3>
+    <p>数据库中已知的师承最短路径记录（按步数升序）。</p>
+    <div class="board" id="topBoard"></div>
+  </div>
+</main>
+
+<script type="module">
+import * as db from '../js/db.js';
+
+await db.initDB(()=>{});
+
+const persons = (await db.query('SELECT person_id,name_zh,name_en,nobel_year,nobel_category FROM persons')).rows;
+const edges = (await db.query('SELECT student_id,advisor_id,relation_type,start_year FROM mentorship')).rows;
+
+// 建邻接表
+const adj = {};
+edges.forEach(e=>{
+  if (!adj[e.student_id]) adj[e.student_id] = [];
+  adj[e.student_id].push({ id: e.advisor_id, type: e.relation_type, year: e.start_year });
+  if (!adj[e.advisor_id]) adj[e.advisor_id] = [];
+  adj[e.advisor_id].push({ id: e.student_id, type: e.relation_type, year: e.start_year });
+});
+
+const nobelPersons = persons.filter(p=>p.nobel_year);
+const findPerson = s => persons.find(p=> (p.name_zh||'').includes(s) || (p.name_en||'').toLowerCase().includes(s.toLowerCase()));
+const findById = id => persons.find(p=>p.person_id===id);
+
+// BFS 最短路径
+function bfs(fromId, toId){
+  if (fromId===toId) return [fromId];
+  const q = [[fromId]]; const seen = new Set([fromId]);
+  while (q.length){
+    const path = q.shift();
+    const last = path[path.length-1];
+    if (adj[last]) for (const n of adj[last]){
+      if (!seen.has(n.id)){
+        const np = [...path, n.id];
+        if (n.id===toId) return np;
+        seen.add(n.id); q.push(np);
+      }
+    }
+  }
+  return null;
+}
+
+// 随机挑战
+function newRound(){
+  const a = nobelPersons[Math.floor(Math.random()*nobelPersons.length)];
+  let b = nobelPersons[Math.floor(Math.random()*nobelPersons.length)];
+  while (b.person_id===a.person_id) b = nobelPersons[Math.floor(Math.random()*nobelPersons.length)];
+  document.getElementById('randomPair').innerHTML = `
+    <div class="person-tag">${a.name_zh}<span class="en">${a.name_en||''}</span></div>
+    <span class="arrow">↔</span>
+    <div class="person-tag">${b.name_zh}<span class="en">${b.name_en||''}</span></div>`;
+  window._roundA = a.person_id; window._roundB = b.person_id;
+  document.getElementById('randomResult').innerHTML = '';
+}
+
+function revealAnswer(){
+  if (!window._roundA) return;
+  const path = bfs(window._roundA, window._roundB);
+  const r = document.getElementById('randomResult');
+  if (!path){ r.innerHTML='<p class="hint">他们之间没有已知的师承路径。</p>'; return; }
+  r.innerHTML = renderPath(path) + `<div class="score">${path.length-1} 步</div>`;
+}
+
+// 自由探索
+window.explore = function(){
+  const f = document.getElementById('fromName').value.trim();
+  const t = document.getElementById('toName').value.trim();
+  const r = document.getElementById('exploreResult');
+  if (!f||!t){ r.innerHTML='<p class="hint">请输入两位学者姓名。</p>'; return; }
+  const fa = findPerson(f), ta = findPerson(t);
+  if (!fa){ r.innerHTML=`<p class="hint">未找到起点「${f}」，试试中文名。</p>`; return; }
+  if (!ta){ r.innerHTML=`<p class="hint">未找到终点「${t}」，试试中文名。</p>`; return; }
+  const path = bfs(fa.person_id, ta.person_id);
+  if (!path){ r.innerHTML='<p class="hint">他们之间没有已知的师承路径。</p>'; return; }
+  r.innerHTML = renderPath(path) + `<div class="score">${path.length-1} 步</div>`;
+};
+
+function renderPath(ids){
+  const steps = ids.map(id=>{
+    const p = findById(id);
+    return `<div class="trace-step">${p?p.name_zh:id}</div>`;
+  });
+  const arrows = new Array(ids.length-1).fill('<span class="trace-arrow">→</span>');
+  const html = [];
+  for (let i=0;i<steps.length;i++){ html.push(steps[i]); if (i<arrows.length) html.push(arrows[i]); }
+  return `<div class="trace">${html.join('')}</div>`;
+}
+
+// TOP10 统计
+const topPairs = [];
+for (let i=0;i<Math.min(300, nobelPersons.length); i++){
+  for (let j=i+1;j<Math.min(300, nobelPersons.length); j++){
+    const a = nobelPersons[i], b = nobelPersons[j];
+    const path = bfs(a.person_id, b.person_id);
+    if (path && path.length<=6) topPairs.push({a,b,steps:path.length-1,path});
+  }
+}
+topPairs.sort((a,b)=>a.steps-b.steps);
+const board = document.getElementById('topBoard');
+board.innerHTML = topPairs.slice(0,10).map((r,i)=>`
+  <div class="board-row">
+    <div class="board-rank">${i+1}</div>
+    <div class="board-name">${r.a.name_zh} ↔ ${r.b.name_zh}</div>
+    <div class="board-score">${r.steps} 步</div>
+  </div>
+`).join('');
+
+// 暴露到全局供 onclick 调用
+window.newRound = newRound;
+window.revealAnswer = revealAnswer;
+newRound();
+</script>
+</body>
+</html>
