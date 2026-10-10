@@ -767,14 +767,21 @@ export const TOOLS = [
       }
       // 年份查询
       if (year) {
-        const catsql = cat ? ` AND category='${cat.replace(/'/g,"''")}'` : " AND category IN ('物理学','化学','生理学或医学','经济学')";
-        const yrsql = `SELECT pr.year::int AS yr, pr.category, pr.share_note, pr.motivation,
-           LIST(COALESCE(p.name_zh,p.name_en) ORDER BY p.name_en) AS names
-           FROM prizes pr
-           LEFT JOIN persons p ON p.person_id IN (SELECT UNNEST(SPLIT(pr.laureate_ids,';')))
-           WHERE pr.year::int=${year}${catsql}
-           GROUP BY pr.year, pr.category, pr.share_note, pr.motivation
-           ORDER BY pr.category`;
+        const catsql = cat ? ` AND pr.category='${cat.replace(/'/g,"''")}'` : " AND pr.category IN ('物理学','化学','生理学或医学','经济学')";
+        // 用 CTE + UNNEST 展开 laureate_ids，避免 LEFT JOIN ON IN (subquery) —— 该形式 DuckDB WASM 不支持
+        const yrsql = `
+          WITH split AS (
+            SELECT pr.year, pr.category, pr.share_note, pr.motivation,
+                   UNNEST(string_split(pr.laureate_ids, ';')) AS pid
+            FROM prizes pr
+            WHERE pr.year::int = ${year} ${catsql}
+          )
+          SELECT split.year::int AS yr, split.category, split.share_note, split.motivation,
+                 LIST(COALESCE(p.name_zh, p.name_en) ORDER BY p.name_en) AS names
+          FROM split
+          LEFT JOIN persons p ON p.person_id = split.pid
+          GROUP BY split.year, split.category, split.share_note, split.motivation
+          ORDER BY split.category`;
         const yr = await query(yrsql);
         if (!yr.rows.length) return { text: `${year} 年${cat || '学术奖项'}没有颁奖记录。`, payload: { year, category: cat } };
         const lines = [`### ${year} 年诺贝尔奖（学术奖项）`];
