@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>诺贝尔文学奖 · 作品与传承图谱</title>
-<script src="../lib/d3.min.js"></script>
-<script src="../lib/echarts.min.js"></script>
+<script src="../lib/vendors/d3.v7.min.js"></script>
+<script src="../lib/vendors/echarts.min.js"></script>
 <link rel="stylesheet" href="../css/style.css">
 <style>
 :root { --lit-bg: #f7f3ed; --lit-accent: #8B4513; --lit-secondary: #D2691E; }
@@ -93,12 +93,12 @@ await db.initDB(log);
 log('正在查询文学奖数据…');
 
 // 查数据
-const writers = await db.query('SELECT * FROM writers ORDER BY nobel_year');
-const movements = await db.query('SELECT * FROM literary_movements');
-const genres = await db.query('SELECT * FROM literary_genres');
-const wm = await db.query('SELECT * FROM writer_movement');
-const wg = await db.query('SELECT * FROM writer_genre');
-const influence = await db.query('SELECT * FROM literary_influence');
+const writers = (await db.query('SELECT * FROM writers ORDER BY nobel_year')).rows;
+const movements = (await db.query('SELECT * FROM literary_movements')).rows;
+const genres = (await db.query('SELECT * FROM literary_genres')).rows;
+const wm = (await db.query('SELECT * FROM writer_movement')).rows;
+const wg = (await db.query('SELECT * FROM writer_genre')).rows;
+const influence = (await db.query('SELECT * FROM literary_influence')).rows;
 
 // 统计
 const countries = new Set(writers.map(w=>w.country));

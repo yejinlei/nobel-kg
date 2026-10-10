@@ -106,8 +106,8 @@ const nodes = DATA.people.filter(p=>{
   return true;
 }).map(p=>({...p,r:14+Math.log2((nobelCount[p.id]||1)+1)*6}));
 const nodeIds = new Set(nodes.map(n=>n.id));
-const edges = DATA.edges.filter(e=>nodeIds.has(e.s)&&nodeIds.has(e.a)).map(e=>({...e,kind:"mentor"}));
-const paperLinks = DATA.paper_inh.filter(e=>nodeIds.has(e.s)&&nodeIds.has(e.a)&&e.s!==e.a).map(e=>({...e,kind:"paper"}));
+const edges = DATA.edges.filter(e=>nodeIds.has(e.s)&&nodeIds.has(e.a)).map(e=>({...e,source:e.s,target:e.a,kind:"mentor"}));
+const paperLinks = DATA.paper_inh.filter(e=>nodeIds.has(e.s)&&nodeIds.has(e.a)&&e.s!==e.a).map(e=>({...e,source:e.s,target:e.a,kind:"paper"}));
 
 const allLinks=[...edges,...paperLinks];
 

@@ -15,9 +15,11 @@ let TABLE_INFO = [];
 export function isReady() { return READY; }
 export function getTableInfo() { return TABLE_INFO; }
 
-/** 基于文档基址解析资源地址，兼容 GitHub Pages 项目子路径 */
+/** 基于本模块 URL 解析资源地址（db.js 位于 js/ 下，资源在项目根）；
+ *  用 import.meta.url 而非 document.baseURI，保证 viz/ 等子目录页面调用时
+ *  data/ 与 lib/duckdb/ 路径仍然解析到站点根，兼容 GitHub Pages 子路径 */
 function assetUrl(relPath) {
-  return new URL(relPath, document.baseURI).href;
+  return new URL('../' + relPath, import.meta.url).href;
 }
 
 /** 读取数据清单 */

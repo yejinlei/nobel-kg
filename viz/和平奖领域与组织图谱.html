@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>诺贝尔和平奖 · 领域与组织图谱</title>
-<script src="../lib/d3.min.js"></script>
-<script src="../lib/echarts.min.js"></script>
+<script src="../lib/vendors/d3.v7.min.js"></script>
+<script src="../lib/vendors/echarts.min.js"></script>
 <link rel="stylesheet" href="../css/style.css">
 <style>
 :root { --peace-bg: #eef3f7; --peace-accent: #1e5799; --peace-secondary: #2989d8; --peace-olive: #6B8E23; }
@@ -98,10 +98,10 @@ const log = msg => document.getElementById('loading').textContent = msg;
 await db.initDB(log);
 log('正在查询和平奖数据…');
 
-const subjects = await db.query('SELECT * FROM peace_subjects ORDER BY nobel_year');
-const orgs = await db.query('SELECT * FROM peace_orgs');
-const fields = await db.query('SELECT * FROM peace_fields');
-const sf = await db.query('SELECT * FROM peace_field_rel');
+const subjects = (await db.query('SELECT * FROM peace_subjects ORDER BY nobel_year')).rows;
+const orgs = (await db.query('SELECT * FROM peace_orgs')).rows;
+const fields = (await db.query('SELECT * FROM peace_fields')).rows;
+const sf = (await db.query('SELECT * FROM peace_field_rel')).rows;
 
 const personSubjects = subjects.filter(s=>s.subject_type==='个人');
 const orgSubjects = subjects.filter(s=>s.subject_type==='组织');
