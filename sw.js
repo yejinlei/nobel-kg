@@ -22,7 +22,7 @@ const STATIC_PREFIXES = [
   'viz/',              // 独立可视化页面
   'fonts/',
 ];
-const BINARY_EXTS = ['.wasm', '.worker.js', '.parquet', '.json', '.png', '.jpg', '.svg', '.ico', '.woff2', '.woff', '.ttf'];
+const BINARY_EXTS = ['.wasm', '.wasm.br', '.worker.js', '.parquet', '.json', '.png', '.jpg', '.svg', '.ico', '.woff2', '.woff', '.ttf'];
 
 /** 是否要缓存这个请求 */
 function shouldCache(req) {

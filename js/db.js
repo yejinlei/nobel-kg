@@ -71,6 +71,35 @@ export async function initDB(onProgress) {
   let bundle = await duckdb.selectBundle(localBundles);
   if (!bundle || !bundle.mainModule) bundle = localBundles.eh;
 
+  // --- Brotli 预压缩加速（可选，浏览器不支持时自动降级）---
+  // GitHub Pages 不支持服务端 Brotli，我们预生成 .wasm.br 提交到仓库；
+  // 主线程用 DecompressionStream 解压成 blob URL 传给 worker。
+  // 未支持时 fallback 到原始 wasm 路径。
+  const wasmUrl = bundle.mainModule;
+  const wasmBrUrl = wasmUrl + '.br';
+  const hasDecompressStream = typeof DecompressionStream !== 'undefined';
+  let effectiveWasmUrl = wasmUrl;
+
+  if (hasDecompressStream) {
+    try {
+      log('正在下载并解压 WASM 引擎（Brotli 5.5 MB → 34 MB）…');
+      const brResp = await fetch(wasmBrUrl, { cache: 'force-cache' });
+      if (brResp.ok) {
+        const brBuf = await brResp.arrayBuffer();
+        const blob = new Blob([brBuf]);
+        const dsStream = blob.stream().pipeThrough(new DecompressionStream('br'));
+        const wasmBuf = await new Response(dsStream).arrayBuffer();
+        // 用 blob URL 代替网络 URL，让 worker 内部直接 instantiateStreaming
+        effectiveWasmUrl = URL.createObjectURL(
+          new Blob([wasmBuf], { type: 'application/wasm' })
+        );
+        bundle = Object.assign({}, bundle, { mainModule: effectiveWasmUrl });
+      }
+    } catch (_) {
+      // Brotli 下载/解压失败时降级到原始 wasm
+    }
+  }
+
   const workerUrl = URL.createObjectURL(
     new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
   );
@@ -85,6 +114,11 @@ export async function initDB(onProgress) {
 
   DB = new duckdb.AsyncDuckDB(logger, worker);
   await DB.instantiate(bundle.mainModule, bundle.prelude);
+
+  // 清理 blob URL
+  if (effectiveWasmUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(effectiveWasmUrl);
+  }
 
   log('正在装载本体论数据表…');
   CONN = await DB.connect();
