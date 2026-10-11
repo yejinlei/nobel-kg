@@ -340,12 +340,54 @@ function resetHighlight(){
   linkP.classed("dim",false).classed("active",false);
 }
 
-// 控件
+// 控件 —— 统一可见性函数，避免多个 onchange 互相覆盖
+function applyVisibility(){
+  const sv = schoolSel.value;
+  const nobelOnly = document.getElementById("showNobelOnly").checked;
+  const peopleOn = document.getElementById("showPeople").checked;
+
+  // 学派筛选：选中某学派时，保留「该学派成员 + 直接邻居（导师/学生）」，
+  // 并把非学派的邻居加 dim 类作为上下文；这样筛选后节点不会全部孤立。
+  let schoolNeighbours = null;
+  if(sv){
+    schoolNeighbours = new Set();
+    DATA.people.forEach(p=>{ if(p.school===sv) schoolNeighbours.add(p.id); });
+    edges.forEach(e=>{
+      const sid=e.source.id||e.source, tid=e.target.id||e.target;
+      if(schoolNeighbours.has(sid)) schoolNeighbours.add(tid);
+      if(schoolNeighbours.has(tid)) schoolNeighbours.add(sid);
+    });
+  }
+
+  node.style("display", d=>{
+    if(!peopleOn) return "none";
+    if(sv && !schoolNeighbours.has(d.id)) return "none";
+    if(nobelOnly && (!d.nobel_year||d.nobel_year.trim()==="")) return "none";
+    return null;
+  });
+  // 学派筛选模式：非该学派的节点做半透明处理（保留邻居作为上下文）
+  // 无学派筛选时不动 dim 类，避免和 highlightChain 的高亮状态冲突
+  if(sv) node.classed("dim", d=> d.school!==sv);
+
+  // 边跟着节点过滤
+  const visibleIds = new Set();
+  node.each(function(d){ if(d3.select(this).style("display")!=="none") visibleIds.add(d.id); });
+  const edgeVis = l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none";
+  linkM.style("display", edgeVis);
+  linkP.style("display", edgeVis);
+  linkC.style("display", edgeVis);
+}
+
+// 图层类控件
 document.getElementById("showEdge").onchange=e=>linkM.style("display",e.target.checked?null:"none");
 document.getElementById("showPaper").onchange=e=>linkP.style("display",e.target.checked?null:"none");
 document.getElementById("showCollab").onchange=e=>linkC.style("display",e.target.checked?null:"none");
-document.getElementById("showPeople").onchange=e=>node.style("display",e.target.checked?null:"none");
-document.getElementById("sizeBy").onchange=()=>node.select("circle").transition().attr("r",d=>document.getElementById("sizeBy").checked?d.r:10);
+
+// 节点大小
+document.getElementById("sizeBy").onchange=()=>{
+  node.select("circle").transition().attr("r",d=>document.getElementById("sizeBy").checked?d.r:10);
+  node.select("text").transition().attr("dy",d=>(document.getElementById("sizeBy").checked?d.r:10)+12);
+};
 
 // 学派筛选下拉
 const schoolSel = document.getElementById("schoolFilter");
@@ -355,7 +397,7 @@ DATA.schools.forEach(s=>{
   schoolSel.appendChild(o);
 });
 
-// 着色模式 + 学派筛选
+// 着色模式
 function getNodeColor(d){
   const mode = document.getElementById("colorMode").value;
   if(mode==="school"){
@@ -368,21 +410,6 @@ function getNodeColor(d){
 function applyColorMode(){
   node.select("circle").transition().duration(300).attr("fill",d=>getNodeColor(d));
   updateLegend();
-}
-
-function applySchoolFilter(){
-  const sv = schoolSel.value;
-  node.style("display", d=>{
-    if(sv && d.school!==sv) return "none";
-    if(document.getElementById("showNobelOnly").checked && (!d.nobel_year||!d.nobel_year.trim())) return "none";
-    return null;
-  });
-  // 边也跟着过滤
-  const visibleIds = new Set();
-  node.each(d=>{ if(d3.select(this).style("display")!=="none") visibleIds.add(d.id); });
-  linkM.style("display", l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none");
-  linkP.style("display", l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none");
-  linkC.style("display", l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none");
 }
 
 function updateLegend(){
@@ -410,8 +437,9 @@ function updateLegend(){
 }
 
 document.getElementById("colorMode").onchange = applyColorMode;
-schoolSel.onchange = applySchoolFilter;
-document.getElementById("showNobelOnly").onchange = applySchoolFilter;
+document.getElementById("showPeople").onchange = applyVisibility;
+document.getElementById("showNobelOnly").onchange = applyVisibility;
+schoolSel.onchange = applyVisibility;
 
 // 高亮也覆盖合作边
 const _origHighlight = highlightChain;
