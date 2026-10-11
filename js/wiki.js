@@ -378,12 +378,21 @@ export async function webLookup(query, opts = {}) {
   if (attempted.length === 0) {
     return {
       source: 'none',
-      text: '（未启用任何联网检索引擎；请到设置里启用至少一个搜索引擎，或配置 Tavily Key）',
+      text: '（未启用任何联网检索引擎。请到「设置 → 搜索引擎」启用至少一个；'
+        + '国内环境下推荐配置 Tavily Key 或自建 SearxNG；'
+        + 'Bing/DuckDuckGo/Mojeek 等无 CORS 引擎在浏览器端大概率失败）',
     };
   }
 
+  const hint = failed.length
+    ? '；各引擎失败原因：' + failed.join('；')
+    : '（引擎正常返回但无匹配结果，可能是查询过于宽泛或过于未来向）';
+  const advice = '\n建议：'
+    + '① 若需要真实外部数据，请配置 Tavily Key（国内环境最稳的引擎）；'
+    + '② 或改问本体已有范围的问题（物理学/化学/生理医学/经济学 四类学术奖 1901–2026 年）。';
+
   return {
     source: 'none',
-    text: `（已尝试 ${attempted.join(' → ')}，均未返回结果${failed.length ? '：' + failed.join('；') : ''}）`,
+    text: `（已尝试 ${attempted.join(' → ')}，均未返回结果${hint}${advice}）`,
   };
 }
