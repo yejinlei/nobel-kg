@@ -158,7 +158,7 @@ const sl = document.getElementById('subject_list');
 subjects.forEach(s => {
   const div = document.createElement('div');
   div.className = 'subject-item';
-  const fieldRel = sf.filter(r=>r.subject_id===s.subject_id).map(r=>fields.find(f=>f.field_id===r.field_id)?.name_zh).filter(Boolean);
+  const fieldRel = sf.filter(r=>r.peace_id===s.peace_id).map(r=>fields.find(f=>f.cause_id===r.cause_id)?.name_zh).filter(Boolean);
   let badges = '';
   if(s.declined === '是') badges += '<span class="badge badge-decline">拒领</span>';
   if(s.posthumous === '是') badges += '<span class="badge badge-posthumous">追授</span>';
@@ -177,7 +177,7 @@ subjects.forEach(s => {
 
 // 领域分布
 const fieldCount = {};
-sf.forEach(r=>{ const f = fields.find(x=>x.field_id===r.field_id); if(f) fieldCount[f.name_zh]=(fieldCount[f.name_zh]||0)+1; });
+sf.forEach(r=>{ const f = fields.find(x=>x.cause_id===r.cause_id); if(f) fieldCount[f.name_zh]=(fieldCount[f.name_zh]||0)+1; });
 const fieldData = Object.entries(fieldCount).map(([k,v])=>({name:k,value:v})).sort((a,b)=>b.value-a.value);
 echarts.init(document.getElementById('chart_field')).setOption({
   tooltip:{trigger:'item'},
@@ -232,11 +232,11 @@ svg.attr('viewBox', `0 0 ${width} ${height}`)
 
 // 领域色板
 const fieldColors = {};
-fields.forEach((f,i)=>{ fieldColors[f.field_id] = ['#1e5799','#2989d8','#6B8E23','#e67e22','#9b59b6','#0d9488','#d946ef','#dc2626'][i%8]; });
+fields.forEach((f,i)=>{ fieldColors[f.cause_id] = ['#1e5799','#2989d8','#6B8E23','#e67e22','#9b59b6','#0d9488','#d946ef','#dc2626','#f59e0b','#3b82f6','#84cc16','#ec4899','#06b6d4','#a855f7','#f97316','#14b8a6','#6366f1','#8b5cf6','#e11d48','#059669','#c026d3','#0ea5e9'][i%22]; });
 
 // 主体到领域映射
 const subjectFields = {};
-sf.forEach(r=>{ if(!subjectFields[r.subject_id]) subjectFields[r.subject_id]=[]; subjectFields[r.subject_id].push(r.field_id); });
+sf.forEach(r=>{ if(!subjectFields[r.peace_id]) subjectFields[r.peace_id]=[]; subjectFields[r.peace_id].push(r.cause_id); });
 
 // 节点数据（保存原始 subject 记录，便于 tooltip）
 // 预置初始坐标，避免 d3.forceSimulation 在某些浏览器下 x/y 为 undefined 导致节点飞出视口
@@ -244,8 +244,8 @@ const cx0 = width/2, cy0 = height/2;
 const nFields = fields.length || 1;
 const networkNodes = [
   ...fields.map((f,i)=>({
-    id:f.field_id, name:f.name_zh, type:'field',
-    r: 22 + sf.filter(r=>r.field_id===f.field_id).length*1.2,
+    id:f.cause_id, name:f.name_zh, type:'field',
+    r: 22 + sf.filter(r=>r.cause_id===f.cause_id).length*1.2,
     _rec:f,
     x: cx0 + 240*Math.cos(i*Math.PI*2/nFields),
     y: cy0 + 240*Math.sin(i*Math.PI*2/nFields)
@@ -253,7 +253,7 @@ const networkNodes = [
   ...subjects.map((s,i)=>{
     const angle = (i/subjects.length)*Math.PI*2;
     return {
-      id:s.subject_id,
+      id:s.peace_id,
       name: s.subject_type==='组织' ? (s.acronym||s.name_en.slice(0,10)) : s.name_en.split(' ').slice(-1)[0],
       type:s.subject_type,
       r: s.subject_type==='组织'?10:6,
@@ -263,7 +263,7 @@ const networkNodes = [
     };
   })
 ];
-const networkLinks = sf.map(r=>({source:r.subject_id,target:r.field_id})).filter(l=>networkNodes.find(n=>n.id===l.source)&&networkNodes.find(n=>n.id===l.target));
+const networkLinks = sf.map(r=>({source:r.peace_id,target:r.cause_id})).filter(l=>networkNodes.find(n=>n.id===l.source)&&networkNodes.find(n=>n.id===l.target));
 
 function nodeColor(d){
   const mode = document.getElementById('netColorMode').value;
@@ -340,12 +340,12 @@ const tip = document.getElementById('tip');
 function showTooltip(e,d){
   let html='';
   if(d.type==='field'){
-    const count = sf.filter(r=>r.field_id===d.id).length;
+    const count = sf.filter(r=>r.cause_id===d.id).length;
     html = `<h4>◆ ${d.name}</h4>
       <div class="meta">领域 · ${count} 位获奖主体</div>`;
   } else {
     const s = d._rec;
-    const fRel = (subjectFields[d.id]||[]).map(fid=>fields.find(f=>f.field_id===fid)?.name_zh).filter(Boolean);
+    const fRel = (subjectFields[d.id]||[]).map(fid=>fields.find(f=>f.cause_id===fid)?.name_zh).filter(Boolean);
     html = `<h4>${s.name_en}${s.acronym?' <span style="color:#6B8E23;">'+s.acronym+'</span>':''}</h4>
       <div class="meta">🏆 ${s.nobel_year} · ${s.subject_type} · ${s.country||'国际组织'}</div>`;
     if(fRel.length) html += `<div style="margin-top:4px;">${fRel.map(f=>`<span class="field-tag">${f}</span>`).join('')}</div>`;
@@ -426,7 +426,7 @@ document.getElementById('netYearRange').oninput = (e)=>{
 const ffSel = document.getElementById('netFieldFilter');
 fields.forEach(f=>{
   const o = document.createElement('option');
-  o.value = f.field_id; o.textContent = f.name_zh;
+  o.value = f.cause_id; o.textContent = f.name_zh;
   ffSel.appendChild(o);
 });
 
@@ -441,7 +441,7 @@ listItems.forEach((item,idx)=>{
     svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
     // 高亮对应节点及其边
     setTimeout(()=>{
-      const target = networkNodes.find(n=>n.id===s.subject_id);
+      const target = networkNodes.find(n=>n.id===s.peace_id);
       if(target){
         highlightChain(target);
         // 滚动到该节点
