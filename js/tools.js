@@ -787,9 +787,20 @@ export const TOOLS = [
         const lines = [`### ${year} 年诺贝尔奖（学术奖项）`];
         const blocks=[];
         yr.rows.forEach((r) => {
-          lines.push(`\n**${r.category}**（${r.share_note}）——${r.names.join('、')}`);
+          // DuckDB LIST(...) 在 browser DuckDB-WASM 里可能返回数组也可能被序列化成 JSON 字符串
+          const listify = (v) => {
+            if (Array.isArray(v)) return v;
+            if (typeof v === 'string') {
+              try { const p = JSON.parse(v); if (Array.isArray(p)) return p; } catch(_){}
+              return v ? [v] : [];
+            }
+            return v ? [v] : [];
+          };
+          const namesArr = listify(r.names);
+          const namesStr = namesArr.join('、');
+          lines.push(`\n**${r.category}**（${r.share_note}）——${namesStr}`);
           if (r.motivation) lines.push(`> ${r.motivation}`);
-          blocks.push({ type: 'card', title: `${year}·${r.category}`, content: r.names.join('、'), meta: r.share_note });
+          blocks.push({ type: 'card', title: `${year}·${r.category}`, content: namesStr, meta: r.share_note });
         });
         return { text: lines.join('\n'), blocks, payload: { year, items: yr.rows } };
       }
@@ -855,15 +866,35 @@ export const TOOLS = [
     async run(args) {
       const year = args.year ? Math.trunc(args.year) : null;
       const country = String(args.country || '').trim();
-      const kw = String(args.keyword || '').trim();
+      let kw = String(args.keyword || '').trim();
       const orgOnly = args.orgOnly === true;
       const lim = Math.max(1, Math.min(200, args.limit ? Math.trunc(args.limit) : 30));
+
+      // 中文关键词 → 英文等价（peace_subjects / peace_orgs 主表以 name_en/acronym 为主，
+      // 直接搜中文会漏掉大量真结果）
+      const ZH_EN = {
+        '联合国': 'united nations', '红十字': 'red cross', '红十字会': 'red cross',
+        '红新月': 'red crescent', '难民': 'refugee', '联合国难民': 'unhcr', '难民署': 'unhcr',
+        '人权': 'human rights', '世卫': 'who', '教科文': 'unesco', '世界卫生组织': 'who',
+        '诺贝尔': 'nobel', '诺贝尔基金会': 'nobel foundation', '诺贝尔基金会': 'nobel foundation',
+        '美国': 'usa', '中国': 'china', '日本': 'japan', '英国': 'uk', '德国': 'germany', '法国': 'france',
+      };
+      const kwAliases = [];
+      if (kw) {
+        for (const [zh, en] of Object.entries(ZH_EN)) {
+          if (kw.includes(zh) && !kwAliases.includes(en)) kwAliases.push(en);
+        }
+      }
+      // 用户关键词 + 英文别名，全部作为 OR 检索
+      const kwAll = [];
+      if (kw) kwAll.push(kw);
+      for (const a of kwAliases) if (!kwAll.includes(a)) kwAll.push(a);
 
       // 无参数：总览统计
       if (!year && !country && !kw && !orgOnly) {
         const tot = await scalar('SELECT count(*) FROM peace_subjects');
         const indiv = await scalar("SELECT count(*) FROM peace_subjects WHERE subject_type='个人'");
-        const orgN = await scalar("SELECT count(*) FROM peace_subjects WHERE subject_type='机构'");
+        const orgN = await scalar("SELECT count(*) FROM peace_subjects WHERE subject_type='组织'");
         const yrange = await scalar('SELECT MIN(nobel_year::int)||\'–\'||MAX(nobel_year::int) FROM peace_subjects');
         const byCountry = await query(`SELECT country, count(*) AS n FROM peace_subjects WHERE country IS NOT NULL AND country <> '' GROUP BY country ORDER BY n DESC LIMIT 12`);
         const lastYear = await scalar('SELECT MAX(nobel_year::int) FROM peace_subjects');
@@ -882,7 +913,7 @@ export const TOOLS = [
           lines.push('', '**近 20 年获奖情况（含政治人物）**：');
           recent.rows.slice(0, 15).forEach((x) => {
             const label = x.acronym || x.name_en;
-            lines.push(`- **${Math.trunc(x.nobel_year)}**｜${x.subject_type === '机构' ? '🏛 ' : '👤 '}${label}${x.country ? '（'+x.country+'）' : ''}`);
+            lines.push(`- **${Math.trunc(x.nobel_year)}**｜${x.subject_type === '组织' ? '🏛 ' : '👤 '}${label}${x.country ? '（'+x.country+'）' : ''}`);
           });
         }
         return {
@@ -899,18 +930,45 @@ export const TOOLS = [
       const conds = [];
       if (year) conds.push(`nobel_year::int = ${year}`);
       if (country) conds.push(`(lower(country) LIKE lower('%${esc(country)}%'))`);
-      if (orgOnly) conds.push(`subject_type = '机构'`);
+      if (orgOnly) conds.push(`subject_type = '组织'`);
       else if (args.orgOnly === false) conds.push(`subject_type = '个人'`);
-      if (kw) {
-        const k = esc(kw);
-        conds.push(`(lower(name_en) LIKE lower('%${k}%') OR acronym LIKE '%${k}%' OR motivation_en LIKE '%${k}%')`);
+      if (kwAll.length) {
+        const orParts = kwAll.map((k) => {
+          const ek = esc(k);
+          return `(lower(name_en) LIKE lower('%${ek}%') OR lower(acronym) LIKE lower('%${ek}%') OR lower(motivation_en) LIKE lower('%${ek}%'))`;
+        });
+        conds.push('(' + orParts.join(' OR ') + ')');
+      }
+      // 中文关键词命中时，同时并查 peace_orgs 表（28 个获奖组织）合并到结果
+      let orgRows = [];
+      if (kwAll.length) {
+        const orgConds = kwAll.map((k) => {
+          const ek = esc(k);
+          return `(lower(name_en) LIKE lower('%${ek}%') OR lower(acronym) LIKE lower('%${ek}%') OR lower(name_native) LIKE lower('%${ek}%'))`;
+        });
+        let orgWhere = '';
+        if (country) orgWhere = ` WHERE lower(founded_country) LIKE lower('%${esc(country)}%') AND ` + orgConds.join(' OR ');
+        else orgWhere = ` WHERE ` + orgConds.join(' OR ');
+        try {
+          const orgR = await query(`SELECT org_id, name_en, name_native, acronym, founded_year, founded_country FROM peace_orgs${orgWhere} ORDER BY founded_year::int NULLS LAST, name_en LIMIT ${lim}`);
+          orgRows = orgR.rows || [];
+        } catch (e) { /* ignore */ }
       }
       const where = conds.length ? ' WHERE ' + conds.join(' AND ') : '';
       const sql = `SELECT peace_id, subject_type, name_en, acronym, country, nobel_year, motivation_en
         FROM peace_subjects${where} ORDER BY nobel_year::int DESC, name_en LIMIT ${lim}`;
       const r = await query(sql);
 
-      if (!r.rows.length) {
+      const subjects = r.rows || [];
+      const orgItems = orgRows.map((o) => ({
+        peace_id: o.org_id, subject_type: '机构', name_en: o.name_native || o.name_en,
+        acronym: o.acronym || '', country: o.founded_country || '', nobel_year: '',
+        motivation_en: '和平奖获奖组织（成立于 ' + (o.founded_year || '?') + '）',
+        _org: true,
+      }));
+      const allRows = subjects.concat(orgItems);
+
+      if (!allRows.length) {
         return {
           text: `未找到匹配的和平奖得主/机构。已尝试过滤：${[year?'年份 '+year:null, country?'国籍 '+country:null, kw?'关键词 '+kw:null, orgOnly?'仅机构':args.orgOnly===false?'仅个人':null].filter(Boolean).join('、') || '无'}`,
           payload: { error: 'not_found' },
@@ -922,13 +980,13 @@ export const TOOLS = [
       if (country) titleParts.push('国籍 ' + country);
       if (kw) titleParts.push('「' + kw + '」');
       titleParts.push(orgOnly ? '仅机构' : args.orgOnly === false ? '仅个人' : '');
-      const title = `### 和平奖得主 · ${titleParts.filter(Boolean).join(' / ')}（${r.rows.length} 位）`;
+      const title = `### 和平奖得主 · ${titleParts.filter(Boolean).join(' / ')}（${allRows.length} 位）`;
 
       const lines = [title];
-      r.rows.forEach((x) => {
-        const label = x.acronym || x.name_en;
-        const yr = Math.trunc(x.nobel_year);
-        lines.push(`- **${yr}**｜${x.subject_type === '机构' ? '🏛 ' : '👤 '}${label}${x.country ? '（'+x.country+'）' : ''}`);
+      allRows.forEach((x) => {
+        const label = x.acronym ? `${x.name_en}（${x.acronym}）` : x.name_en;
+        const yr = x._org ? '' : (Math.trunc(x.nobel_year) + ' 年');
+        lines.push(`- ${yr ? '**' + yr + '**｜' : ''}${x.subject_type === '机构' ? '🏛 ' : '👤 '}${label}${x.country ? '（'+x.country+'）' : ''}`);
         if (x.motivation_en) lines.push(`  > ${x.motivation_en}`);
       });
 
@@ -937,9 +995,9 @@ export const TOOLS = [
         blocks: [{
           type: 'table', title: '和平奖得主明细',
           columns: ['年份', '类型', '姓名', '缩写', '国籍', '获奖理由'],
-          rows: r.rows.map((x) => [Math.trunc(x.nobel_year), x.subject_type, x.name_en, x.acronym || '', x.country || '', x.motivation_en || '']),
+          rows: allRows.map((x) => [x._org ? '（组织）' : Math.trunc(x.nobel_year), x.subject_type, x.name_en, x.acronym || '', x.country || '', x.motivation_en || '']),
         }],
-        payload: { items: r.rows },
+        payload: { items: allRows },
       };
     },
   },
@@ -998,10 +1056,13 @@ export const TOOLS = [
       }
 
       const esc = (s) => String(s).replace(/'/g, "''");
+      // 中文性别 → 英文（writers 表 gender 值是 male/female）
+      const gMap = {'男':'male','女':'female','男性':'male','女性':'female','woman':'female','men':'male','women':'female'};
+      const genderEn = gMap[gender] || gender;
       const conds = [];
       if (year) conds.push(`nobel_year::int = ${year}`);
       if (country) conds.push(`(lower(country) LIKE lower('%${esc(country)}%'))`);
-      if (gender) conds.push(`lower(gender) = '${esc(gender).toLowerCase()}'`);
+      if (genderEn) conds.push(`lower(gender) = '${esc(genderEn).toLowerCase()}'`);
       if (kw) {
         const k = esc(kw);
         conds.push(`(lower(name_en) LIKE lower('%${k}%') OR (name_native LIKE '%${k}%') OR motivation_en LIKE '%${k}%')`);
@@ -1047,13 +1108,30 @@ export const TOOLS = [
       },
     },
     async run(args) {
-      const kw = String(args.keyword || '').trim();
+      let kw = String(args.keyword || '').trim();
       const country = String(args.country || '').trim();
       const fb = args.foundedBefore ? Math.trunc(args.foundedBefore) : null;
       const fa = args.foundedAfter ? Math.trunc(args.foundedAfter) : null;
       const esc = (s) => String(s).replace(/'/g, "''");
+      // 中文关键词 → 英文（peace_orgs 主表 name_en/acronym 都是英文）
+      const ZH_EN = {
+        '联合国': 'united nations', '红十字': 'red cross', '红十字会': 'red cross',
+        '红新月': 'red crescent', '难民': 'refugee', '联合国难民': 'unhcr', '难民署': 'unhcr',
+        '教科文': 'unesco', '世卫': 'who', '世界卫生组织': 'who',
+        '诺贝尔': 'nobel', '诺贝尔基金会': 'nobel foundation',
+      };
+      const kwAll = [];
+      if (kw) {
+        kwAll.push(kw);
+        for (const [zh, en] of Object.entries(ZH_EN)) {
+          if (kw.includes(zh) && !kwAll.includes(en)) kwAll.push(en);
+        }
+      }
       const conds = [];
-      if (kw) conds.push(`(lower(name_en) LIKE lower('%${esc(kw)}%') OR acronym LIKE '%${esc(kw)}%')`);
+      if (kwAll.length) {
+        const orParts = kwAll.map((k) => `(lower(name_en) LIKE lower('%${esc(k)}%') OR lower(acronym) LIKE lower('%${esc(k)}%') OR lower(name_native) LIKE lower('%${esc(k)}%'))`);
+        conds.push('(' + orParts.join(' OR ') + ')');
+      }
       if (country) conds.push(`lower(founded_country) LIKE lower('%${esc(country)}%')`);
       if (fb) conds.push(`founded_year::int <= ${fb}`);
       if (fa) conds.push(`founded_year::int >= ${fa}`);

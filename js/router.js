@@ -83,18 +83,42 @@ export async function route(text) {
     const yearMatch2 = t.match(/(19\d{2}|20\d{2})\s*年/);
     const args = {};
     if (yearMatch2) args.year = Number(yearMatch2[1]);
-    if (persons.length) args.keyword = nameOf(persons[0]);
-    else {
+    // 政治人物中文→英文（本体主表 name_en 是英文，中文原名匹配不到）
+    const POL_EN = {
+      '特朗普':'Trump','川普':'Trump',
+      '奥巴马':'Obama',
+      '卡特总统':'Carter','卡特':'Carter',
+      '曼德拉':'Mandela','纳尔逊·曼德拉':'Mandela',
+      '戈尔巴乔夫':'Gorbachev',
+      '昂山素季':'Suu Kyi',
+      '拉宾':'Rabin','撒切尔':'Thatcher','铁托':'Tito',' Begin':'Begin',
+      '卡塔·杜':'Kuta','马丁·路德·金':'Martin Luther King','马丁路德金':'Martin Luther King','金博士':'King',
+      '希拉里':'Hillary',
+    };
+    let kw = '';
+    for (const [zh, en] of Object.entries(POL_EN)) {
+      if (t.includes(zh)) { kw = en; break; }
+    }
+    if (!kw && persons.length) kw = nameOf(persons[0]);
+    if (!kw) {
       // 尝试抓英文人名（Obama/Trump/Carter 等）
       const en = t.match(/\b[A-Z][a-z]{2,15}\b/g);
       if (en && en.length) {
-        // 排除常见疑问词
         const stopWords = new Set(['The','This','That','What','Which','When','Where','Who','How','Why','Does','Will','Would','Could','Should','Have','Has','Had','Are','Is','Be','Been','Not','About','Most','Recent','All']);
         const keep = en.filter(w => !stopWords.has(w));
-        if (keep.length) args.keyword = keep[0];
+        if (keep.length) kw = keep[0];
       }
     }
-    if (has('组织','机构','UN','联合国','红十字')) args.orgOnly = true;
+    // 抓组织类关键词（联合国/红十字/UN 等），这些是关键词不是意图
+    if (!kw) {
+      const kwMatch = t.match(/(联合国|红十字会|红十字|红新月|难民|教科文|世卫|UNHCR|UNRWA|UNESCO|ICRC|ICJM|Nobel|Nobel Foundation)/i);
+      if (kwMatch) kw = kwMatch[1];
+    }
+    if (kw) args.keyword = kw;
+    // 只有明确"机构/组织"意图才置 orgOnly，不要因关键词触发
+    if (has('机构','组织') && !kw.match(/^(Trump|Obama|Carter|Mandela|Gorbachev|Suu Kyi|Rabin|Begin|Thatcher|Tito|King|Hillary)/i)) {
+      args.orgOnly = true;
+    }
     return { tool: '和平奖得主', args, reason: '关键词：和平奖' };
   }
 
