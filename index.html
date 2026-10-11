@@ -63,8 +63,8 @@
             <input type="text" id="modelName" placeholder="openai/gpt-4o-mini">
           </div>
           <div class="form-group">
-            <label>Tavily Key（可选，联网检索）</label>
-            <input type="password" id="tavilyKey" placeholder="tvly-...；留空用维基百科兜底">
+            <label>Tavily Key（可选，联网检索主力）</label>
+            <input type="password" id="tavilyKey" placeholder="tvly-...；留空则按下方引擎分层兜底">
           </div>
           <div class="form-group">
             <button class="btn btn-secondary btn-small" id="testConnection">测试连接</button>
@@ -75,6 +75,18 @@
             <button id="saveSettings" class="btn btn-primary btn-small">保存设置</button>
           </div>
           <p class="settings-note">Key 仅保存在浏览器 localStorage，不上传任何服务器。未配置时使用本地规则引擎。</p>
+        </div>
+      </details>
+
+      <details class="settings-details" id="enginesDetails">
+        <summary>🔍 搜索引擎分层配置</summary>
+        <div class="settings-body">
+          <p class="settings-note" style="margin:0 0 10px 0;">按顺序尝试，每个引擎独立超时，失败静默跳到下一个。跨域（CORS）受限的引擎在国内直连大概率失败，仅在你自建了代理或有 VPN 时才有意义。</p>
+          <div id="enginesWrap" class="engines-wrap"></div>
+          <p class="settings-note">顺序：<strong>Tavily → Mojeek → SearxNG → Bing → 维基 → DuckDuckGo</strong>。<br>
+            · 默认启用：<strong>Tavily（需 Key）/ Mojeek / 维基</strong>，零 Key 兜底也够用。<br>
+            · SearxNG：仅自建实例可用（公共实例国内不可达）。<br>
+            · Bing / DuckDuckGo：浏览器 CORS 通常失败，除非走代理。</p>
         </div>
       </details>
     </div>

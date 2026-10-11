@@ -298,11 +298,15 @@ async function nodeResearch(state) {
   if (!hasWebSearch(cfg)) {
     return { routeKey: 'compose', nextAction: 'compose' };
   }
-  // 已配置 Tavily Key：优先调用 Tavily，失败时回退维基百科兜底
+  // 分层联网：按启用顺序尝试（Tavily → Mojeek → SearxNG → Bing → 维基 → DuckDuckGo），
+  // 每个引擎独立超时，失败静默跳过，取首个有内容结果
   let notes = '';
   let src = '';
   try {
-    const r = await webLookup(state.question, { tavilyKey: cfg.tavilyKey });
+    const r = await webLookup(state.question, {
+      tavilyKey: cfg.tavilyKey,
+      searchEngines: cfg.searchEngines || {},
+    });
     src = r.source;
     notes = `【联网检索结果（来源：${src}）】\n${r.text}`;
   } catch (e) {

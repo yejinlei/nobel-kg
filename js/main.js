@@ -36,7 +36,20 @@ const el = {
   clearSettings: $('clearSettings'),
   testConnection: $('testConnection'),
   testResult: $('testResult'),
+  // 搜索引擎配置
+  enginesWrap: $('enginesWrap'),
 };
+
+/** 搜索引擎字段配置：id → { label, hasBaseUrl, hasTimeout, defaultUrl } */
+const ENGINE_FIELDS = {
+  tavily:  { label: 'Tavily（需 Key）',        hasBaseUrl: false, defaultUrl: '' },
+  mojeek:  { label: 'Mojeek',                  hasBaseUrl: false, defaultUrl: '' },
+  searxng: { label: 'SearxNG（自建实例）',      hasBaseUrl: true,  defaultUrl: '' },
+  bing:    { label: 'Bing（cn.bing.com）',      hasBaseUrl: false, defaultUrl: '' },
+  ddg:     { label: 'DuckDuckGo',              hasBaseUrl: false, defaultUrl: '' },
+  wiki:    { label: 'Wikipedia/Wikidata',      hasBaseUrl: false, defaultUrl: '' },
+};
+const ENGINE_ORDER_UI = ['tavily', 'mojeek', 'searxng', 'bing', 'wiki', 'ddg'];
 
 const QUICK_QUESTIONS = [
   '杨振宁的师承链',
@@ -126,6 +139,66 @@ function renderWelcomeExtras() {
   if (sel) {
     sel.innerHTML = PROVIDER_PRESETS.map((p) => `<option value="${p.id}">${escapeHtml(p.label)}</option>`).join('');
   }
+  renderEngineRows();
+}
+
+/** 渲染搜索引擎配置行：勾选框 + 超时(ms) + 可选的 baseUrl */
+function renderEngineRows() {
+  const wrap = el.enginesWrap;
+  if (!wrap) return;
+  wrap.innerHTML = ENGINE_ORDER_UI.map((id) => {
+    const f = ENGINE_FIELDS[id];
+    const base = f.hasBaseUrl
+      ? `<input type="text" class="engine-baseurl" data-engine="${id}" data-field="baseUrl" placeholder="https://your-searxng.example.com">`
+      : '';
+    return `<div class="engine-row" data-engine="${id}">
+      <label class="engine-toggle">
+        <input type="checkbox" class="engine-enabled" data-engine="${id}" data-field="enabled">
+        <span>${escapeHtml(f.label)}</span>
+      </label>
+      ${base}
+      <label class="engine-timeout"><span>超时</span><input type="number" class="engine-timeout-input" data-engine="${id}" data-field="timeout" min="1000" max="30000" step="500">ms</label>
+    </div>`;
+  }).join('');
+}
+
+/** 收集 UI 上的搜索引擎配置 */
+function collectEngineConfig() {
+  const wrap = el.enginesWrap;
+  if (!wrap) return {};
+  const out = {};
+  for (const id of ENGINE_ORDER_UI) {
+    const row = wrap.querySelector(`.engine-row[data-engine="${id}"]`);
+    if (!row) continue;
+    const enabled = row.querySelector('.engine-enabled');
+    const timeoutInput = row.querySelector('.engine-timeout-input');
+    const baseInput = row.querySelector('.engine-baseurl');
+    const item = {
+      enabled: Boolean(enabled && enabled.checked),
+      timeout: Math.max(1000, Math.min(30000, parseInt(timeoutInput && timeoutInput.value, 10) || 6000)),
+    };
+    if (baseInput) item.baseUrl = baseInput.value.trim();
+    out[id] = item;
+  }
+  return out;
+}
+
+/** 把配置回填到 UI */
+function applyEngineConfig(cfg) {
+  const wrap = el.enginesWrap;
+  if (!wrap || !cfg || !cfg.searchEngines) return;
+  const se = cfg.searchEngines;
+  for (const id of ENGINE_ORDER_UI) {
+    const row = wrap.querySelector(`.engine-row[data-engine="${id}"]`);
+    if (!row) continue;
+    const c = se[id] || {};
+    const enabled = row.querySelector('.engine-enabled');
+    const timeoutInput = row.querySelector('.engine-timeout-input');
+    const baseInput = row.querySelector('.engine-baseurl');
+    if (enabled) enabled.checked = Boolean(c.enabled);
+    if (timeoutInput) timeoutInput.value = String(c.timeout || 6000);
+    if (baseInput) baseInput.value = c.baseUrl || '';
+  }
 }
 
 /* ------------------------- 模式 UI ------------------------- */
@@ -134,6 +207,10 @@ function updateModeUI() {
   const cfg = loadConfig();
   const llm = hasLLM(cfg);
   const web = hasWebSearch(cfg);
+  const enabledEngines = ENGINE_ORDER_UI.filter((id) => {
+    const c = (cfg.searchEngines || {})[id];
+    return c && c.enabled;
+  });
 
   if (el.modeBadge) {
     if (llm) {
@@ -149,9 +226,9 @@ function updateModeUI() {
     el.researchToggle.checked = llm;
   }
   if (el.researchHint) {
-    if (!llm) el.researchHint.textContent = '深度研究需先配置大模型；未配检索 Key 时自动使用维基百科 / Wikidata 兜底（零 Key）';
-    else if (!web) el.researchHint.textContent = '未配置 Tavily，将使用维基百科 / Wikidata 零 Key 兜底（想更全面可配 Tavily）';
-    else el.researchHint.textContent = '已就绪：Tavily 联网检索 + 维基补充，并结合本体分析';
+    if (!llm) el.researchHint.textContent = '深度研究需先配置大模型；引擎分层兜底见左侧设置';
+    else if (!web) el.researchHint.textContent = '深度研究不可用：请在设置里至少启用一个搜索引擎（如维基）';
+    else el.researchHint.textContent = `已就绪：分层检索 ${enabledEngines.join(' → ')}，并结合本体分析`;
   }
 }
 
@@ -301,7 +378,9 @@ function fillSettingsForm() {
   el.apiKey.value = cfg.apiKey || '';
   el.modelName.value = cfg.model || '';
   el.tavilyKey.value = cfg.tavilyKey || '';
+  applyEngineConfig(cfg);
   if (el.testResult) el.testResult.textContent = '';
+  if (el.engineTestResult) el.engineTestResult.textContent = '';
 }
 
 function onPresetChange() {
@@ -314,11 +393,13 @@ function onPresetChange() {
 
 function onSaveSettings() {
   const baseUrl = normalizeBaseUrl(el.baseUrl.value);
+  const engines = collectEngineConfig();
   const patch = {
     baseUrl,
     apiKey: el.apiKey.value.trim(),
     model: el.modelName.value.trim(),
     tavilyKey: el.tavilyKey.value.trim(),
+    searchEngines: engines,
   };
   saveConfig(patch);
   updateModeUI();
@@ -328,7 +409,10 @@ function onSaveSettings() {
   } else if (!hasLLM(loadConfig())) {
     el.testResult.textContent = '⚠️ 已保存，但接口信息不完整（需地址、Key、模型名三者齐全），仍为本地规则引擎模式。';
   } else {
-    const web = hasWebSearch(loadConfig()) ? '，深度研究（联网）已启用' : '';
+    const enabledNames = ENGINE_ORDER_UI.filter((id) => engines[id] && engines[id].enabled);
+    const web = enabledNames.length
+      ? `，深度研究启用引擎：${enabledNames.join(' → ')}`
+      : '，未启用任何搜索引擎（深度研究不可用）';
     el.testResult.textContent = `✅ 已保存到浏览器本地，当前为大模型模式（${patch.model}）${web}。`;
   }
 }
@@ -339,8 +423,10 @@ function onClearSettings() {
   el.apiKey.value = '';
   el.modelName.value = DEFAULTS.model;
   el.tavilyKey.value = '';
+  applyEngineConfig(loadConfig());
   updateModeUI();
   if (el.testResult) el.testResult.textContent = '已清空本地配置。';
+  if (el.engineTestResult) el.engineTestResult.textContent = '';
 }
 
 async function onTestConnection() {
