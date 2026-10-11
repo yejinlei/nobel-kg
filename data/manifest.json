@@ -439,5 +439,17 @@
    "org_id",
    "role"
   ]
+ },
+ "wiki_summaries": {
+  "source": "Wikidata SPARQL 批量抓取（中/英文标签与一句话描述）",
+  "rows": 1026,
+  "columns": [
+   "nobel_id",
+   "wikidata_id",
+   "name_zh",
+   "name_en",
+   "desc_zh",
+   "desc_en"
+  ]
  }
 }
