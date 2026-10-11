@@ -8,6 +8,13 @@ import { loadConfig, saveConfig, clearConfig, hasLLM, hasWebSearch, PROVIDER_PRE
 import { runAgent, researchAvailable, HELP_TEXT } from './agent.js';
 import { renderMarkdown, renderBlocks, renderTrace, escapeHtml } from './render.js';
 
+/* ------------------- Service Worker 注册（缓存 wasm + parquet） ------------------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
 /* ------------------------- 元素引用 ------------------------- */
 
 const $ = (id) => document.getElementById(id);

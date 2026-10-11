@@ -53,7 +53,7 @@ export async function initDB(onProgress) {
   const manifest = await fetchManifest();
   const names = Object.keys(manifest);
 
-  log('正在初始化浏览器内数据库引擎（WASM 约 40MB，首次下载后由浏览器缓存）…');
+  log('正在初始化浏览器内数据库引擎（WASM 约 34 MB，首次下载后由 Service Worker 缓存，下次访问零下载）…');
   // 使用本地 WASM/Worker 资源，避免依赖 CDN 与跨域问题
   const bundles = duckdb.getJsDelivrBundles();
   // 覆盖为本地路径
