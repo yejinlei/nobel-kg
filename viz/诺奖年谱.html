@@ -245,9 +245,22 @@ function render(){
       }
       cell.className = 'prize-cell';
       list.forEach(r=>{
-        const a = document.createElement(r.wiki ? 'a' : 'span');
+        // @REASON: 维基百科国内不可达，默认跳百度百科（中文名命中词条）；
+        //          无中文名回退百度搜索；Ctrl/Alt+点击仍打开英文维基
+        const baike = r.nameZh
+          ? 'https://baike.baidu.com/item/' + encodeURIComponent(r.nameZh)
+          : (r.nameEn ? 'https://www.baidu.com/s?wd=' + encodeURIComponent(r.nameEn + ' 诺贝尔奖') : '');
+        const a = document.createElement(baike ? 'a' : 'span');
         a.className = 'laureate has-tip';
-        if (r.wiki){ a.href = r.wiki; a.target = '_blank'; a.rel = 'noopener'; }
+        if (baike){
+          a.href = baike; a.target = '_blank'; a.rel = 'noopener';
+          if (r.wiki) a.addEventListener('click', (ev)=>{
+            if (ev.ctrlKey || ev.altKey || ev.metaKey){
+              ev.preventDefault();
+              window.open(r.wiki, '_blank', 'noopener');
+            }
+          });
+        }
         const zh = r.nameZh && `<span>${hl(r.nameZh,kw)}</span>`;
         const en = r.nameEn && (r.nameZh
           ? `<span class="name-en">${hl(r.nameEn,kw)}</span>`
@@ -321,7 +334,9 @@ function tipHtml(r){
   const mot = r.motivation
     ? `<div class="tt-prize"><span class="tt-medal">🏆 ${r.year} ${r.category}奖</span><div class="tt-mot">${esc(r.motivation.slice(0, 300))}${r.motivation.length>300?'…':''}</div></div>`
     : '';
-  const link = r.wiki ? `<div class="tt-link">点击名字可打开维基百科 ↗</div>` : '';
+  const link = r.nameZh || r.nameEn
+    ? `<div class="tt-link">点击名字打开百度百科 ↗${r.wiki ? ' · Ctrl+点击打开维基' : ''}</div>`
+    : '';
   return title + dz + den + mot + link;
 }
 function esc(s){ return escapeHtmlLocal(s); }
