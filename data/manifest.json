@@ -1,7 +1,7 @@
 {
  "persons": {
   "source": "01_人物.csv",
-  "rows": 781,
+  "rows": 1692,
   "columns": [
    "person_id",
    "name_en",
@@ -91,7 +91,7 @@
  },
  "mentorship": {
   "source": "05_关系_师承.csv",
-  "rows": 40,
+  "rows": 1213,
   "columns": [
    "edge_id",
    "student_id",
@@ -188,7 +188,7 @@
  },
  "schools": {
   "source": "14_学派.csv",
-  "rows": 9,
+  "rows": 19,
   "columns": [
    "school_id",
    "name_cn",
@@ -201,7 +201,7 @@
  },
  "person_school": {
   "source": "15_关系_人物学派.csv",
-  "rows": 37,
+  "rows": 65,
   "columns": [
    "rel_id",
    "person_id",
@@ -223,7 +223,7 @@
  },
  "paradigms": {
   "source": "17_研究范式.csv",
-  "rows": 11,
+  "rows": 23,
   "columns": [
    "paradigm_id",
    "name",

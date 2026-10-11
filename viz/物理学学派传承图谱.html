@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诺贝尔物理学奖 · 学派传承图谱</title>
+<script src="../lib/vendors/d3.v7.min.js"></script>
+<script src="../lib/vendors/echarts.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+:root { --ph-bg: #f0f4f8; --ph-accent: #1e40af; --ph-secondary: #3b82f6; --ph-deep: #1e3a8a; --ph-cool: #0891b2; }
+body { background: var(--ph-bg); margin: 0; font-family: -apple-system, system-ui, sans-serif; }
+.header { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 40%, #3b82f6 80%, #06b6d4 100%); color: white; padding: 2rem 3rem; }
+.header h1 { margin: 0; font-size: 2rem; }
+.header p { margin: 0.5rem 0 0; opacity: 0.92; }
+.container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+.loading { text-align: center; padding: 4rem; color: #666; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.card h3 { margin: 0 0 1rem; color: var(--ph-accent); font-size: 1.1rem; border-left: 4px solid var(--ph-accent); padding-left: 0.75rem; }
+.chart { width: 100%; height: 380px; }
+.chart-wide { width: 100%; height: 460px; }
+.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.stat-card { background: white; border-radius: 12px; padding: 1.25rem; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.stat-num { font-size: 2.2rem; font-weight: 700; color: var(--ph-accent); }
+.stat-label { color: #666; font-size: 0.85rem; margin-top: 0.3rem; }
+.full { grid-column: 1 / -1; }
+.back-link { position: fixed; top: 1rem; left: 1rem; background: rgba(255,255,255,0.95); padding: 0.5rem 1rem; border-radius: 20px; text-decoration: none; color: var(--ph-accent); box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 100; }
+
+.net-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:8px; font-size:12px; }
+.net-toolbar label { display:flex; align-items:center; gap:4px; color:#334; cursor:pointer; }
+.net-toolbar select, .net-toolbar input[type="range"] { font-size:12px; padding:2px 4px; border:1px solid #cbd5e1; border-radius:4px; }
+.net-toolbar .reset-btn { padding:4px 10px; background:var(--ph-accent); color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px; }
+.net-hint { font-size:11px; color:#888; margin-left:auto; }
+.tooltip-net { position:fixed; background:rgba(255,255,255,0.98); border:1px solid var(--ph-accent); border-radius:8px; padding:10px 12px; max-width:300px; font-size:12px; pointer-events:none; z-index:200; box-shadow:0 4px 16px rgba(30,64,175,0.2); display:none; }
+.tooltip-net h4 { font-size:13px; color:var(--ph-accent); margin:0 0 4px; }
+.tooltip-net .meta { color:#666; font-size:11px; margin-bottom:6px; }
+.tooltip-net .tag { display:inline-block; background:#dbeafe; color:var(--ph-deep); padding:1px 6px; border-radius:8px; font-size:11px; margin:1px; }
+#chart_network { background:#fff; border-radius:8px; width:100%; height:600px; display:block; }
+.net-node circle { cursor:pointer; stroke:#fff; stroke-width:1.5px; transition:all .2s; }
+.net-node:hover circle { stroke:#f59e0b; stroke-width:2.5px; filter:drop-shadow(0 0 6px #f59e0b); }
+.net-node text { font-size:10px; fill:#333; pointer-events:none; text-shadow:0 1px 2px rgba(255,255,255,.9); }
+.net-link { stroke-opacity:.35; fill:none; transition:all .2s; }
+.net-link.dim { opacity:.08; }
+.net-link.active { stroke:#dc2626 !important; stroke-opacity:1 !important; stroke-width:2.5px !important; }
+.net-node.dim { opacity:.15; }
+
+.school-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.school-card { border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; background: #f8fafc; cursor: pointer; transition: all .2s; }
+.school-card:hover { border-color: var(--ph-accent); box-shadow: 0 4px 12px rgba(30,64,175,0.15); transform: translateY(-2px); }
+.school-card.active { border-color: var(--ph-accent); background: #dbeafe; }
+.school-title { font-weight: 700; color: var(--ph-deep); font-size: 0.95rem; margin-bottom: 4px; }
+.school-en { color: #999; font-size: 0.75rem; font-style: italic; margin-bottom: 6px; }
+.school-desc { color: #666; font-size: 0.8rem; line-height: 1.4; margin-bottom: 6px; }
+.school-badge { display: inline-block; background: var(--ph-secondary); color: #fff; padding: 1px 6px; border-radius: 8px; font-size: 0.7rem; }
+
+.subject-list { max-height: 500px; overflow-y: auto; }
+.subject-item { padding: 0.75rem; border-bottom: 1px solid #e2e8f0; cursor: pointer; transition: background 0.2s; }
+.subject-item:hover { background: #eff6ff; }
+.subject-item.active { background: #dbeafe; border-left: 3px solid var(--ph-accent); }
+.subject-year { color: var(--ph-deep); font-size: 0.85rem; font-weight: 600; }
+.subject-name { font-weight: 500; margin: 0.2rem 0; color: #333; }
+.subject-nat { color: #666; font-size: 0.8rem; }
+.subject-school { display: inline-block; background: #dbeafe; color: var(--ph-deep); padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.75rem; margin-right: 0.3rem; }
+.special-note { background: #eff6ff; border-left: 4px solid var(--ph-secondary); padding: 0.75rem 1rem; margin: 0.5rem 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<a href="../index.html" class="back-link">← 返回主页</a>
+<div class="tooltip-net" id="tip"></div>
+<div class="header">
+  <h1>⚛️ 诺贝尔物理学奖 · 学派传承图谱</h1>
+  <p>1901-2026 · 230位得主 · 6大学派 · 从卡文迪许到拉比，跨越一个世纪的物理学传承</p>
+</div>
+<div class="container">
+  <div class="loading" id="loading">正在加载本体数据…</div>
+  <div id="content" style="display:none">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num" id="s1">0</div><div class="stat-label">得主总数</div></div>
+      <div class="stat-card"><div class="stat-num" id="s2">0</div><div class="stat-label">物理学派</div></div>
+      <div class="stat-card"><div class="stat-num" id="s3">0</div><div class="stat-label">师承关系</div></div>
+      <div class="stat-card"><div class="stat-num" id="s4">0</div><div class="stat-label">研究范式</div></div>
+      <div class="stat-card"><div class="stat-num" id="s5">0</div><div class="stat-label">国籍覆盖</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>📈 历年获奖趋势（1901-2026）</h3>
+        <div id="chart_year" class="chart-wide"></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>📚 研究范式演变</h3>
+        <div id="chart_paradigm" class="chart"></div>
+      </div>
+      <div class="card">
+        <h3>🌐 得主义籍分布</h3>
+        <div id="chart_country" class="chart"></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card full">
+        <h3>🕸️ 物理学派传承网络</h3>
+        <div class="net-toolbar">
+          <label><input type="checkbox" id="netShowMentor" checked> 学派边</label>
+          <label><input type="checkbox" id="netShowSchool" checked> 学派节点</label>
+          <label><input type="checkbox" id="netShowParadigm" checked> 范式节点</label>
+          <select id="netColorMode">
+            <option value="school">按学派着色</option>
+            <option value="decade">按年代着色</option>
+            <option value="country">按国籍着色</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:4px;">年份≥<input type="range" id="netYearRange" min="1901" max="2026" step="1" value="1901" style="width:100px;"> <span id="netYearLabel" style="font-weight:600;">1901</span></label>
+          <button class="reset-btn" id="netReset">清除高亮</button>
+          <span class="net-hint">滚轮缩放 · 拖拽节点 · 点击高亮链路 · 双击重置</span>
+        </div>
+        <svg id="chart_network" width="100%" height="600"></svg>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>🏛️ 物理学派</h3>
+        <div class="school-grid" id="school_grid"></div>
+      </div>
+      <div class="card">
+        <h3>📋 得主名录（Top 60 · 1901-2026）</h3>
+        <div class="subject-list" id="subject_list"></div>
+      </div>
+    </div>
+
+    <div class="special-note">
+      💡 <strong>学派说明：</strong>本图谱收录 6 个物理学学派：卡文迪许（剑桥）、慕尼黑（索末菲）、哥本哈根（玻尔）、哥廷根（外尔）、罗马费米（中子物理）、哥大拉比（磁共振/量子电动力学）。学派成员关系由诺奖得主师承链与剑桥/哈佛学术史交叉校对。
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as db from '../js/db.js';
+const log = msg => document.getElementById('loading').textContent = msg;
+
+await db.initDB(log);
+log('正在查询物理学数据…');
+
+const personsAll = (await db.query('SELECT * FROM persons')).rows;
+const ps = (await db.query('SELECT * FROM person_school')).rows;
+const schools = (await db.query('SELECT * FROM schools')).rows;
+const paradigms = (await db.query('SELECT * FROM paradigms')).rows;
+const mentorship = (await db.query('SELECT * FROM mentorship')).rows;
+
+const physPersons = personsAll.filter(p => p.nobel_category === '物理学').sort((a,b)=>(a.nobel_year||0)-(b.nobel_year||0));
+const physPids = new Set(physPersons.map(p=>p.person_id));
+const physSchoolIds = new Set(['S01','S02','S03','S04','S05','S09']);
+const physSchools = schools.filter(s => physSchoolIds.has(s.school_id));
+const physEdges = ps.filter(r => physSchoolIds.has(r.school_id));
+const physMentorship = mentorship.filter(m => physPids.has(m.student_id) || physPids.has(m.advisor_id));
+const physParadigmIds = new Set(['P_QM','P_QED','P_Xray','P_Nuclear','P_Neutrino','P_Relativity','P_SM']);
+const physParadigms = paradigms.filter(p => physParadigmIds.has(p.paradigm_id));
+
+const personSchools = {};
+physEdges.forEach(r => {
+  if (!personSchools[r.person_id]) personSchools[r.person_id] = [];
+  personSchools[r.person_id].push(r.school_id);
+});
+const countries = new Set(physPersons.map(p=>p.nationality).filter(Boolean));
+
+document.getElementById('s1').textContent = physPersons.length;
+document.getElementById('s2').textContent = physSchools.length;
+document.getElementById('s3').textContent = physEdges.length + physMentorship.length;
+document.getElementById('s4').textContent = physParadigms.length;
+document.getElementById('s5').textContent = countries.size;
+
+document.getElementById('loading').style.display = 'none';
+document.getElementById('content').style.display = 'block';
+
+// 学派色板
+const schoolColorMap = {};
+const palette = ['#1e40af','#7c3aed','#0891b2','#dc2626','#059669','#ea580c'];
+physSchools.forEach((s,i) => schoolColorMap[s.school_id] = palette[i % palette.length]);
+
+// 学派卡片
+const sg = document.getElementById('school_grid');
+physSchools.forEach(s => {
+  const members = physEdges.filter(r => r.school_id === s.school_id);
+  const memberNames = members.map(r => {
+    const p = physPersons.find(x => x.person_id === r.person_id);
+    return p ? p.name_en : '?';
+  });
+  const card = document.createElement('div');
+  card.className = 'school-card';
+  card.innerHTML = `
+    <div class="school-title" style="color:${schoolColorMap[s.school_id]}">${s.name_cn}</div>
+    <div class="school-en">${s.name_en||''}</div>
+    <div class="school-desc">${s.description||''}</div>
+    <div><span class="school-badge">${members.length}人</span>
+    <span class="school-badge" style="background:#bfdbfe;margin-left:4px;">${s.era_start||''}</span></div>
+    <div style="margin-top:6px;font-size:0.78rem;color:#666;">${memberNames.join(' · ')}</div>
+  `;
+  card.onclick = () => {
+    document.querySelectorAll('.school-card').forEach(x=>x.classList.remove('active'));
+    card.classList.add('active');
+    highlightSchool(s.school_id);
+  };
+  sg.appendChild(card);
+});
+
+// 名录（取前 60 位）
+const sl = document.getElementById('subject_list');
+const topList = physPersons.slice().sort((a,b)=>(a.nobel_year||9999)-(b.nobel_year||9999)).slice(0,60);
+topList.forEach(p => {
+  const div = document.createElement('div');
+  div.className = 'subject-item';
+  div.dataset.pid = p.person_id;
+  const schoolsOfPerson = (personSchools[p.person_id]||[]).map(sid => {
+    const s = physSchools.find(x=>x.school_id===sid);
+    return s ? s.name_cn : '';
+  }).filter(Boolean);
+  div.innerHTML = `
+    <div class="subject-year">${p.nobel_year||'-'}</div>
+    <div class="subject-name">${p.name_en} ${p.name_zh?'（'+p.name_zh+'）':''}</div>
+    <div class="subject-nat">${p.nationality||''} · ${p.birth_year||''}年${p.death_year?' - '+p.death_year:''}</div>
+    <div style="margin-top:4px;">${schoolsOfPerson.map(s=>`<span class="subject-school">${s}</span>`).join('')}</div>
+  `;
+  sl.appendChild(div);
+});
+
+// 历年
+const years = []; for(let y=1901;y<=2026;y++) years.push(y);
+const yearData = years.map(y => physPersons.filter(p=>p.nobel_year===y).length);
+echarts.init(document.getElementById('chart_year')).setOption({
+  tooltip:{trigger:'axis'},
+  grid:{left:40,right:20,top:20,bottom:50},
+  xAxis:{type:'category',data:years,name:'年份'},
+  yAxis:{type:'value',name:'人数'},
+  series:[{type:'bar',data:yearData,itemStyle:{color:'#3b82f6',borderRadius:[4,4,0,0]}},
+          {type:'line',data:yearData,lineStyle:{color:'#dc2626',width:2},itemStyle:{color:'#dc2626'},smooth:true}]
+});
+
+// 学派人数
+echarts.init(document.getElementById('chart_paradigm')).setOption({
+  tooltip:{trigger:'item'},
+  series:[{type:'pie',radius:['40%','70%'],data:physSchools.map(s=>({
+    name: s.name_cn,
+    value: physEdges.filter(r=>r.school_id===s.school_id).length,
+    itemStyle:{color: schoolColorMap[s.school_id]}
+  })),label:{formatter:'{b}: {c}',fontSize:11},
+  itemStyle:{borderRadius:4,borderColor:'#fff',borderWidth:2}}]
+});
+
+// 国籍
+const countryCount = {};
+physPersons.forEach(p=>{ if(p.nationality) countryCount[p.nationality]=(countryCount[p.nationality]||0)+1; });
+const countryData = Object.entries(countryCount).map(([k,v])=>({name:k,value:v})).sort((a,b)=>b.value-a.value).slice(0,10);
+echarts.init(document.getElementById('chart_country')).setOption({
+  tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+  grid:{left:100,right:20,top:10,bottom:20},
+  xAxis:{type:'value'},yAxis:{type:'category',data:countryData.map(d=>d.name).reverse()},
+  series:[{type:'bar',data:countryData.map(d=>d.value).reverse(),itemStyle:{color:'#0891b2',borderRadius:[0,6,6,0]}}]
+});
+
+// 网络
+const svg = d3.select('#chart_network');
+const width = 1400, height = 600;
+svg.attr('viewBox', `0 0 ${width} ${height}`)
+   .attr('preserveAspectRatio', 'xMidYMid meet')
+   .attr('width', '100%')
+   .attr('height', height);
+
+// 只用与学派有关的人物节点，避免网络过于稀疏
+const schoolPersonIds = new Set(physEdges.map(r=>r.person_id));
+const personNodes = physPersons.filter(p=>schoolPersonIds.has(p.person_id)).map((p,i)=>{
+  const angle = (i/Math.max(physPersons.filter(p=>schoolPersonIds.has(p.person_id)).length,1))*Math.PI*2;
+  const radius = 380;
+  const primarySchool = (personSchools[p.person_id]||[])[0];
+  return {
+    id: p.person_id, name: p.name_en.split(' ').slice(-1)[0], type:'person', pid: p.person_id,
+    r: 7, _rec: p, schoolId: primarySchool,
+    x: width/2 + radius*Math.cos(angle) + (Math.random()-0.5)*60,
+    y: height/2 + radius*Math.sin(angle) + (Math.random()-0.5)*60
+  };
+});
+
+const schoolNodes = physSchools.map((s,i)=>({
+  id: 'school_'+s.school_id, name: s.name_cn, type:'school', sid: s.school_id,
+  r: 20 + physEdges.filter(r=>r.school_id===s.school_id).length*1,
+  _rec: s,
+  x: width/2 + 240*Math.cos(i*Math.PI*2/physSchools.length),
+  y: height/2 + 240*Math.sin(i*Math.PI*2/physSchools.length)
+}));
+
+// 范式节点（有明确 founder 的）
+const paradigmFounderPid = {
+  'P_QM': 'P001',   // Planck - approximate
+  'P_QED': 'P005',  // Dirac
+  'P_Xray': 'P038', // von Laue
+  'P_Nuclear': 'P040', // Rutherford
+  'P_Neutrino': 'P063',
+  'P_Relativity': 'P042', // Einstein
+  'P_SM': null,
+};
+const paradigmNodes = physParadigms.map((p,i)=>{
+  const fid = paradigmFounderPid[p.paradigm_id];
+  return {
+    id: 'par_'+p.paradigm_id, name: p.name, type:'paradigm', _rec:p, founderPid: fid, r: 14,
+    x: width/2 + 170*Math.cos(i*Math.PI*2/physParadigms.length + Math.PI/physParadigms.length),
+    y: height/2 + 170*Math.sin(i*Math.PI*2/physParadigms.length + Math.PI/physParadigms.length)
+  };
+}).filter(n => n.founderPid && personNodes.find(x=>x.id===n.founderPid));
+
+const networkNodes = [...schoolNodes, ...personNodes, ...paradigmNodes];
+
+const networkLinks = [];
+physEdges.forEach(r => {
+  if (networkNodes.find(n=>n.id===r.person_id)) {
+    networkLinks.push({source:r.person_id, target:'school_'+r.school_id, kind:'school'});
+  }
+});
+paradigmNodes.forEach(n => {
+  networkLinks.push({source:n.founderPid, target:n.id, kind:'paradigm'});
+});
+
+function nodeColor(d){
+  const mode = document.getElementById('netColorMode').value;
+  if(d.type==='school') return schoolColorMap[d.sid];
+  if(d.type==='paradigm') return '#7c3aed';
+  if(mode==='decade'){
+    const y = d._rec.nobel_year;
+    if(!y) return '#94a3b8';
+    const decade = Math.floor(y/10)*10;
+    const map = {1900:'#4a5568',1910:'#805ad5',1920:'#2b6cb0',1930:'#c05621',1940:'#dd6b20',1950:'#38a169',1960:'#2f855a',1970:'#b7791f',1980:'#9b2c2c',1990:'#319795',2000:'#553c9a',2010:'#2c5282'};
+    return map[decade] || '#64748b';
+  }
+  if(mode==='country'){
+    const nat = d._rec.nationality;
+    const cmap = {'USA':'#dc2626','United Kingdom':'#0891b2','UK':'#0891b2','Sweden':'#2563eb','Germany':'#059669','France':'#7c3aed','Japan':'#db2777','Denmark':'#4f46e5','Netherlands':'#0ea5e9','Italy':'#16a34a','Norway':'#059669','Canada':'#dc2626','Australia':'#ea580c','Russia':'#92400e'};
+    return cmap[nat] || '#64748b';
+  }
+  if(d.schoolId) return schoolColorMap[d.schoolId];
+  return '#94a3b8';
+}
+
+const zoom = d3.zoom().scaleExtent([0.2,4]).on('zoom',e=>{ g.attr('transform',e.transform); });
+svg.call(zoom).on('dblclick.zoom',null);
+svg.on('dblclick',()=>{ svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity); resetHighlight(); document.querySelectorAll('.school-card').forEach(x=>x.classList.remove('active')); });
+
+const g = svg.append('g');
+const simulation = d3.forceSimulation(networkNodes)
+  .force('link',d3.forceLink(networkLinks).id(d=>d.id).distance(d=>d.kind==='school'?110:60).strength(0.3))
+  .force('charge',d3.forceManyBody().strength(d=>d.type==='school'?-250:d.type==='paradigm'?-120:-80))
+  .force('center',d3.forceCenter(width/2,height/2))
+  .force('collide',d3.forceCollide(d=>d.r+4))
+  .force('x',d3.forceX(width/2).strength(0.04))
+  .force('y',d3.forceY(height/2).strength(0.06))
+  .stop();
+for(let i=0;i<180;i++) simulation.tick();
+
+const link = g.append('g').selectAll('line').data(networkLinks).join('line')
+  .attr('class','net-link')
+  .attr('stroke',d=>{
+    if(d.kind==='school'){
+      const sid = d.target.id.replace('school_','');
+      return schoolColorMap[sid] || '#1e40af';
+    }
+    return '#7c3aed';
+  })
+  .attr('stroke-opacity',0.35)
+  .attr('stroke-width',d=>d.kind==='school'?1:1.5)
+  .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+  .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+
+const node = g.append('g').selectAll('g').data(networkNodes).join('g')
+  .attr('class','net-node')
+  .call(d3.drag()
+    .on('start',(e,d)=>{if(!e.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y;})
+    .on('drag',(e,d)=>{ d.fx=e.x; d.fy=e.y; })
+    .on('end',(e,d)=>{ if(!e.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; }))
+  .attr('transform',d=>`translate(${d.x},${d.y})`);
+
+node.append('circle').attr('r',d=>d.r).attr('fill',nodeColor);
+node.append('text').text(d=>d.type==='paradigm'?'◆ '+d.name:d.name)
+  .attr('x',d=>d.r+3).attr('y',3)
+  .attr('font-size',d=>d.type==='school'?'12px':d.type==='paradigm'?'10px':'9px')
+  .attr('font-weight',d=>d.type==='school'?'700':d.type==='paradigm'?'600':'400')
+  .attr('fill',d=>d.type==='school'?'#333':d.type==='paradigm'?'#7c3aed':'#444');
+
+function updatePositions(){
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+      .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+}
+simulation.on('tick', updatePositions);
+
+const tip = document.getElementById('tip');
+function showTooltip(e,d){
+  let html='';
+  if(d.type==='school'){
+    const s = d._rec;
+    const memberCount = physEdges.filter(r=>r.school_id===d.sid).length;
+    html = `<h4>◆ ${s.name_cn}</h4>
+      <div class="meta">${s.name_en||''} · 始创 ${s.era_start||''}</div>
+      <div style="margin-top:4px;">${s.description||''}</div>
+      <div style="margin-top:6px;"><span class="tag">${memberCount}位成员</span></div>`;
+  } else if(d.type==='paradigm'){
+    const p = d._rec;
+    html = `<h4>◆ ${p.name}</h4>
+      <div class="meta">范式 · ${p.year}</div>
+      <div style="margin-top:4px;">${p.description||''}</div>
+      <div style="margin-top:4px;font-size:11px;color:#666;">奠基人：${p.founder_name||''}</div>`;
+  } else {
+    const p = d._rec;
+    const mySchools = (personSchools[d.pid]||[]).map(sid=>physSchools.find(s=>s.school_id===sid)?.name_cn).filter(Boolean);
+    html = `<h4>${p.name_en}</h4>
+      <div class="meta">🏆 ${p.nobel_year} · ${p.nationality||''}</div>
+      <div style="margin-top:4px;">${p.nobel_motivation||''}</div>
+      ${mySchools.length?`<div style="margin-top:6px;">${mySchools.map(s=>`<span class="tag">${s}</span>`).join('')}</div>`:''}`;
+  }
+  tip.innerHTML = html;
+  tip.style.display='block';
+  const x = Math.min(e.clientX+16, window.innerWidth-320);
+  const y = Math.min(e.clientY+16, window.innerHeight-tip.offsetHeight-20);
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function hideTooltip(){ tip.style.display='none'; }
+
+function highlightChain(d){
+  const relIds = new Set([d.id]);
+  const relatedLinks = new Set();
+  networkLinks.forEach((l,i)=>{
+    const sid = l.source.id||l.source, tid = l.target.id||l.target;
+    if(sid===d.id || tid===d.id){ relatedLinks.add(i); relIds.add(sid); relIds.add(tid); }
+  });
+  node.classed('dim',n=>!relIds.has(n.id));
+  link.classed('dim',(l,i)=>!relatedLinks.has(i)).classed('active',(l,i)=>relatedLinks.has(i));
+}
+function highlightSchool(sid){
+  const relIds = new Set(['school_'+sid]);
+  const relatedLinks = new Set();
+  physEdges.forEach(r => { if(r.school_id===sid) relIds.add(r.person_id); });
+  networkLinks.forEach((l,i)=>{
+    const sid_target = l.target.id||l.target;
+    if(sid_target === 'school_'+sid){
+      relatedLinks.add(i);
+      relIds.add(l.source.id||l.source);
+      relIds.add(l.target.id||l.target);
+    }
+  });
+  node.classed('dim',n=>!relIds.has(n.id));
+  link.classed('dim',(l,i)=>!relatedLinks.has(i)).classed('active',(l,i)=>relatedLinks.has(i));
+}
+function resetHighlight(){
+  node.classed('dim',false);
+  link.classed('dim',false).classed('active',false);
+}
+node.on('mouseover',showTooltip).on('mouseout',hideTooltip).on('click',(e,d)=>{ e.stopPropagation(); highlightChain(d); });
+
+document.getElementById('netColorMode').onchange = ()=>{
+  node.select('circle').transition().duration(300).attr('fill',nodeColor);
+};
+document.getElementById('netReset').onclick = ()=>{
+  resetHighlight();
+  document.querySelectorAll('.school-card').forEach(x=>x.classList.remove('active'));
+};
+
+function applyFilters(){
+  const showMentor = document.getElementById('netShowMentor').checked;
+  const showSchool = document.getElementById('netShowSchool').checked;
+  const showParadigm = document.getElementById('netShowParadigm').checked;
+  const minY = +document.getElementById('netYearRange').value;
+  node.style('display',d=>{
+    if(d.type==='school' && !showSchool) return 'none';
+    if(d.type==='paradigm' && !showParadigm) return 'none';
+    const y = d._rec && d._rec.nobel_year;
+    if(y && y < minY) return 'none';
+    return null;
+  });
+  const visible = new Set();
+  node.each(function(d){ if(d3.select(this).style('display')!=='none') visible.add(d.id); });
+  link.style('display',l=>{
+    const sid=l.source.id||l.source, tid=l.target.id||l.target;
+    if(l.kind==='school' && !showMentor) return 'none';
+    return (visible.has(sid)&&visible.has(tid)) ? null : 'none';
+  });
+}
+['netShowMentor','netShowSchool','netShowParadigm'].forEach(id=>{
+  document.getElementById(id).onchange = applyFilters;
+});
+document.getElementById('netYearRange').oninput = (e)=>{
+  document.getElementById('netYearLabel').textContent = e.target.value;
+  applyFilters();
+};
+
+const listItems = document.querySelectorAll('.subject-item');
+listItems.forEach((item,idx)=>{
+  const p = topList[idx];
+  item.onclick = ()=>{
+    listItems.forEach(x=>x.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.school-card').forEach(x=>x.classList.remove('active'));
+    svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+    setTimeout(()=>{
+      const target = networkNodes.find(n=>n.id===p.person_id);
+      if(target){
+        highlightChain(target);
+        const scale = 1.8;
+        const tx = width/2 - target.x*scale;
+        const ty = height/2 - target.y*scale;
+        svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(scale));
+      }
+    }, 100);
+  };
+});
+</script>
+</body>
+</html>
