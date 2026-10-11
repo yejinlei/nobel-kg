@@ -64,6 +64,76 @@ input.guess::placeholder{color:#475569;font-weight:400}
 .log-item.wrong{border-left:3px solid #f87171}
 .log-item .who{color:#fbbf24;font-weight:600}
 .log-item .yr{color:#64748b;font-size:11px;margin-left:6px}
+
+/* ---- Responsive ---- */
+@media (max-width:900px){
+  header{padding:12px 14px;flex-wrap:wrap;gap:8px}
+  header h1{font-size:16px}
+  header .sub{font-size:11px;margin-left:0;order:3;width:100%}
+  .back-link{margin-left:auto;font-size:12px}
+  main{max-width:720px;padding:18px 14px 60px}
+  .hero h2{font-size:24px}
+  .hero p{font-size:12px}
+  .score{min-width:0;flex:1 1 40%;padding:6px 10px;font-size:11px}
+  .score b{font-size:18px}
+  .score .lbl{font-size:9.5px;letter-spacing:.5px}
+  .card{padding:16px;border-radius:12px;margin:12px 0}
+  .clues{grid-template-columns:1fr}
+  .clue{padding:10px 12px}
+  .clue-ic{font-size:20px}
+  .clue-val{font-size:13px}
+  .answer .name{font-size:28px}
+  .answer .en{font-size:14px}
+  .answer .desc{font-size:12.5px;padding:10px 12px}
+}
+@media (max-width:560px){
+  header{padding:10px 12px}
+  header h1{font-size:15px}
+  header .sub{display:none}
+  main{padding:14px 10px 50px}
+  .hero{padding:10px 0 14px}
+  .hero .badge{font-size:11px;padding:4px 10px}
+  .hero h2{font-size:22px}
+  .hero p{font-size:11px}
+  .score-strip{gap:6px}
+  .score{flex:1 1 30%;padding:6px 4px;font-size:10.5px}
+  .score b{font-size:16px}
+  .score .lbl{font-size:9px}
+  .card{padding:14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .q-badge{font-size:11px;padding:3px 10px;margin-bottom:12px}
+  .clue{padding:8px 10px;gap:8px}
+  .clue-ic{font-size:18px}
+  .clue-lbl{font-size:9.5px;letter-spacing:1px}
+  .clue-val{font-size:12.5px}
+  input.guess{font-size:16px;padding:12px 14px;border-radius:8px}
+  .btn-row{gap:6px;justify-content:center}
+  .btn{font-size:12px;padding:8px 12px;border-radius:8px;min-height:40px;flex:1 1 auto}
+  .btn.small{font-size:11px;padding:6px 10px}
+  .answer .name{font-size:24px}
+  .answer .en{font-size:13px}
+  .answer .desc{font-size:11.5px;padding:8px 10px}
+  .log-item{font-size:12px;padding:8px 10px}
+  .log-item .who{font-size:12px}
+  .log-item .icon{font-size:14px;margin-right:6px}
+  .result{font-size:13px;padding:12px}
+  .stats-strip{gap:6px}
+  .stat-chip{padding:6px 10px;font-size:11px}
+  .stat-chip b{font-size:13px}
+  .reveal-mask{filter:blur(4px)}
+}
+/* Touch-friendly buttons */
+@media (pointer:coarse){
+  .btn{min-height:44px;font-size:13.5px}
+  .btn-row{gap:8px}
+  input.guess{font-size:17px;padding:14px 16px}
+  .clue{min-height:56px}
+  .clue-ic{font-size:22px}
+}
+/* Prevent iOS zoom on input focus */
+@media (max-width:560px){
+  input.guess{font-size:16px} /* must be ≥16px to prevent iOS auto-zoom */
+}
+.log-wrap{margin-top:22px}
 </style>
 </head>
 <body>

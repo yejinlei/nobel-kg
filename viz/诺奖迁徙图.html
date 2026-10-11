@@ -57,6 +57,81 @@ h2 .en{font-size:11px;color:#64748b;margin-left:8px;font-weight:400}
 .bar-row .fill{height:100%;background:linear-gradient(90deg,#fbbf24,#f97316);border-radius:2px}
 .bar-row .val{color:#fbbf24;font-weight:600;min-width:24px;text-align:right}
 .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:13px;background:rgba(15,23,42,.6);z-index:5;border-radius:12px}
+
+/* ===== 响应式适配 ===== */
+@media (max-width:1200px){
+  #mapSvg{height:560px}
+}
+@media (max-width:900px){
+  header{padding:12px 14px;flex-wrap:wrap;gap:8px}
+  header h1{font-size:16px}
+  header .sub{font-size:11px;margin-left:0;order:3;width:100%}
+  .back-link{margin-left:auto;font-size:12px}
+  main{padding:14px 12px}
+  .desc{font-size:12px;line-height:1.65}
+  .stats-strip{gap:8px}
+  .stat-chip{padding:8px 12px;font-size:11.5px;min-width:110px;flex:1 1 auto}
+  .stat-chip b{font-size:17px}
+  .toolbar{padding:8px 10px;gap:10px;font-size:11.5px;align-items:flex-start}
+  .toolbar input[type=number]{width:56px;padding:2px 4px;font-size:11.5px}
+  .toolbar button{padding:4px 10px;font-size:11px}
+  .toolbar .sep{margin:0 2px}
+  .toolbar .right{margin-left:0;width:100%}
+  h2{font-size:14px;margin:14px 0 8px 0}
+  h2 .en{font-size:10.5px;margin-left:6px;display:block;margin-top:2px}
+  #mapSvg{height:460px}
+  .legend{gap:10px;font-size:11px;padding:8px 10px;flex-wrap:wrap}
+  .legend .hint{margin-left:0;width:100%;margin-top:2px}
+  .rank-list{grid-template-columns:1fr;gap:10px;margin-top:10px}
+  .rank-card{padding:10px 12px}
+  .rank-card h3{font-size:12px}
+  .bar-row{font-size:11px;margin:3px 0}
+  .bar-row .name{min-width:72px;font-size:11px}
+  .bar-row .bar{height:12px}
+}
+@media (max-width:560px){
+  header h1{font-size:15px}
+  header .sub{display:none}
+  main{padding:12px 10px}
+  .desc{font-size:11.5px;line-height:1.6}
+  .stats-strip{gap:6px}
+  .stat-chip{padding:7px 10px;font-size:11px;min-width:0;flex:1 1 45%}
+  .stat-chip b{font-size:15px}
+  .stat-chip .lbl{font-size:10px}
+  .toolbar{flex-direction:column;align-items:stretch;gap:8px}
+  .toolbar .sep{display:none}
+  .toolbar .year-range{justify-content:flex-start}
+  .toolbar button{align-self:flex-start;padding:6px 14px;font-size:12px}
+  h2{font-size:13px}
+  h2 .en{font-size:10px}
+  #mapSvg{height:360px;border-radius:10px}
+  .map-tip{max-width:280px;font-size:11.5px;padding:8px 10px}
+  .map-tip .hint{font-size:10px;margin-top:5px;padding-top:5px}
+  .legend{font-size:10.5px;padding:7px 9px;gap:8px}
+  .legend .line{width:18px;height:2px}
+  .legend .dot{width:9px;height:9px}
+  .bar-row .name{min-width:64px;font-size:10.5px}
+  .bar-row .bar{height:11px}
+}
+/* 触摸设备：加大点击区、增大点与弧线视觉权重 */
+@media (pointer:coarse){
+  .toolbar label{padding:4px 0}
+  .toolbar input[type=checkbox]{width:16px;height:16px}
+  .toolbar button{min-height:32px;padding:6px 14px;font-size:12.5px}
+  .toolbar input[type=number]{padding:5px 6px;font-size:14px}
+  .back-link{padding:4px 6px}
+  .rank-card{padding:12px 14px}
+}
+/* 极窄屏：地图可横向滑看 */
+@media (max-width:400px){
+  #mapSvg{height:320px}
+  .stats-strip{flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:2px}
+  .stat-chip{flex:0 0 auto;min-width:104px}
+}
+/* 减少动画偏好 */
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:0.01ms !important;transition-duration:0.01ms !important}
+}
 </style>
 </head>
 <body>
