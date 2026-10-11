@@ -239,15 +239,29 @@ const subjectFields = {};
 sf.forEach(r=>{ if(!subjectFields[r.subject_id]) subjectFields[r.subject_id]=[]; subjectFields[r.subject_id].push(r.field_id); });
 
 // 节点数据（保存原始 subject 记录，便于 tooltip）
+// 预置初始坐标，避免 d3.forceSimulation 在某些浏览器下 x/y 为 undefined 导致节点飞出视口
+const cx0 = width/2, cy0 = height/2;
+const nFields = fields.length || 1;
 const networkNodes = [
-  ...fields.map(f=>({id:f.field_id,name:f.name_zh,type:'field',r: 22 + sf.filter(r=>r.field_id===f.field_id).length*1.2,_rec:f})),
-  ...subjects.map(s=>({
-    id:s.subject_id,
-    name: s.subject_type==='组织' ? (s.acronym||s.name_en.slice(0,10)) : s.name_en.split(' ').slice(-1)[0],
-    type:s.subject_type,
-    r: s.subject_type==='组织'?10:6,
-    _rec:s
-  }))
+  ...fields.map((f,i)=>({
+    id:f.field_id, name:f.name_zh, type:'field',
+    r: 22 + sf.filter(r=>r.field_id===f.field_id).length*1.2,
+    _rec:f,
+    x: cx0 + 240*Math.cos(i*Math.PI*2/nFields),
+    y: cy0 + 240*Math.sin(i*Math.PI*2/nFields)
+  })),
+  ...subjects.map((s,i)=>{
+    const angle = (i/subjects.length)*Math.PI*2;
+    return {
+      id:s.subject_id,
+      name: s.subject_type==='组织' ? (s.acronym||s.name_en.slice(0,10)) : s.name_en.split(' ').slice(-1)[0],
+      type:s.subject_type,
+      r: s.subject_type==='组织'?10:6,
+      _rec:s,
+      x: cx0 + 340*Math.cos(angle) + (Math.random()-0.5)*40,
+      y: cy0 + 340*Math.sin(angle) + (Math.random()-0.5)*40
+    };
+  })
 ];
 const networkLinks = sf.map(r=>({source:r.subject_id,target:r.field_id})).filter(l=>networkNodes.find(n=>n.id===l.source)&&networkNodes.find(n=>n.id===l.target));
 
@@ -281,11 +295,15 @@ const g = svg.append('g');
 const link = g.append('g').selectAll('line').data(networkLinks).join('line')
   .attr('class','net-link')
   .attr('stroke',d=>{
-    const f = fields.find(x=>x.field_id===(d.target.id||d.target));
-    return f ? (fieldColors[d.target.id||d.target]||'#1e5799') : '#1e5799';
+    const tid = d.target.id || d.target;
+    return fieldColors[tid] || '#1e5799';
   })
-  .attr('stroke-opacity',0.35)
+  .attr('stroke-opacity',0.45)
   .attr('stroke-width',1);
+
+// 立即在初始位置渲染一次（不依赖 simulation tick）
+link.attr('x1',d=>(d.source.x||width/2)).attr('y1',d=>(d.source.y||height/2))
+    .attr('x2',d=>(d.target.x||width/2)).attr('y2',d=>(d.target.y||height/2));
 
 const node = g.append('g').selectAll('g').data(networkNodes).join('g')
   .attr('class','net-node')
@@ -300,16 +318,27 @@ node.append('text').text(d=>d.name).attr('x',d=>d.r+3).attr('y',3)
   .attr('font-weight',d=>d.type==='field'?'600':'400')
   .attr('fill','#333');
 
-const simulation = d3.forceSimulation(networkNodes)
-  .force('link',d3.forceLink(networkLinks).id(d=>d.id).distance(100).strength(0.3))
-  .force('charge',d3.forceManyBody().strength(-50))
-  .force('center',d3.forceCenter(width/2,height/2))
-  .force('collide',d3.forceCollide(d=>d.r+3));
+// 立即在预置坐标上渲染一次
+node.attr('transform',d=>`translate(${d.x},${d.y})`);
 
-simulation.on('tick',()=>{
-  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+const simulation = d3.forceSimulation(networkNodes)
+  .force('link',d3.forceLink(networkLinks).id(d=>d.id).distance(110).strength(0.28))
+  .force('charge',d3.forceManyBody().strength(-70))
+  .force('center',d3.forceCenter(width/2,height/2))
+  .force('collide',d3.forceCollide(d=>d.r+4))
+  .force('x',d3.forceX(width/2).strength(0.04))
+  .force('y',d3.forceY(height/2).strength(0.06));
+
+// 同步跑 120 步 tick，让布局稳定后再绘制，避免用户看到中间抖动/空白
+for (let i=0; i<120; i++) simulation.tick();
+
+function updatePositions(){
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+      .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
   node.attr('transform',d=>`translate(${d.x},${d.y})`);
-});
+}
+updatePositions();
+simulation.on('tick', updatePositions);
 
 // 交互：tooltip / highlight
 const tip = document.getElementById('tip');
