@@ -52,7 +52,7 @@ body { background: var(--peace-bg); margin: 0; font-family: -apple-system, syste
 .tooltip-net .meta { color:#666; font-size:11px; margin-bottom:6px; }
 .tooltip-net .field { color:var(--peace-olive); font-size:11px; }
 .tooltip-net .field-tag { display:inline-block; background:#f1f8e9; color:var(--peace-olive); padding:1px 6px; border-radius:8px; font-size:11px; margin:1px; }
-#chart_network { background:#fff; border-radius:8px; }
+#chart_network { background:#fff; border-radius:8px; width:100%; height:550px; display:block; }
 .net-node circle { cursor:pointer; stroke:#fff; stroke-width:1.5px; transition:all .2s; }
 .net-node:hover circle { stroke:#ffc107; stroke-width:2.5px; filter:drop-shadow(0 0 6px #ffc107); }
 .net-node text { font-size:9px; fill:#333; pointer-events:none; text-shadow:0 1px 2px rgba(255,255,255,.9); }
@@ -222,10 +222,13 @@ echarts.init(document.getElementById('chart_year')).setOption({
 });
 
 // 领域关系网络（带缩放/tooltip/高亮/筛选）
+// 用固定 viewBox + preserveAspectRatio，绕开 display:none→block 时序问题
 const svg = d3.select('#chart_network');
-const width = svg.node().getBoundingClientRect().width;
-const height = 550;
-svg.attr('viewBox',`0 0 ${width} ${height}`);
+const width = 1200, height = 550;
+svg.attr('viewBox', `0 0 ${width} ${height}`)
+   .attr('preserveAspectRatio', 'xMidYMid meet')
+   .attr('width', '100%')
+   .attr('height', height);
 
 // 领域色板
 const fieldColors = {};
