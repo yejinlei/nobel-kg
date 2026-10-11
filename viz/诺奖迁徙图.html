@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诺奖迁徙图 · 从故乡到讲坛</title>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../lib/vendors/d3.v7.min.js"></script>
+<script src="../lib/vendors/topojson-client.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0f172a;color:#e2e8f0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+header{padding:14px 22px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:14px;position:sticky;top:0;background:#0f172a;z-index:10}
+header h1{font-size:18px;margin:0;font-weight:600}
+header .sub{font-size:12px;color:#64748b;margin-left:auto}
+.back-link{color:#94a3b8;text-decoration:none;font-size:13px}
+.back-link:hover{color:#e2e8f0}
+main{max-width:1500px;margin:0 auto;padding:20px}
+h2{font-size:15px;color:#cbd5e1;margin:20px 0 10px 0;font-weight:600}
+h2 .en{font-size:11px;color:#64748b;margin-left:8px;font-weight:400}
+.desc{font-size:12.5px;color:#94a3b8;line-height:1.7;max-width:960px;margin-bottom:12px}
+.desc b{color:#fbbf24}
+.stats-strip{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.stat-chip{background:linear-gradient(160deg,#131a30,#182046);border:1px solid #2b3455;border-radius:10px;padding:10px 16px;font-size:12.5px;color:#94a3b8;min-width:130px}
+.stat-chip b{color:#fbbf24;font-size:19px;font-weight:600;margin-right:4px}
+.stat-chip .lbl{font-size:11px;color:#64748b;display:block;margin-top:2px}
+.toolbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:10px 14px;background:#131a30;border:1px solid #1e293b;border-radius:10px;margin-bottom:10px;font-size:12px}
+.toolbar label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:#94a3b8}
+.toolbar input[type=checkbox]{accent-color:#fbbf24}
+.toolbar .cat-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.toolbar .sep{width:1px;height:20px;background:#334155;margin:0 4px}
+.toolbar .year-range{display:flex;align-items:center;gap:6px;color:#64748b}
+.toolbar input[type=number]{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:2px 6px;border-radius:4px;width:64px;font-size:12px}
+.toolbar button{background:#2b3455;border:1px solid #475569;color:#e2e8f0;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:11.5px}
+.toolbar button:hover{background:#3b4a6b}
+.toolbar .right{margin-left:auto;color:#64748b;font-size:11px}
+#mapWrap{position:relative}
+#mapSvg{width:100%;height:640px;background:radial-gradient(ellipse at center,#0d1530 0%,#0a0f1f 100%);border:1px solid #1e293b;border-radius:12px;cursor:grab}
+#mapSvg:active{cursor:grabbing}
+.map-tip{position:fixed;display:none;z-index:20;max-width:340px;background:rgba(15,23,42,.97);border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#e2e8f0;font-size:12px;pointer-events:none;line-height:1.55;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.map-tip b{color:#fbbf24;font-weight:600}
+.map-tip .hint{color:#64748b;font-size:10.5px;margin-top:6px;border-top:1px dashed #334155;padding-top:6px}
+.map-tip a{color:#93c5fd;text-decoration:none;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:#94a3b8;margin-top:10px;padding:10px 14px;background:#131a30;border:1px solid #1e293b;border-radius:8px;align-items:center}
+.legend .item{display:flex;align-items:center;gap:5px}
+.legend .line{width:22px;height:2px;border-radius:2px}
+.legend .dot{width:11px;height:11px;border-radius:50%}
+.legend .hint{color:#64748b;margin-left:auto;font-size:11px}
+.rank-list{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.rank-card{background:#131a30;border:1px solid #1e293b;border-radius:10px;padding:12px 14px}
+.rank-card h3{font-size:12.5px;color:#cbd5e1;margin:0 0 8px 0;font-weight:600;display:flex;align-items:center;gap:6px}
+.rank-card h3 .en{color:#64748b;font-weight:400;font-size:10.5px}
+.bar-row{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:11.5px}
+.bar-row .rank{color:#64748b;width:16px;font-size:10.5px}
+.bar-row .name{color:#e2e8f0;min-width:88px}
+.bar-row .bar{flex:1;height:14px;background:#0a0f1f;border-radius:3px;position:relative;overflow:hidden;border:1px solid #2b3455}
+.bar-row .fill{height:100%;background:linear-gradient(90deg,#fbbf24,#f97316);border-radius:2px}
+.bar-row .val{color:#fbbf24;font-weight:600;min-width:24px;text-align:right}
+.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:13px;background:rgba(15,23,42,.6);z-index:5;border-radius:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌐 诺奖迁徙图</h1>
+  <span class="sub">从故乡到讲坛 · Nobel Migration Atlas</span>
+  <a class="back-link" href="../index.html">← 返回主页</a>
+</header>
+<main>
+  <div class="desc">
+    诺奖不是本土的产物——从柏林到芝加哥、从圣彼得堡到剑桥、从维也纳到耶路撒冷，<b>知识的迁徙</b>是诺奖背后最沉默的力量。<br>
+    本页用 <b>弧线连接每位得主的出生国与主要工作地</b>（工作地由 Wikipedia 中文简介自动抽取），叠加 120 余年的历史迁徙流量。悬停国家可看迁徙明细，切换类别或年代可重看不同切片。
+  </div>
+
+  <div class="stats-strip" id="stats"></div>
+
+  <div class="toolbar" id="toolbar"></div>
+
+  <h2>🗺️ 全球迁徙弧线 <span class="en">Migration Arcs · Birth Country → Working Country</span></h2>
+  <div id="mapWrap" style="position:relative">
+    <svg id="mapSvg"></svg>
+    <div class="loading" id="loading">正在绘制世界迁徙图 …</div>
+  </div>
+  <div class="legend" id="legend"></div>
+
+  <div class="rank-list">
+    <div class="rank-card">
+      <h3>🏁 出发最多 <span class="en">Top Origins</span></h3>
+      <div id="topOrigin"></div>
+    </div>
+    <div class="rank-card">
+      <h3>🎯 汇聚最多 <span class="en">Top Destinations</span></h3>
+      <div id="topDest"></div>
+    </div>
+  </div>
+</main>
+
+<div class="map-tip" id="mapTip"></div>
+
+<script type="module">
+import * as db from '../js/db.js';
+
+await db.initDB(()=>{});
+
+const ACCENT = '#fbbf24';
+const CATS = ['物理学','化学','生理学或医学','文学','和平','经济学'];
+const COLORS = {物理学:'#60a5fa',化学:'#f87171',生理学或医学:'#34d399',文学:'#fbbf24',和平:'#c084fc',经济学:'#f97316'};
+
+// ---- Country mapping: name (English & Chinese) → ISO-3166 numeric code + centroid [lng,lat]
+// Historical countries mapped to closest modern equivalent or custom centroid.
+const C = {
+  'USA':{iso:'840',lon:-98,lat:39},
+  'United States':{iso:'840',lon:-98,lat:39},
+  '美国':{iso:'840',lon:-98,lat:39},
+  'United Kingdom':{iso:'826',lon:-1.5,lat:53.5},
+  'UK':{iso:'826',lon:-1.5,lat:53.5},
+  '英国':{iso:'826',lon:-1.5,lat:53.5},
+  'Germany':{iso:'276',lon:10.5,lat:51},
+  '德国':{iso:'276',lon:10.5,lat:51},
+  'France':{iso:'250',lon:2.35,lat:46.5},
+  '法国':{iso:'250',lon:2.35,lat:46.5},
+  'Japan':{iso:'392',lon:138.3,lat:36.2},
+  '日本':{iso:'392',lon:138.3,lat:36.2},
+  'Sweden':{iso:'752',lon:18,lat:62},
+  '瑞典':{iso:'752',lon:18,lat:62},
+  'Canada':{iso:'124',lon:-106,lat:56},
+  '加拿大':{iso:'124',lon:-106,lat:56},
+  'the Netherlands':{iso:'528',lon:5.3,lat:52.1},
+  'Netherlands':{iso:'528',lon:5.3,lat:52.1},
+  '荷兰':{iso:'528',lon:5.3,lat:52.1},
+  'Switzerland':{iso:'756',lon:8.2,lat:46.8},
+  '瑞士':{iso:'756',lon:8.2,lat:46.8},
+  'Russia':{iso:'643',lon:90,lat:60},
+  'Russia/USSR':{iso:'643',lon:90,lat:60},
+  'Russian Empire':{iso:'643',lon:90,lat:60},
+  'USSR':{iso:'643',lon:90,lat:60},
+  '俄罗斯':{iso:'643',lon:90,lat:60},
+  '苏联':{iso:'643',lon:90,lat:60},
+  'Italy':{iso:'380',lon:12.5,lat:42.5},
+  '意大利':{iso:'380',lon:12.5,lat:42.5},
+  'Austria':{iso:'040',lon:14.5,lat:47.5},
+  'Austria-Hungary':{iso:'040',lon:16.5,lat:47.5},
+  'Austrian Empire':{iso:'040',lon:14.5,lat:47.5},
+  '奥地利':{iso:'040',lon:14.5,lat:47.5},
+  'Norway':{iso:'578',lon:8,lat:62},
+  '挪威':{iso:'578',lon:8,lat:62},
+  'Prussia':{iso:'276',lon:13,lat:52.5},
+  'Denmark':{iso:'208',lon:9.5,lat:56},
+  '丹麦':{iso:'208',lon:9.5,lat:56},
+  'Scotland':{iso:'826',lon:-4,lat:57},
+  'China':{iso:'156',lon:104,lat:35},
+  '中国':{iso:'156',lon:104,lat:35},
+  'Belgium':{iso:'056',lon:4.5,lat:50.6},
+  '比利时':{iso:'056',lon:4.5,lat:50.6},
+  'Australia':{iso:'036',lon:134,lat:-25},
+  '澳大利亚':{iso:'036',lon:134,lat:-25},
+  'South Africa':{iso:'710',lon:25,lat:-29},
+  '南非':{iso:'710',lon:25,lat:-29},
+  'India':{iso:'356',lon:79,lat:22},
+  'British India':{iso:'356',lon:79,lat:22},
+  '印度':{iso:'356',lon:79,lat:22},
+  'Hungary':{iso:'348',lon:19.5,lat:47.1},
+  '匈牙利':{iso:'348',lon:19.5,lat:47.1},
+  'Poland':{iso:'616',lon:19.2,lat:51.9},
+  'German-occupied Poland':{iso:'616',lon:19.2,lat:51.9},
+  '波兰':{iso:'616',lon:19.2,lat:51.9},
+  'Spain':{iso:'724',lon:-3.7,lat:40.4},
+  '西班牙':{iso:'724',lon:-3.7,lat:40.4},
+  'Egypt':{iso:'818',lon:30.8,lat:26.8},
+  '埃及':{iso:'818',lon:30.8,lat:26.8},
+  'West Germany':{iso:'276',lon:10.5,lat:51},
+  'Ireland':{iso:'372',lon:-8,lat:53.4},
+  'Northern Ireland':{iso:'826',lon:-6.5,lat:54.5},
+  '爱尔兰':{iso:'372',lon:-8,lat:53.4},
+  'British Mandate of Palestine':{iso:'376',lon:35,lat:31.5},
+  'British Protectorate of Palestine':{iso:'376',lon:35,lat:31.5},
+  'Israel':{iso:'376',lon:35,lat:31.5},
+  '以色列':{iso:'376',lon:35,lat:31.5},
+  'Argentina':{iso:'032',lon:-64,lat:-38.4},
+  '阿根廷':{iso:'032',lon:-64,lat:-38.4},
+  'New Zealand':{iso:'554',lon:172,lat:-41},
+  '新西兰':{iso:'554',lon:172,lat:-41},
+  'Romania':{iso:'642',lon:24.9,lat:45.9},
+  '罗马尼亚':{iso:'642',lon:24.9,lat:45.9},
+  'Turkey':{iso:'792',lon:35.2,lat:39},
+  'Ottoman Empire':{iso:'792',lon:35.2,lat:39},
+  '土耳其':{iso:'792',lon:35.2,lat:39},
+  'Mexico':{iso:'484',lon:-102,lat:23.6},
+  '墨西哥':{iso:'484',lon:-102,lat:23.6},
+  'East Timor':{iso:'626',lon:124.96,lat:-8.87},
+  'Colombia':{iso:'170',lon:-73,lat:4.5},
+  '哥伦比亚':{iso:'170',lon:-73,lat:4.5},
+  'Venezuela':{iso:'862',lon:-66,lat:6.4},
+  'Luxembourg':{iso:'442',lon:6.1,lat:49.6},
+  '卢森堡':{iso:'442',lon:6.1,lat:49.6},
+  'Finland':{iso:'246',lon:26,lat:64.9},
+  '芬兰':{iso:'246',lon:26,lat:64.9},
+  'Liberia':{iso:'430',lon:-9.4,lat:6.4},
+  'Chile':{iso:'152',lon:-71,lat:-35.7},
+  '智利':{iso:'152',lon:-71,lat:-35.7},
+  'French Algeria':{iso:'012',lon:3,lat:28},
+  'Guatemala':{iso:'320',lon:-90.5,lat:15.7},
+  'Portugal':{iso:'620',lon:-8,lat:39.4},
+  '葡萄牙':{iso:'620',lon:-8,lat:39.4},
+  'Korea':{iso:'410',lon:127.7,lat:36.2},
+  'South Korea':{iso:'410',lon:127.7,lat:36.2},
+  '韩国':{iso:'410',lon:127.7,lat:36.2},
+  'Iran':{iso:'364',lon:53,lat:32.4},
+  'Persia':{iso:'364',lon:53,lat:32.4},
+  '伊朗':{iso:'364',lon:53,lat:32.4},
+  'Jordan':{iso:'802',lon:36.5,lat:30.5},
+  '约旦':{iso:'802',lon:36.5,lat:30.5},
+  'Java, Dutch East Indies':{iso:'360',lon:113,lat:-2.5},
+  'Lithuania':{iso:'440',lon:23.9,lat:55.2},
+  'Bavaria':{iso:'276',lon:11.6,lat:48.8},
+  'Gold Coast':{iso:'288',lon:-1.6,lat:7.9},
+  'Hesse-Kassel':{iso:'276',lon:9.5,lat:51.2},
+  'Faroe Islands (Denmark)':{iso:'234',lon:-7,lat:62},
+  'Costa Rica':{iso:'188',lon:-84,lat:9.7},
+  'Guadeloupe, France':{iso:'308',lon:-61.7,lat:16.2},
+  'Morocco':{iso:'504',lon:-6,lat:31.8},
+  '摩洛哥':{iso:'504',lon:-6,lat:31.8},
+  'Iraq':{iso:'368',lon:44,lat:33.2},
+  'Peru':{iso:'604',lon:-75,lat:-9.2},
+  '秘鲁':{iso:'604',lon:-75,lat:-9.2},
+  'Cyprus':{iso:'196',lon:33.2,lat:35.1},
+  'Free City of Danzig':{iso:'616',lon:18.6,lat:54.4},
+  'Bulgaria':{iso:'100',lon:25,lat:42.7},
+  'Bosnia':{iso:'070',lon:17.9,lat:44},
+  'French protectorate of Tunisia':{iso:'788',lon:9,lat:34},
+  'Belgian Congo':{iso:'180',lon:23.6,lat:-2.2},
+  'Lebanon':{iso:'422',lon:35.9,lat:33.9},
+  '黎巴嫩':{iso:'422',lon:35.9,lat:33.9},
+  'Ukraine':{iso:'804',lon:31.2,lat:48.9},
+  '乌克兰':{iso:'804',lon:31.2,lat:48.9},
+  'Southern Rhodesia':{iso:'716',lon:29,lat:-19},
+  'Vietnam':{iso:'704',lon:108,lat:14.1},
+  'Tuscany':{iso:'380',lon:11,lat:43.6},
+  'Yemen':{iso:'887',lon:45,lat:15.6},
+  'Czechoslovakia':{iso:'203',lon:15.5,lat:49.7},
+  'Czech':{iso:'203',lon:15.5,lat:49.7},
+  'Slovakia':{iso:'203',lon:15.5,lat:49.7},
+  '捷克':{iso:'203',lon:15.5,lat:49.7},
+  'Kenya':{iso:'404',lon:37.9,lat:0.02},
+  'Trinidad and Tobago':{iso:'780',lon:-61.2,lat:10.8},
+  'Brazil':{iso:'076',lon:-51.9,lat:-14.2},
+  '巴西':{iso:'076',lon:-51.9,lat:-14.2},
+  'Philippines':{iso:'608',lon:122,lat:12.9},
+  'Nigeria':{iso:'566',lon:8,lat:9.1},
+  'Pakistan':{iso:'586',lon:69.3,lat:30.4},
+  'Württemberg':{iso:'276',lon:9.2,lat:48.8},
+  'Ethiopia':{iso:'231',lon:40.5,lat:9.1},
+  'Madagascar':{iso:'450',lon:46.9,lat:-19.4},
+  'Iceland':{iso:'352',lon:-19,lat:64.9},
+  '冰岛':{iso:'352',lon:-19,lat:64.9},
+  'East Friesland':{iso:'276',lon:7.5,lat:53.5},
+  'Burma':{iso:'104',lon:96,lat:21.9},
+  'Tibet':{iso:'156',lon:91,lat:30},
+  'Mecklenburg':{iso:'276',lon:11.5,lat:53.7},
+  'Taiwan':{iso:'158',lon:121,lat:23.7},
+  '台湾':{iso:'158',lon:121,lat:23.7},
+  'Crete':{iso:'300',lon:24.9,lat:35.2},
+  'Cuba':{iso:'192',lon:-77.3,lat:21.5},
+  '古巴':{iso:'192',lon:-77.3,lat:21.5},
+  'Schleswig':{iso:'276',lon:9.5,lat:54.5},
+  'Tunisia':{iso:'788',lon:9,lat:34},
+  '突尼斯':{iso:'788',lon:9,lat:34},
+  'Syria':{iso:'760',lon:38.5,lat:35},
+  '叙利亚':{iso:'760',lon:38.5,lat:35},
+  'Singapore':{iso:'702',lon:103.8,lat:1.35},
+  '新加坡':{iso:'702',lon:103.8,lat:1.35},
+  'Czech Republic':{iso:'203',lon:15.5,lat:49.7},
+  'Slovak Republic':{iso:'703',lon:19.5,lat:48.7},
+  'Slovenia':{iso:'705',lon:14.8,lat:46.1},
+  'Croatia':{iso:'191',lon:15.2,lat:45.1},
+  'Serbia':{iso:'688',lon:20.9,lat:44},
+  'Montenegro':{iso:'499',lon:19.3,lat:42.7},
+  'Belarus':{iso:'112',lon:28.4,lat:53.7},
+  '白俄罗斯':{iso:'112',lon:28.4,lat:53.7},
+  'Estonia':{iso:'233',lon:26.5,lat:58.6},
+  'Latvia':{iso:'428',lon:25,lat:56.9},
+  'Lithuania (former)':{iso:'440',lon:23.9,lat:55.2},
+  'Azerbaijan':{iso:'031',lon:47.6,lat:40.1},
+  'Georgia':{iso:'268',lon:43.5,lat:42.3},
+  'Netherlands Antilles':{iso:'530',lon:-69,lat:17.5},
+  'Saint Lucia':{iso:'662',lon:-60.98,lat:13.9},
+  'British West Indies':{iso:'064',lon:-58.7,lat:24.9},
+  'Bhutan':{iso:'047',lon:90,lat:27.5},
+  'Nepal':{iso:'524',lon:84,lat:28.4}
+};
+
+// Chinese keywords that indicate the working-country in the wiki summary.
+// Order matters: more specific terms earlier.
+const ZH_KW = [
+  ['俄罗斯','俄罗斯'],['苏联','俄罗斯'],['苏联人','俄罗斯'],
+  ['英国','United Kingdom'],['英籍','United Kingdom'],['大不列颠','United Kingdom'],
+  ['美籍','USA'],['美国','USA'],['美国人','USA'],
+  ['中国','China'],['中国人','China'],
+  ['德国','Germany'],['日本人','Japan'],['日本','Japan'],
+  ['法国','France'],['瑞士','Switzerland'],['荷兰','the Netherlands'],
+  ['瑞典','Sweden'],['挪威','Norway'],['丹麦','Denmark'],['芬兰','Finland'],
+  ['意大利','Italy'],['奥地利','Austria'],['匈牙利','Hungary'],['捷克','Czechoslovakia'],
+  ['俄罗斯','俄罗斯'],['波兰','Poland'],['西班牙','Spain'],
+  ['乌克兰','Ukraine'],['白俄罗斯','Belarus'],
+  ['南非','South Africa'],['印度','India'],['以色列','Israel'],
+  ['伊朗','Iran'],['土耳其','Turkey'],['埃及','Egypt'],
+  ['加拿大','Canada'],['澳大利亚','Australia'],['新西兰','New Zealand'],
+  ['比利时','Belgium'],['卢森堡','Luxembourg'],['爱尔兰','Ireland'],
+  ['巴西','Brazil'],['智利','Chile'],['阿根廷','Argentina'],
+  ['墨西哥','Mexico'],['秘鲁','Peru'],['哥伦比亚','Colombia'],['古巴','Cuba'],
+  ['摩洛哥','Morocco'],['黎巴嫩','Lebanon'],['约旦','Jordan'],
+  ['突尼斯','Tunisia'],['叙利亚','Syria'],['新加坡','Singapore'],
+  ['墨西哥','Mexico'],['冰岛','Iceland'],['葡萄牙','Portugal'],
+  ['韩国','Korea'],['台湾','Taiwan']
+];
+
+function extractWorkCountry(desc, birth){
+  if(!desc) return null;
+  for(const [kw,target] of ZH_KW){
+    if(desc.includes(kw)) return target;
+  }
+  return null;
+}
+
+// ---- load data ----
+const archive = (await db.query(`SELECT nobel_id, name_en, nobel_categories_zh, nobel_years, birth_country, birth_year, death_year, wikipedia_en FROM archive WHERE entity_type='个人'`)).rows;
+const wiki = (await db.query(`SELECT nobel_id, name_zh, desc_zh FROM wiki_summaries`)).rows;
+const wikiMap = {}; wiki.forEach(w=>{ if(w.nobel_id) wikiMap[w.nobel_id] = w; });
+
+// dedup by nobel_id
+const byId = {}; archive.forEach(a=>{ if(!byId[a.nobel_id]) byId[a.nobel_id] = a; });
+const persons = Object.values(byId);
+
+// ---- build migration records ----
+// For multi-category winners, take primary category (first) & primary year (first)
+const migrations = [];
+persons.forEach(p=>{
+  const birthC = p.birth_country;
+  const catAll = (p.nobel_categories_zh||'').split(';').map(s=>s.trim()).filter(Boolean);
+  const yrsAll = (p.nobel_years||'').split(';').map(s=>+s.trim()).filter(Boolean);
+  if(!catAll.length || !yrsAll.length) return;
+  const primaryCat = catAll[0];
+  const primaryYear = yrsAll[0];
+  const desc = (wikiMap[p.nobel_id]||{}).desc_zh || '';
+  const workCountry = extractWorkCountry(desc) || birthC;
+  const bInfo = C[birthC];
+  const wInfo = C[workCountry];
+  if(!bInfo) return;
+  migrations.push({
+    pid:p.nobel_id, name_en:p.name_en, name_zh:(wikiMap[p.nobel_id]||{}).name_zh,
+    cat: primaryCat, catAll, years: yrsAll, year: primaryYear,
+    birth: birthC, work: workCountry,
+    birthCode: bInfo.iso, workCode: wInfo ? wInfo.iso : bInfo.iso,
+    bLon:bInfo.lon, bLat:bInfo.lat,
+    wLon: wInfo ? wInfo.lon : bInfo.lon, wLat: wInfo ? wInfo.lat : bInfo.lat,
+    cross: !!wInfo && wInfo.iso !== bInfo.iso,
+    desc, wikipedia:p.wikipedia_en
+  });
+});
+
+// ---- build arc groups (from → to), aggregate count by category ----
+const arcKey = m=>m.birthCode+'|'+m.workCode;
+const arcs = {};
+migrations.forEach(m=>{
+  const k = arcKey(m);
+  if(!arcs[k]) arcs[k] = {
+    from:m.birthCode, to:m.workCode,
+    fromName:m.birth, toName:m.work,
+    fromLon:m.bLon, fromLat:m.bLat, toLon:m.wLon, toLat:m.wLat,
+    count:0, cross:m.cross, byCat:{}, people:[]
+  };
+  const a = arcs[k];
+  a.count++;
+  a.byCat[m.cat] = (a.byCat[m.cat]||0)+1;
+  a.people.push(m);
+});
+const arcList = Object.values(arcs);
+const crossArcs = arcList.filter(a=>a.cross);
+const stayArcs = arcList.filter(a=>!a.cross);
+
+// ---- UI: category filter + year range + stats + legend ----
+const state = {
+  cats: new Set(CATS),
+  yMin: 1901, yMax: 2026,
+  showAll: true
+};
+
+function renderToolbar(){
+  const catsHtml = CATS.map(c=>`<label><input type="checkbox" data-cat="${c}" ${state.cats.has(c)?'checked':''}><span class="cat-dot" style="background:${COLORS[c]}"></span>${c}</label>`).join('');
+  document.getElementById('toolbar').innerHTML = `
+    <div style="font-size:11.5px;color:#64748b;margin-right:2px">类别：</div>
+    ${catsHtml}
+    <div class="sep"></div>
+    <div class="year-range">
+      <span>年份</span>
+      <input type="number" id="yMin" value="${state.yMin}" min="1901" max="2026">
+      –
+      <input type="number" id="yMax" value="${state.yMax}" min="1901" max="2026">
+    </div>
+    <button id="reset">重置</button>
+    <div class="right">滚轮缩放 · 拖拽平移 · 双击重置视图</div>
+  `;
+  document.querySelectorAll('#toolbar input[type=checkbox]').forEach(el=>{
+    el.addEventListener('change',e=>{
+      const c = e.target.dataset.cat;
+      if(e.target.checked) state.cats.add(c); else state.cats.delete(c);
+      render();
+    });
+  });
+  const yMinEl = document.getElementById('yMin');
+  const yMaxEl = document.getElementById('yMax');
+  const onYear = ()=>{
+    state.yMin = +yMinEl.value || 1901;
+    state.yMax = +yMaxEl.value || 2026;
+    render();
+  };
+  yMinEl.addEventListener('change',onYear);
+  yMaxEl.addEventListener('change',onYear);
+  document.getElementById('reset').addEventListener('click',()=>{
+    state.cats = new Set(CATS);
+    state.yMin = 1901; state.yMax = 2026;
+    renderToolbar(); render();
+  });
+}
+
+function filteredMigrations(){
+  return migrations.filter(m=> state.cats.has(m.cat) && m.year>=state.yMin && m.year<=state.yMax);
+}
+
+function renderStats(){
+  const all = migrations;
+  const fm = filteredMigrations();
+  const total = all.length;
+  const crossAll = all.filter(m=>m.cross).length;
+  const totalF = fm.length;
+  const crossF = fm.filter(m=>m.cross).length;
+  const uniqOrigin = new Set(all.map(m=>m.birthCode)).size;
+  const uniqDest = new Set(all.map(m=>m.workCode)).size;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-chip"><b>${total}</b>位得主<span class="lbl">Total Laureates</span></div>
+    <div class="stat-chip"><b>${crossAll}</b>位跨国<span class="lbl">Cross-border (${(crossAll/total*100).toFixed(1)}%)</span></div>
+    <div class="stat-chip"><b>${uniqOrigin}</b>个来源国<span class="lbl">Origins</span></div>
+    <div class="stat-chip"><b>${uniqDest}</b>个目的地<span class="lbl">Destinations</span></div>
+    <div class="stat-chip"><b>${arcList.length}</b>条迁徙弧<span class="lbl">Unique Arcs</span></div>
+    <div class="stat-chip"><b>${totalF}</b> / <b>${crossF}</b><span class="lbl">当前筛选 · 其中跨国</span></div>
+  `;
+}
+
+function renderLegend(){
+  const parts = CATS.map(c=>`<div class="item"><span class="line" style="background:${COLORS[c]}"></span>${c}</div>`).join('');
+  document.getElementById('legend').innerHTML = parts + `
+    <div class="item"><span class="dot" style="background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.25)"></span>跨国迁徙</div>
+    <div class="item"><span class="dot" style="background:#94a3b8"></span>本土留任</div>
+    <div class="hint">弧长表示距离 · 弧粗表示人数</div>
+  `;
+}
+
+// ---- Top origin/destination ranks ----
+function renderRanks(){
+  const fm = filteredMigrations();
+  const originCnt = {}, destCnt = {};
+  fm.forEach(m=>{
+    originCnt[m.birth] = (originCnt[m.birth]||0)+1;
+    destCnt[m.work] = (destCnt[m.work]||0)+1;
+  });
+  const topOrigin = Object.entries(originCnt).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const topDest = Object.entries(destCnt).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxO = topOrigin[0]?.[1]||1;
+  const maxD = topDest[0]?.[1]||1;
+  const fmt = (arr,max)=>arr.map(([n,v],i)=>`
+    <div class="bar-row">
+      <span class="rank">${i+1}</span>
+      <span class="name" title="${n}">${n.length>10?n.slice(0,10)+'…':n}</span>
+      <div class="bar"><div class="fill" style="width:${v/max*100}%"></div></div>
+      <span class="val">${v}</span>
+    </div>
+  `).join('');
+  document.getElementById('topOrigin').innerHTML = fmt(topOrigin,maxO);
+  document.getElementById('topDest').innerHTML = fmt(topDest,maxD);
+}
+
+// ---- SVG world map setup ----
+const svg = d3.select('#mapSvg');
+const W = svg.node().clientWidth, H = svg.node().clientHeight;
+svg.attr('viewBox',`0 0 ${W} ${H}`);
+const g = svg.append('g');
+const projection = d3.geoNaturalEarth1().fitExtent([[10,10],[W-10,H-10]], {type:'Sphere'});
+const path = d3.geoPath(projection);
+
+// graticule
+g.append('path').datum(d3.geoGraticule().step([20,20])())
+  .attr('fill','none').attr('stroke','#1e293b').attr('stroke-width',0.4).attr('d',path);
+// sphere outline
+g.append('path').datum({type:'Sphere'}).attr('fill','#0a0f1f').attr('stroke','#334155').attr('stroke-width',1).attr('d',path);
+
+const tip = d3.select('#mapTip');
+const zoom = d3.zoom().scaleExtent([1,10]).on('zoom',e=>g.attr('transform',e.transform));
+svg.call(zoom).on('dblclick.zoom',null);
+svg.on('dblclick',()=>{
+  svg.transition().duration(600).call(zoom.transform,d3.zoomIdentity);
+});
+
+// ---- layers ----
+const layerLand = g.append('g');
+const layerArcs = g.append('g').attr('fill','none').attr('stroke-linecap','round');
+const layerDots = g.append('g');
+const layerLabels = g.append('g');
+
+let arcGen, dotSel, labelSel, countrySel;
+
+function render(){
+  const fm = filteredMigrations();
+  // aggregate arcs under current filter
+  const arcsF = {};
+  fm.forEach(m=>{
+    const k = m.birthCode+'|'+m.workCode;
+    if(!arcsF[k]) arcsF[k] = {
+      from:m.birthCode, to:m.workCode, fromName:m.birth, toName:m.work,
+      fromLon:m.bLon, fromLat:m.bLat, toLon:m.wLon, toLat:m.wLat,
+      count:0, cross:m.cross, byCat:{}, people:[]
+    };
+    const a = arcsF[k]; a.count++; a.byCat[m.cat]=(a.byCat[m.cat]||0)+1; a.people.push(m);
+  });
+  const arcListF = Object.values(arcsF);
+  const maxC = Math.max(1, d3.max(arcListF, d=>d.count) || 1);
+
+  // arcs - quadratic bezier lifted arcs
+  arcGen = layerArcs.selectAll('path.arc')
+    .data(arcListF, d=>d.from+'|'+d.to)
+    .join('path')
+      .attr('class','arc')
+      .attr('stroke',d=>{
+        // color by dominant category
+        const entries = Object.entries(d.byCat);
+        entries.sort((a,b)=>b[1]-a[1]);
+        return COLORS[entries[0][0]] || '#fbbf24';
+      })
+      .attr('stroke-width',d=>1 + d.count*0.9)
+      .attr('stroke-opacity',d=>d.cross?0.75:0.28)
+      .attr('fill','none')
+      .style('cursor','pointer');
+
+  function arcPath(d){
+    const p1 = projection([d.fromLon,d.fromLat]);
+    const p2 = projection([d.toLon,d.toLat]);
+    if(!p1||!p2) return '';
+    // skip wraparound arcs (Antimeridian crossing)
+    const dx = Math.abs(p1[0]-p2[0]);
+    if(dx > W*0.75) return '';
+    const mx = (p1[0]+p2[0])/2;
+    const my = (p1[1]+p2[1])/2;
+    // elevation proportional to distance
+    const dist = Math.hypot(p1[0]-p2[0], p1[1]-p2[1]);
+    const lift = d.cross ? Math.min(120, dist*0.42) : 4;
+    const cx = mx, cy = my - lift;
+    return `M${p1[0]},${p1[1]} Q${cx},${cy} ${p2[0]},${p2[1]}`;
+  }
+  arcGen.attr('d', arcPath);
+
+  // dots: source & destination markers for arcs with count>=1
+  const dots = [];
+  arcListF.forEach(a=>{
+    const p1 = projection([a.fromLon,a.fromLat]);
+    const p2 = projection([a.toLon,a.toLat]);
+    if(p1) dots.push({kind:'from', lon:a.fromLon, lat:a.fromLat, code:a.from, name:a.fromName, count:a.count, cross:a.cross, arc:a});
+    if(p2 && a.cross) dots.push({kind:'to', lon:a.toLon, lat:a.toLat, code:a.to, name:a.toName, count:a.count, cross:a.cross, arc:a});
+  });
+  // dedup by code+kind
+  const seen = new Set();
+  const dotsUnique = dots.filter(d=>{
+    const k = d.kind+'|'+d.code;
+    if(seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  dotSel = layerDots.selectAll('circle').data(dotsUnique, d=>d.kind+'|'+d.code)
+    .join('circle')
+      .attr('cx',d=>{const p=projection([d.lon,d.lat]);return p?p[0]:0})
+      .attr('cy',d=>{const p=projection([d.lon,d.lat]);return p?p[1]:0})
+      .attr('r',d=>d.kind==='from'?3.5:4.5)
+      .attr('fill',d=>d.kind==='from'?'#fbbf24':'#e2e8f0')
+      .attr('stroke','#0f172a').attr('stroke-width',1.2)
+      .attr('opacity',0.85);
+
+  // country name labels for countries with >=3 people (origin)
+  const originCount = {};
+  fm.forEach(m=>{ originCount[m.birth]=(originCount[m.birth]||0)+1; });
+  const labelData = Object.entries(originCount).filter(([k,v])=>v>=3).map(([name,count])=>{
+    const info = C[name]; if(!info) return null;
+    const p = projection([info.lon, info.lat]);
+    return p?{name,count,x:p[0],y:p[1]}:null;
+  }).filter(Boolean);
+
+  labelSel = layerLabels.selectAll('text').data(labelData, d=>d.name)
+    .join('text')
+      .attr('x',d=>d.x).attr('y',d=>d.y-8)
+      .attr('text-anchor','middle')
+      .attr('fill','#cbd5e1')
+      .attr('font-size',d=>Math.min(13, 9 + Math.sqrt(d.count)/2))
+      .attr('font-weight',600)
+      .attr('paint-order','stroke')
+      .attr('stroke','#0f172a')
+      .attr('stroke-width',3)
+      .attr('stroke-linejoin','round')
+      .text(d=>d.name.length>6?d.name.slice(0,6)+'…':d.name);
+
+  // top-N highlight: pulse top 3 arcs
+  const top3 = [...arcListF].sort((a,b)=>b.count-a.count).slice(0,3).map(a=>a.from+'|'+a.to);
+  layerArcs.selectAll('path.arc').attr('stroke-opacity',d=>{
+    const base = d.cross?0.75:0.25;
+    const k = d.from+'|'+d.to;
+    return top3.includes(k) ? 0.95 : base;
+  });
+
+  // attach arc hover events
+  arcGen
+    .on('mouseover',function(e,d){
+      d3.select(this).attr('stroke-opacity',0.95).attr('stroke-width', 2 + d.count*0.9);
+      const topCat = Object.entries(d.byCat).sort((a,b)=>b[1]-a[1])[0];
+      const sampleNames = d.people.slice(0,4).map(p=>p.name_zh||p.name_en);
+      tip.style('display','block')
+         .html(`
+           <b>${d.fromName}</b> <span style="color:#fbbf24">→</span> <b>${d.toName}</b><br>
+           <span style="font-size:11.5px;color:#94a3b8">共 <span style="color:#fbbf24;font-weight:600">${d.count}</span> 位 · ${d.cross?'跨国迁徙':'本土留任'}</span>
+           ${topCat?`<br><span style="font-size:11.5px">主导类别：<span style="color:${COLORS[topCat[0]]}">${topCat[0]}</span> (${topCat[1]})</span>`:''}
+           <div style="margin-top:6px;font-size:11.5px">代表得主：</div>
+           ${sampleNames.map(n=>`<div>· ${n}</div>`).join('')}
+           ${d.people.length>4?`<div style="color:#64748b;font-size:10.5px">+${d.people.length-4} 位</div>`:''}
+           <div class="hint">弧线粗细 = 人数</div>
+         `);
+      moveTip(e);
+    })
+    .on('mousemove',moveTip)
+    .on('mouseout',function(){
+      d3.select(this).attr('stroke-opacity', d=>d.cross?0.75:0.28)
+                   .attr('stroke-width', d=>1 + d.count*0.9);
+      tip.style('display','none');
+    });
+
+  // dot hover
+  dotSel.on('mouseover',(e,d)=>{
+    const rel = d.arc.people;
+    tip.style('display','block')
+      .html(`
+        <b>${d.name}</b> · ${d.kind==='from'?'出发地':'目的地'}<br>
+        <span style="font-size:11.5px;color:#94a3b8">相关迁徙 <span style="color:#fbbf24;font-weight:600">${d.count}</span> 条</span>
+        <div class="hint">悬停弧线看完整迁移</div>
+      `);
+    moveTip(e);
+  }).on('mousemove',moveTip).on('mouseout',()=>tip.style('display','none'));
+
+  function moveTip(e){
+    tip.style('left',Math.min(e.clientX+14,innerWidth-360)+'px')
+       .style('top',Math.min(e.clientY+14,innerHeight-260)+'px');
+  }
+
+  // country fill
+  if(!countrySel){
+    fetch('../lib/world-110m.json').then(r=>r.json()).then(world=>{
+      const features = topojson.feature(world, world.objects.countries);
+      countrySel = layerLand.selectAll('path').data(features.features)
+        .join('path')
+          .attr('d',path)
+          .attr('fill','#1a2238')
+          .attr('stroke','#334155').attr('stroke-width',0.5);
+      // initial tint by origin count
+      const originByCode = {};
+      fm.forEach(m=>{ originByCode[m.birthCode]=(originByCode[m.birthCode]||0)+1; });
+      countrySel.attr('fill',d=>{
+        const code = String(d.id).padStart(3,'0');
+        const n = originByCode[code]||0;
+        if(n===0) return '#1a2238';
+        return d3.interpolateRgb('#1a2238', '#7c2d12', Math.min(1, n/30));
+      });
+    });
+  } else {
+    // update fill on filter change
+    const originByCode = {};
+    fm.forEach(m=>{ originByCode[m.birthCode]=(originByCode[m.birthCode]||0)+1; });
+    countrySel.attr('fill',d=>{
+      const code = String(d.id).padStart(3,'0');
+      const n = originByCode[code]||0;
+      if(n===0) return '#1a2238';
+      return d3.interpolateRgb('#1a2238', '#7c2d12', Math.min(1, n/30));
+    });
+  }
+}
+
+renderToolbar();
+renderLegend();
+renderStats();
+renderRanks();
+render();
+
+document.getElementById('loading').style.display = 'none';
+
+// window resize
+window.addEventListener('resize',()=>{
+  // simple reflow
+  const newW = svg.node().clientWidth, newH = svg.node().clientHeight;
+  if(newW!==W || newH!==H){
+    svg.attr('viewBox',`0 0 ${newW} ${newH}`);
+    projection.fitExtent([[10,10],[newW-10,newH-10]], {type:'Sphere'});
+    render();
+  }
+});
+
+</script>
+</body>
+</html>

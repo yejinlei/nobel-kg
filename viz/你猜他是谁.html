@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你猜他是谁 · 诺奖得主识人</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#1a2350 0%,#0f172a 40%,#0a0f1f 100%);color:#e2e8f0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+header{padding:14px 22px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:14px;position:sticky;top:0;background:#0f172a;z-index:10}
+header h1{font-size:18px;margin:0;font-weight:600}
+header .sub{font-size:12px;color:#64748b;margin-left:auto}
+.back-link{color:#94a3b8;text-decoration:none;font-size:13px}
+.back-link:hover{color:#e2e8f0}
+main{max-width:960px;margin:0 auto;padding:26px 22px 80px}
+.hero{text-align:center;padding:18px 0 22px}
+.hero .badge{display:inline-block;background:linear-gradient(135deg,#fbbf24,#f97316);color:#0f172a;font-weight:700;font-size:12px;padding:5px 14px;border-radius:999px;letter-spacing:2px;margin-bottom:12px}
+.hero h2{font-size:32px;margin:0 0 8px 0;font-weight:700;background:linear-gradient(135deg,#fbbf24,#f87171,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{font-size:13px;color:#94a3b8;margin:0}
+.score-strip{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:14px 0}
+.score{background:#131a30;border:1px solid #2b3455;border-radius:10px;padding:8px 14px;font-size:12px;color:#94a3b8;min-width:74px;text-align:center}
+.score b{display:block;color:#fbbf24;font-size:20px;font-weight:700;line-height:1.2;margin-top:2px}
+.score .lbl{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px}
+.card{background:linear-gradient(160deg,#131a30,#182046);border:1px solid #2b3455;border-radius:14px;padding:24px;margin:16px 0;box-shadow:0 8px 32px rgba(0,0,0,.35)}
+.q-badge{display:inline-block;background:#2f5fd0;color:#fff;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;margin-bottom:16px}
+.clues{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.clue{background:rgba(15,23,42,.55);border:1px solid #2b3455;border-radius:10px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;transition:border-color .15s}
+.clue:hover{border-color:#4b5b8a}
+.clue-ic{font-size:22px;flex-shrink:0;line-height:1}
+.clue-body{flex:1;min-width:0}
+.clue-lbl{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+.clue-val{font-size:14px;color:#e2e8f0;line-height:1.4;font-weight:500}
+.clue-val.hint{font-size:12px;color:#94a3b8;font-weight:400}
+.reveal-mask{filter:blur(6px);transition:filter .5s;cursor:pointer;user-select:none}
+.reveal-mask.on{filter:blur(0)}
+input.guess{width:100%;background:#0a0f1f;border:1.5px solid #2b3455;color:#fbbf24;font-size:20px;padding:14px 16px;border-radius:10px;font-weight:600;outline:none;transition:border-color .15s;font-family:inherit}
+input.guess:focus{border-color:#fbbf24}
+input.guess::placeholder{color:#475569;font-weight:400}
+.btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn{background:#2f5fd0;border:1px solid #2f5fd0;color:#fff;font-size:13px;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:600;transition:all .15s;font-family:inherit}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(47,95,208,.4)}
+.btn.primary{background:linear-gradient(135deg,#fbbf24,#f97316);border-color:#f97316;color:#0f172a}
+.btn.ghost{background:transparent;border-color:#334155;color:#cbd5e1}
+.btn.small{font-size:12px;padding:8px 14px}
+.result{padding:16px;border-radius:10px;margin-top:14px;font-size:14px;line-height:1.6;display:none}
+.result.right{display:block;background:rgba(52,211,153,.08);border:1px solid #34d399;color:#34d399}
+.result.wrong{display:block;background:rgba(248,113,113,.08);border:1px solid #f87171;color:#f87171}
+.answer{text-align:center;padding:24px 0;margin:16px 0}
+.answer .lbl{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+.answer .name{font-size:34px;font-weight:800;background:linear-gradient(135deg,#fbbf24,#f87171);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:6px}
+.answer .en{font-size:15px;color:#94a3b8;font-style:italic;margin-bottom:12px}
+.answer .desc{font-size:13px;color:#cbd5e1;line-height:1.7;max-width:640px;margin:0 auto;text-align:left;background:rgba(15,23,42,.4);border-left:3px solid #fbbf24;padding:12px 16px;border-radius:6px}
+.answer a{color:#93c5fd;text-decoration:none;border-bottom:1px dashed #334155;font-size:12px}
+.mode-badge{display:inline-block;background:#1e293b;color:#94a3b8;font-size:11px;padding:3px 8px;border-radius:4px;margin-left:8px}
+.stats-strip{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.stat-chip{background:#131a30;border:1px solid #1e293b;border-radius:10px;padding:10px 16px;font-size:12px;color:#94a3b8}
+.stat-chip b{color:#fbbf24;font-size:15px;font-weight:700;margin:0 3px}
+#logList{margin-top:22px}
+.log-title{font-size:13px;color:#94a3b8;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #2b3455}
+.log-item{background:#131a30;border:1px solid #1e293b;border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.log-item .icon{font-size:16px;margin-right:10px}
+.log-item.right{border-left:3px solid #34d399}
+.log-item.wrong{border-left:3px solid #f87171}
+.log-item .who{color:#fbbf24;font-weight:600}
+.log-item .yr{color:#64748b;font-size:11px;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🕸️ 你猜他是谁</h1>
+  <span class="sub">Nobel Who Am I · 从线索中猜出诺奖得主</span>
+  <a class="back-link" href="../index.html">← 返回主页</a>
+</header>
+<main>
+  <div class="hero">
+    <div class="badge">NOBEL · QUIZ</div>
+    <h2>你猜他是谁？</h2>
+    <p>从 6 条线索中推断出诺奖得主身份 · 支持中文 / 英文姓名猜测</p>
+  </div>
+
+  <div class="score-strip">
+    <div class="score"><div class="lbl">正确</div><b id="sRight">0</b></div>
+    <div class="score"><div class="lbl">错误</div><b id="sWrong">0</b></div>
+    <div class="score"><div class="lbl">连对</div><b id="sStreak">0</b></div>
+    <div class="score"><div class="lbl">最高</div><b id="sBest">0</b></div>
+    <div class="score"><div class="lbl">总题</div><b id="sTotal">0</b></div>
+  </div>
+
+  <div class="card" id="card"></div>
+
+  <div id="logWrap">
+    <div class="log-title">📜 猜谜记录</div>
+    <div id="logList"></div>
+  </div>
+</main>
+
+<script type="module">
+import * as db from '../js/db.js';
+
+await db.initDB(()=>{});
+
+// ---- load pool: multi-category winners + top-tier well-known laureates ----
+const archive = (await db.query(`SELECT nobel_id, name_en, nobel_categories_zh, nobel_years, birth_country, birth_year, death_year, wikipedia_en FROM archive WHERE entity_type='个人'`)).rows;
+const wiki = (await db.query(`SELECT nobel_id, name_zh, desc_zh FROM wiki_summaries`)).rows;
+const wikiMap = {};
+wiki.forEach(w=>{ if(w.nobel_id) wikiMap[w.nobel_id] = w; });
+
+const CATS_ZH = {物理学:'物理学',化学:'化学',生理学或医学:'生理学或医学',文学:'文学',和平:'和平',经济学:'经济学'};
+const CAT_ICONS = {物理学:'⚛️',化学:'⚗️',生理学或医学:'🩺',文学:'📖',和平:'🕊️',经济学:'💰'};
+
+// Build pool: prioritize ones with wiki description (rich clues) + multi-cat (more interesting)
+const pool = [];
+archive.forEach(a=>{
+  const w = wikiMap[a.nobel_id] || {};
+  const cats = (a.nobel_categories_zh||'').split(';').map(s=>s.trim()).filter(Boolean);
+  if(!cats.length) return;
+  if(!w.desc_zh) return;
+  pool.push({
+    pid: a.nobel_id, name_en: a.name_en,
+    name_zh: w.name_zh || '',
+    desc_zh: w.desc_zh || '',
+    cats: cats,
+    years: (a.nobel_years||'').split(';').map(s=>+s.trim()).filter(Boolean),
+    birth_country: a.birth_country || '',
+    birth_year: a.birth_year ? +a.birth_year : null,
+    death_year: a.death_year ? +a.death_year : null,
+    wikipedia: a.wikipedia_en || '',
+    is_multi: cats.length>1,
+    is_repeat: new Set(cats).size===1 && cats.length>1
+  });
+});
+
+// shuffle
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+const state = {
+  idx: 0, deck: shuffle([...pool]), pool: [...pool],
+  right: 0, wrong: 0, streak: 0, best: 0, total: 0,
+  log: [],
+  revealed: false, answered: false
+};
+
+// Load localStorage
+try{
+  const saved = JSON.parse(localStorage.getItem('nobel_guess')||'{}');
+  if(saved){ Object.assign(state,saved); state.revealed=false; state.answered=false; }
+}catch(e){}
+
+function save(){ try{ localStorage.setItem('nobel_guess',JSON.stringify(state)); }catch(e){} }
+
+// ---- render ----
+function fmtYears(yrs){
+  if(!yrs||!yrs.length) return '—';
+  return yrs.join(' / ');
+}
+function fmtLife(by,dy){
+  if(by&&dy) return `${by}–${dy}`;
+  if(by) return `${by}–`;
+  return '—';
+}
+function maskName(n){
+  if(!n) return '？';
+  return n.split('').map((c,i)=>i===0?c:'？').join('');
+}
+function render(){
+  const p = state.deck[state.idx % state.deck.length];
+  // pick "primary" category/year (first)
+  const primaryCat = p.cats[0] || '—';
+  const primaryYear = p.years[0] || '—';
+  const primaryAge = (p.birth_year && primaryYear) ? (primaryYear - p.birth_year) : null;
+
+  let catsHtml = p.cats.map((c,i)=>{
+    const color = {物理学:'#60a5fa',化学:'#f87171',生理学或医学:'#34d399',文学:'#fbbf24',和平:'#c084fc',经济学:'#f97316'}[c] || '#94a3b8';
+    return `<span style="color:${color}">${CAT_ICONS[c]||''} ${c}</span>`;
+  }).join(' · ');
+
+  const clues = [
+    {icon:CAT_ICONS[primaryCat]||'🏆',lbl:'诺奖类别',val:`<span style="color:#fbbf24">${primaryCat}</span>`, extra: p.is_multi?`（共 ${p.cats.length} 项）`:''},
+    {icon:'📅',lbl:'获奖年份',val:`<span style="color:#93c5fd">${fmtYears(p.years)}</span>`, extra: primaryAge?`（${primaryAge} 岁）`:''},
+    {icon:'🌍',lbl:'出生国',val:p.birth_country?`<span>${p.birth_country}</span>`:'—'},
+    {icon:'⏳',lbl:'生卒年',val:fmtLife(p.birth_year,p.death_year)},
+    {icon:'📝',lbl:'一句简介',val:`<span class="reveal-mask ${state.revealed?'on':''}" id="revealDesc">「${p.desc_zh}」</span><div class="clue-val hint">点击解锁全文</div>`},
+    {icon:'🧩',lbl:'身份线索',val: p.is_multi?'<span style="color:#fbbf24;font-weight:700">✨ 跨奖得主</span>':(p.is_repeat?'<span style="color:#fbbf24;font-weight:700">🎯 两度获奖</span>':'<span style="color:#94a3b8">单次获奖</span>')}
+  ];
+
+  const cardHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span class="q-badge">Q${state.total+1} · ${maskName(p.name_zh||p.name_en)}</span>
+      <span style="font-size:11px;color:#64748b">#${String((state.total % 999)+1).padStart(3,'0')}</span>
+    </div>
+    <div class="clues">
+      ${clues.map(c=>`<div class="clue">
+        <div class="clue-ic">${c.icon}</div>
+        <div class="clue-body">
+          <div class="clue-lbl">${c.lbl}</div>
+          <div class="clue-val">${c.val}${c.extra?`<span style="color:#64748b;font-size:11px;margin-left:6px">${c.extra}</span>`:''}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div style="text-align:center;font-size:20px;margin:14px 0;color:#fbbf24">🎯 这是哪位诺奖得主？</div>
+    <input type="text" class="guess" id="guessInput" placeholder="输入姓名（中文或英文）…" autocomplete="off" disabled="${state.answered}">
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn primary" id="submitBtn" ${state.answered?'disabled':''}>✅ 提交猜测</button>
+      <button class="btn ghost" id="revealBtn" ${state.answered?'disabled':''}>👁 揭晓答案</button>
+      <button class="btn ghost" id="hintBtn">💡 提示</button>
+      <button class="btn ghost" id="skipBtn">⏭ 跳过</button>
+      <button class="btn ghost" id="resetBtn">🔄 重置分数</button>
+    </div>
+    <div class="result" id="result"></div>
+    <div class="answer" id="answerPanel" style="display:${state.revealed?'block':'none'}">
+      <div class="lbl">The Answer</div>
+      <div class="name">${p.name_zh||p.name_en}</div>
+      <div class="en">${p.name_en}</div>
+      <div class="desc">${p.desc_zh}</div>
+      ${p.wikipedia?`<div style="margin-top:10px"><a href="${p.wikipedia}" target="_blank">→ 查看 Wikipedia 完整词条</a></div>`:''}
+    </div>
+  `;
+  document.getElementById('card').innerHTML = cardHtml;
+
+  // score
+  document.getElementById('sRight').textContent = state.right;
+  document.getElementById('sWrong').textContent = state.wrong;
+  document.getElementById('sStreak').textContent = state.streak;
+  document.getElementById('sBest').textContent = state.best;
+  document.getElementById('sTotal').textContent = state.total;
+
+  // log list
+  const logList = document.getElementById('logList');
+  logList.innerHTML = state.log.length ? state.log.slice(-20).reverse().map(l=>`
+    <div class="log-item ${l.correct?'right':'wrong'}">
+      <div><span class="icon">${l.correct?'✅':'❌'}</span>
+        <span class="who">${l.who}</span>
+        <span class="yr">${l.year||''} · ${l.cat||''}</span>
+        ${l.guess?`<div style="font-size:11px;color:#64748b;margin-top:2px">你的猜测：<code style="background:#0a0f1f;padding:1px 4px;border-radius:3px">${l.guess}</code></div>`:''}
+      </div>
+      ${l.correct?'<span style="color:#34d399;font-weight:600">+1</span>':'<span style="color:#f87171;font-weight:600">连对中断</span>'}
+    </div>
+  `).join('') : '<div style="font-size:12px;color:#64748b;text-align:center;padding:20px">暂无记录</div>';
+
+  bindEvents(p);
+}
+
+function bindEvents(p){
+  const submitBtn = document.getElementById('submitBtn');
+  const revealBtn = document.getElementById('revealBtn');
+  const hintBtn = document.getElementById('hintBtn');
+  const skipBtn = document.getElementById('skipBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const input = document.getElementById('guessInput');
+  const revealDesc = document.getElementById('revealDesc');
+
+  if(revealDesc){
+    revealDesc.onclick = ()=>{ state.revealed = true; revealDesc.classList.add('on'); save(); };
+  }
+
+  if(submitBtn && !state.answered){
+    submitBtn.onclick = ()=>{
+      const g = (input.value||'').trim();
+      if(!g){ return; }
+      const lower = g.toLowerCase();
+      const zh = (p.name_zh||'').toLowerCase();
+      const en = (p.name_en||'').toLowerCase();
+      // match rules: full name match OR first token match (e.g. "curie" matches "marie curie")
+      const parts = lower.split(/\s+/).filter(Boolean);
+      const targetParts = [zh,en].filter(Boolean).flatMap(s=>s.split(/\s+/));
+      const tokens = new Set([...parts, ...targetParts]);
+      // simple: any target contains guess OR guess contains target
+      let correct = false;
+      for(const t of [zh,en]){
+        if(!t) continue;
+        if(t.includes(g) || g.includes(t)){ correct = true; break; }
+      }
+      if(!correct && parts.length>=1){
+        // partial credit: exact first name
+        const firstEn = (en.split(' ')[0]||'');
+        if(firstEn && parts[0]===firstEn) correct = true;
+      }
+      finish(correct, g);
+    };
+    input.addEventListener('keydown',e=>{ if(e.key==='Enter') submitBtn.onclick(); });
+  }
+
+  if(revealBtn && !state.answered){
+    revealBtn.onclick = ()=>{
+      state.revealed = true;
+      document.getElementById('answerPanel').style.display = 'block';
+      document.getElementById('revealDesc').classList.add('on');
+      finish(false, '', true);
+    };
+  }
+
+  if(hintBtn){
+    hintBtn.onclick = ()=>{
+      const desc = document.getElementById('revealDesc');
+      if(desc){
+        // progressive reveal: first click show first 8 chars
+        if(!desc.dataset.p1){ desc.dataset.p1='1'; desc.style.filter='blur(2px)'; }
+        else if(!desc.dataset.p2){ desc.dataset.p2='1'; desc.style.filter='blur(0.5px)'; }
+        else { desc.classList.add('on'); desc.style.filter=''; }
+      }
+    };
+  }
+
+  if(skipBtn){
+    skipBtn.onclick = ()=>{
+      next(false, '');
+    };
+  }
+
+  if(resetBtn){
+    resetBtn.onclick = ()=>{
+      if(confirm('确定重置所有分数与记录？')){
+        state.right=0; state.wrong=0; state.streak=0; state.best=0; state.total=0; state.log=[];
+        save(); render();
+      }
+    };
+  }
+}
+
+function finish(correct, guess, revealed){
+  state.answered = true;
+  const p = state.deck[state.idx % state.deck.length];
+  const res = document.getElementById('result');
+  if(correct){
+    state.right++; state.streak++; state.total++;
+    if(state.streak>state.best) state.best = state.streak;
+    res.className='result right';
+    res.innerHTML = `✅ <b>回答正确！</b>「${p.name_zh||p.name_en}」就是他要找的人。连对 <b>${state.streak}</b> 题！`;
+    state.log.push({who:p.name_zh||p.name_en, year:p.years[0]||'', cat:p.cats[0]||'', correct:true, guess});
+  } else {
+    state.wrong++; state.streak=0;
+    if(!revealed) state.total++;
+    res.className='result wrong';
+    if(revealed){
+      res.innerHTML = `👁 <b>已揭晓答案：</b>${p.name_zh||p.name_en}（${p.name_en}）。是否要再来一题？`;
+    } else {
+      res.innerHTML = `❌ <b>不对哦。</b>正确答案是：${p.name_zh||p.name_en}（<i>${p.name_en}</i>）`;
+    }
+    state.log.push({who:p.name_zh||p.name_en, year:p.years[0]||'', cat:p.cats[0]||'', correct:false, guess});
+  }
+  save();
+  // re-render with answered=true state (keeping answerPanel open if right)
+  if(correct){
+    document.getElementById('answerPanel').style.display='block';
+  }
+  render();
+}
+
+function next(){
+  state.idx = (state.idx+1) % state.deck.length;
+  state.answered = false;
+  state.revealed = false;
+  // occasional reshuffle
+  if(state.idx===0) state.deck = shuffle([...state.pool]);
+  save(); render();
+}
+
+// Auto-advance timer after answer
+setTimeout(()=>{
+  const card = document.getElementById('card');
+  card.addEventListener('click',e=>{
+    // Add "Next question" button on answered state
+    if(state.answered){
+      let nb = document.getElementById('nextBtn');
+      if(!nb){
+        nb = document.createElement('button');
+        nb.id='nextBtn';
+        nb.className='btn primary';
+        nb.textContent='⏭ 下一题';
+        nb.style.marginLeft='auto';
+        const btnRow = document.querySelector('.btn-row');
+        if(btnRow) btnRow.appendChild(nb);
+        nb.onclick = next;
+      }
+    }
+  });
+}, 100);
+
+render();
+</script>
+</body>
+</html>
