@@ -4,7 +4,7 @@
    ============================================================ */
 
 import { initDB, getTableInfo, overview, isReady } from './db.js';
-import { loadConfig, saveConfig, clearConfig, hasLLM, hasWebSearch, PROVIDER_PRESETS, DEFAULTS, normalizeBaseUrl } from './config.js';
+import { loadConfig, saveConfig, clearConfig, hasLLM, hasWebSearch, PROVIDER_PRESETS, DEFAULTS, normalizeBaseUrl, mixedContentWarning } from './config.js';
 import { runAgent, researchAvailable, HELP_TEXT } from './agent.js';
 import { renderMarkdown, renderBlocks, renderTrace, escapeHtml } from './render.js';
 
@@ -322,7 +322,10 @@ function onSaveSettings() {
   };
   saveConfig(patch);
   updateModeUI();
-  if (!hasLLM(loadConfig())) {
+  const mc = mixedContentWarning(patch.baseUrl);
+  if (mc) {
+    el.testResult.textContent = mc;
+  } else if (!hasLLM(loadConfig())) {
     el.testResult.textContent = '⚠️ 已保存，但接口信息不完整（需地址、Key、模型名三者齐全），仍为本地规则引擎模式。';
   } else {
     const web = hasWebSearch(loadConfig()) ? '，深度研究（联网）已启用' : '';
@@ -349,6 +352,11 @@ async function onTestConnection() {
     return;
   }
   el.testResult.textContent = '⏳ 正在测试…';
+  const mc = mixedContentWarning(baseUrl);
+  if (mc) {
+    el.testResult.textContent = '❌ ' + mc.replace(/^⚠️\s*/, '');
+    return;
+  }
   try {
     const res = await fetch(baseUrl + '/chat/completions', {
       method: 'POST',
@@ -363,7 +371,7 @@ async function onTestConnection() {
     await res.json();
     el.testResult.textContent = '✅ 连接成功，模型可用。';
   } catch (e) {
-    el.testResult.textContent = `❌ 连接失败：${e.message}（常见原因是该服务商不允许浏览器跨域直连，建议改用 OpenRouter）`;
+    el.testResult.textContent = `❌ 连接失败：${e.message}（常见原因：① 服务商不允许浏览器跨域直连，建议改用 OpenRouter；② 地址写成了 http:// 而本页面是 HTTPS，会被拦截）`;
   }
 }
 

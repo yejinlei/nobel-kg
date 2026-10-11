@@ -9,7 +9,7 @@
 import { StateGraph, Annotation, START, END } from '../lib/langgraph.bundle.js';
 import { toolsForLLM, getTool, loadCore } from './tools.js';
 import { runRoute, route, HELP_TEXT } from './router.js';
-import { loadConfig, hasLLM, hasWebSearch, normalizeBaseUrl } from './config.js';
+import { loadConfig, hasLLM, hasWebSearch, normalizeBaseUrl, mixedContentWarning } from './config.js';
 import { webLookup } from './wiki.js';
 
 const MAX_TOOL_ROUNDS = 4;
@@ -97,8 +97,10 @@ async function chatComplete(messages, withTools) {
   try {
     res = await fetchWithTimeout(chatUrl(), { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) }, 60000);
   } catch (e) {
-    const hint = e.name === 'AbortError' ? '（请求超时 60 秒）' : '';
-    throw new Error(`无法连接模型接口${hint}：${e.message}。建议改用支持浏览器直连的服务商，如 OpenRouter。`);
+    if (e.name === 'AbortError') throw new Error('无法连接模型接口（请求超时 60 秒）。');
+    const mc = mixedContentWarning(loadConfig().baseUrl);
+    if (mc) throw new Error(mc);
+    throw new Error(`无法连接模型接口：${e.message}。常见原因：① 服务商不允许浏览器跨域直连（建议改用 OpenRouter）；② 地址/端口不通。`);
   }
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -123,8 +125,10 @@ async function chatStream(messages, onToken) {
   try {
     res = await fetchWithTimeout(chatUrl(), { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) }, 180000);
   } catch (e) {
-    const hint = e.name === 'AbortError' ? '（请求超时 180 秒）' : '';
-    throw new Error(`无法连接模型接口${hint}：${e.message}`);
+    if (e.name === 'AbortError') throw new Error('无法连接模型接口（请求超时 180 秒）。');
+    const mc = mixedContentWarning(loadConfig().baseUrl);
+    if (mc) throw new Error(mc);
+    throw new Error(`无法连接模型接口：${e.message}`);
   }
   if (!res.ok) {
     const txt = await res.text().catch(() => '');

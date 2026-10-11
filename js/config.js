@@ -123,3 +123,18 @@ export function normalizeBaseUrl(url) {
   if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
   return u;
 }
+
+/**
+ * Mixed Content 检测：HTTPS 页面调用 http:// 接口会被浏览器直接拦截。
+ * @AI_GUARD 不要自动把 http 改写成 https —— 自建服务未必开了 HTTPS，静默改写只会得到另一种失败
+ * @returns 警告文案；无问题时返回 null
+ */
+export function mixedContentWarning(baseUrl) {
+  const u = normalizeBaseUrl(baseUrl);
+  if (u && location.protocol === 'https:' && /^http:\/\//i.test(u)) {
+    return '⚠️ 当前页面是 HTTPS，浏览器会拦截对 http:// 接口的调用（Mixed Content）。'
+      + '请把接口地址改成 https://；若自建服务（如 vLLM）只开了 HTTP，'
+      + '需在其前面加一层 HTTPS 反向代理（Nginx/Caddy + 证书）后再填写代理地址。';
+  }
+  return null;
+}
