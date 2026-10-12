@@ -9,7 +9,7 @@
    缓存键：URL（同版本内容）；版本切换通过 SW_VERSION 手动清空。
    ============================================================ */
 
-const SW_VERSION = 'v9-viz-sqlite-fix';
+const SW_VERSION = 'v10-2026-all-prizes';
 const CACHE_NAME = 'nobel-kg-' + SW_VERSION;
 
 // 需要缓存的静态资源前缀（本站同源）
