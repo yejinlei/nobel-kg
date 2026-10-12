@@ -11,9 +11,24 @@ let DB = null;
 let CONN = null;
 let READY = false;
 let TABLE_INFO = [];
+let initPromise = null;   // 幂等锁：并发 initDB 调用共享同一次初始化
+let initProgress = null;  // 最近一次注册的全局进度回调，供 initReady 复用
 
 export function isReady() { return READY; }
 export function getTableInfo() { return TABLE_INFO; }
+
+/**
+ * 返回一个"总是 resolve"的初始化 Promise，用于首次提问时等待 DB 就绪。
+ * 内部会按需触发 initDB（不传 onProgress 回调），保证幂等。
+ */
+export function initReady() {
+  if (READY) return Promise.resolve();
+  if (!initPromise) {
+    initPromise = initDB(initProgress);
+    initPromise.catch(() => { initPromise = null; });
+  }
+  return initPromise;
+}
 
 /** 基于本模块 URL 解析资源地址（db.js 位于 js/ 下，资源在项目根）；
  *  用 import.meta.url 而非 document.baseURI，保证 viz/ 等子目录页面调用时
@@ -46,6 +61,23 @@ function normalizeValue(v) {
  * @param {(msg:string)=>void} onProgress 进度回调（用于界面提示）
  */
 export async function initDB(onProgress) {
+  if (READY) return;
+  if (initPromise) {
+    // 已有初始化进行中，复用同一 Promise；若传入了新的进度回调则替换，
+    // 让后到的调用方（比如 initReady）也能收到实时进度。
+    if (onProgress) initProgress = onProgress;
+    return initPromise;
+  }
+  if (onProgress) initProgress = onProgress;
+  initPromise = (async () => {
+    try { await runInit(onProgress || initProgress); }
+    finally { if (!READY) initPromise = null; }
+  })();
+  return initPromise;
+}
+
+/** 实际的初始化过程（被 initDB / initReady 复用） */
+async function runInit(onProgress) {
   if (READY) return;
   const log = (m) => { try { onProgress && onProgress(m); } catch (_) {} };
 
