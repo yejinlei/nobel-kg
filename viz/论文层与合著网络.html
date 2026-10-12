@@ -162,7 +162,32 @@ document.getElementById('loadbar').style.display = 'none';
 document.getElementById('main').style.display = '';
 
 /* ---------- 并行取数 ---------- */
-const [kpi, papers, pairs, colab, lineage, journals, lagrows] = await Promise.all([
+const QNAMES = ['kpi', 'papers', 'pairs', 'colab', 'lineage', 'journals', 'lagrows'];
+async function safeAll(pairs) {
+  const results = await Promise.allSettled(pairs);
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') console.error(`[viz] SQL#${i} (${QNAMES[i]}) failed:`, r.reason);
+  });
+  const anyFailed = results.some(r => r.status === 'rejected');
+  if (anyFailed) {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'background:#fff5f5;border:1px solid #c0392b;color:#7f1d1d;padding:10px 14px;border-radius:8px;margin:12px 0;font:12px/1.6 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;';
+    const lines = results.map((r, i) => {
+      if (r.status === 'fulfilled') return `✓ ${QNAMES[i]}`;
+      return `✗ ${QNAMES[i]}: ${r.reason && (r.reason.message || r.reason.stack || String(r.reason))}`;
+    }).join('\n');
+    bar.textContent = '⚠️ 部分 SQL 查询失败：\n' + lines;
+    document.getElementById('main').insertAdjacentHTML('afterbegin', bar.outerHTML);
+    // eslint-disable-next-line no-throw-literal
+  }
+  return results.map((r, i) => {
+    if (r.status === 'fulfilled') return r.value;
+    // 兜底空结果对象，避免下游 .rows[0] 抛错
+    if (i === 0) return { columns: [], rows: [{ papers:0, lm:0, jr:0, doi_n:0, ymin:0, ymax:0 }] };
+    return { columns: [], rows: [] };
+  });
+}
+const [kpi, papers, pairs, colab, lineage, journals, lagrows] = await safeAll([
   db.query(`SELECT count(*) AS papers,
                    SUM(CASE WHEN is_landmark='是' THEN 1 ELSE 0 END) AS lm,
                    count(DISTINCT journal) AS jr,
@@ -186,9 +211,9 @@ const [kpi, papers, pairs, colab, lineage, journals, lagrows] = await Promise.al
               UNION ALL
               SELECT person_a_id, person_b_id, 1 FROM collaboration)
             SELECT g.pa, g.pb, g.weight,
-              COALESCE(x.name_zh, x.name_en, CAST(g.pa AS VARCHAR)) AS na, x.name_en AS ea, x.is_nobel_laureate AS lm_a, x.nobel_category AS cat_a,
+              COALESCE(x.name_zh, x.name_en, CAST(g.pa AS TEXT)) AS na, x.name_en AS ea, x.is_nobel_laureate AS lm_a, x.nobel_category AS cat_a,
               x.nobel_year AS ny_a, x.disc AS disc_a,
-              COALESCE(y.name_zh, y.name_en, CAST(g.pb AS VARCHAR)) AS nb, y.name_en AS eb, y.is_nobel_laureate AS lm_b, y.nobel_category AS cat_b,
+              COALESCE(y.name_zh, y.name_en, CAST(g.pb AS TEXT)) AS nb, y.name_en AS eb, y.is_nobel_laureate AS lm_b, y.nobel_category AS cat_b,
               y.nobel_year AS ny_b, y.disc AS disc_b
             FROM (SELECT pa, pb, sum(w) AS weight FROM raw GROUP BY 1,2) g
             JOIN pdisc x ON x.person_id = g.pa
