@@ -173,26 +173,60 @@
 
 - 使用 **mvp 单线程 WASM** 包，规避 GitHub Pages 无法下发 `COOP/COEP` 响应头导致 SharedArrayBuffer 不可用的问题；
 - WASM 文件全部本地托管（`lib/duckdb/`），不走 CDN，首次加载约 10-15MB（后续走浏览器缓存）；
+
+### 4.1 非阻塞启动（关键设计）
+
+DuckDB WASM（`duckdb-mvp.wasm` 约 40MB）与 33 张 Parquet（合计约 430KB）如果放在页面主启动路径上，会阻断 UI 数百毫秒到数十秒。**改造后的启动策略**：
+
+```
+boot()
+  ├─ renderWelcomeExtras / fillSettingsForm / bindEvents / updateModeUI
+  │    └─ 立即完成，不依赖 DB
+  ├─ 遮罩默认隐藏（.loadingOverlay 立即加 .hidden）
+  └─ initDB(...) 后台启动（fire-and-forget）
+       ├─ 幂等锁：并发调用共享同一 Promise；失败自动释放锁
+       └─ 进度实时同步给侧栏状态灯 + 欢迎语下方提示
+
+send() 首次提问
+  ├─ isReady() = true  → 直接查询
+  └─ isReady() = false → await ensureReady(90s 超时)
+       等待期间在聊天流里显示"WASM 首次加载中"占位消息
+       进度实时更新到占位消息的 waitHint 节点
+```
+
+**用户可见行为**：打开页面 → 侧栏/图谱入口/设置/欢迎语**立刻可用**；点任意图谱 → 无感切换；点发送 → 若 WASM 已下载完毕则秒回，否则显示一次简短等待（后续访问无感）。
+
+### 4.2 双层缓存
+
+| 层级 | 范围 | 生命周期 | 说明 |
+|---|---|---|---|
+| `Cache Storage` (`nobel-kg-v1`) | manifest + Parquet + Worker 字节 | 长期（除非用户主动清理） | 由 `cachedFetch()` 拦截，命中即返回，未命中回退 `fetch` 并写入缓存 |
+| 浏览器磁盘缓存 | DuckDB WASM 大文件 | 由 CDN/HTTP 缓存头决定 | GitHub Pages 默认给长 TTL |
+
+失败静默降级：任何缓存读写异常都回退到原生 `fetch`，不影响主流程。
+
+### 4.3 失败与重试
+
+- `initDB()` 内部任何一步抛错 → 释放 `initPromise` 锁；
+- 若此时有用户挂在 `ensureReady()`，会收到 reject（带用户友好错误文案），不会永久卡死；
+- 90 秒超时兜底：无论 WASM 何时下载完毕，等待中的请求都会在 90s 内 reject，避免用户无限等待。
+- WASM 文件全部本地托管（`lib/duckdb/`），不走 CDN，首次加载约 10-15MB（后续走浏览器缓存）；
 - Parquet 使用相对路径 + `new URL(name, document.baseURI)` 解析，所以部署到 `https://<user>.github.io/<repo>/` 子路径也能工作；
 - 表名全部使用 DuckDB 中文引用 `"人物"`/`"师承关系"`，前端通过别名映射到英文 parquet 文件名（`persons`/`mentorship`）。
 
 ---
 
-## 五、可视化页三张图谱的统一数据源
+## 五、可视化页数据策略
 
-三张 viz 页（师承关系图谱、师承关系拓扑图含代表作、论文层与合著网络）以前是一次性生成的内嵌数据页面，数据改了 HTML 就过期。
+`viz/` 下的 8 张独立可视化页（和平奖领域与组织图谱、论文层与合著网络、诺奖年谱、诺奖时光机、师承关系拓扑图_含代表作、师承六度挑战、文学奖作品与传承图谱、学术星座图）**采用数据内嵌方案**：所有图表数据直接写在 HTML 里，页面是纯静态、双击可开、零依赖。
 
-改造后：**HTML 仅含渲染逻辑**，加载时通过 DuckDB-WASM 查询 parquet：
-```sql
--- 师承关系图数据
-SELECT p.person_id, p.name_zh, p.name_en, p.is_nobel_laureate,
-       p.primary_field_id, f.discipline, f.level,
-       m.advisor_id, m.relation_type
-FROM mentorship m
-JOIN persons p ON p.person_id = m.student_id
-LEFT JOIN fields f ON f.field_id = p.primary_field_id;
-```
-这意味着：**新增人物/师承后，三张图自动更新，不必重写 HTML**。
+- **优点**：加载快、无跨域问题、可独立分发给外部查看者；
+- **代价**：数据变化时需要同步更新 HTML；
+- **数据同步**：这些页的数据来自 CSV 本体层的一次性导出快照，`rebuild_all.py` 目前**不会**自动生成 viz HTML；如需更新，请对照 CSV 手动 patch。
+
+主页 `index.html` 的 Agent 问答则相反：走 DuckDB-WASM + Parquet，数据始终与 CSV 同步。
+
+**取舍原因**：viz 页是"静态展示"场景，追求零依赖与分享便利；主页 Agent 是"数据查询"场景，追求单一数据源与 SQL 表达力。两者数据虽同源，但更新节奏不同。
 
 ---
 

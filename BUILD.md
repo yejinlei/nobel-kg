@@ -83,14 +83,12 @@ python3 06_构建脚本/rebuild_all.py
 6. 跑 rebuild_all.py 即可，HTML 无需修改。
 
 ### 场景 4：新增一张可视化页
-在 `nobel-kg/viz/` 下放独立 HTML。**不要把数据内嵌进 HTML**，而是通过 DuckDB-WASM 从 `../data/` 读取 Parquet（参考现有三张 viz 页的加载方式）：
-```html
-<script type="module">
-  import * as duckdb from '../lib/duckdb.bundle.js';
-  // ... 初始化后执行：SELECT * FROM 'mentorship.parquet' 等
-</script>
-```
-新增完成后，在 `index.html` 的"图谱入口"卡片区加一张链接卡。
+在 `nobel-kg/viz/` 下放独立 HTML。**viz 页当前采用数据内嵌方案**（数据直接写在 HTML 里，双击可开、零依赖），与主页 Agent 的 DuckDB-WASM + Parquet 方案不同——viz 追求"可独立分发"，主页追求"数据与 CSV 同步"。
+
+新增完成后：
+1. 在 `index.html` 的"图谱入口"卡片区加一张链接卡；
+2. 后续 CSV 数据变化时，手动对照 CSV 更新 viz HTML 里的数据段（`rebuild_all.py` 目前不会自动生成 viz HTML）；
+3. 如需让某张 viz 页也走 Parquet 数据源，可参考 duckdb-wasm 集成方式改造，但默认不推荐——除非这张页需要频繁更新且用户能接受额外 40MB 的 WASM 加载。
 
 ---
 

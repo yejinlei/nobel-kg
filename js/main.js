@@ -3,7 +3,7 @@
    串起：DuckDB-WASM 数据层 → 本体工具 → LangGraph 智能体 → 输出渲染
    ============================================================ */
 
-import { initDB, getTableInfo, overview, isReady } from './db.js';
+import { initDB, initReady, getTableInfo, overview, isReady } from './db.js';
 import { loadConfig, saveConfig, clearConfig, hasLLM, hasWebSearch, PROVIDER_PRESETS, DEFAULTS, normalizeBaseUrl, mixedContentWarning } from './config.js';
 import { runAgent, researchAvailable, HELP_TEXT } from './agent.js';
 import { renderMarkdown, renderBlocks, renderTrace, escapeHtml } from './render.js';
@@ -52,6 +52,8 @@ const QUICK_QUESTIONS = [
 /* ------------------------- 状态 ------------------------- */
 
 let busy = false;
+let resolveWait = null;    // 首次提问时挂起的等待 resolve 回调
+let waitHint = null;       // 等待中的提示节点，用于同步初始化进度文案
 
 /* ------------------------- 状态栏 ------------------------- */
 
@@ -64,34 +66,62 @@ function setStatus(kind, text) {
 
 /* ------------------------- 启动 ------------------------- */
 
-async function boot() {
+/**
+ * 页面启动流程：
+ *   1. UI 立即就绪，不阻塞任何交互（遮罩默认隐藏）；
+ *   2. WASM/Parquet 初始化在后台以 Promise 形式进行，
+ *      侧栏状态灯和右下角 badge 实时反映进度；
+ *   3. 首次提问时才 await 初始化——就绪则秒回，否则等它完成。
+ * 这样用户打开页面即可浏览图谱入口、切换服务商、看欢迎语，
+ * 而不是被 40MB WASM 的下载遮罩卡住。
+ */
+function boot() {
   renderWelcomeExtras();
   fillSettingsForm();
   bindEvents();
   updateModeUI();
 
-  // 数据就绪前先禁用发送，避免访问者在初始化过程中提问
-  el.sendBtn.disabled = true;
-  el.sendBtn.title = '数据库初始化中…';
+  // 遮罩默认隐藏：不阻断用户浏览页面
+  if (el.loadingOverlay) el.loadingOverlay.classList.add('hidden');
 
-  try {
-    await initDB((msg) => {
-      setStatus('loading', msg);
-      if (el.loadingText) el.loadingText.textContent = msg;
-    });
+  // 后台启动初始化（不 await）；失败由下方 catch 处理
+  initDB((msg) => {
+    setStatus('loading', msg);
+    if (el.loadingText) el.loadingText.textContent = msg;
+    // 首次提问时若正在等待，用最新进度更新等待提示
+    if (waitHint) waitHint.textContent = msg;
+  }).then(() => {
+    return overview().catch(() => null);
+  }).then((ov) => {
     const info = getTableInfo();
-    const ov = await overview().catch(() => null);
     setStatus('ok', ov ? `本体就绪 · ${ov.persons} 人 / ${ov.mentorships} 条师承` : `本体就绪 · ${info.length} 张表`);
-    $('loadingOverlay').classList.add('hidden');
     fillWelcomeStats(ov, info);
-    el.sendBtn.disabled = false;
-    el.sendBtn.title = '发送';
-  } catch (e) {
+    // 若用户正在等待，解除等待
+    resolveWait && resolveWait(ov, info);
+  }).catch((e) => {
     console.error(e);
     setStatus('error', '数据库加载失败');
-    $('loadingOverlay').classList.add('hidden');
-    bannerError('数据库未能加载：' + e.message + '\n\n请确认通过 HTTP 方式访问（本地可用 `python3 -m http.server` 启动），并检查网络能否访问 CDN。');
-  }
+    const err = new Error('数据库未能加载：' + e.message + '\n\n请确认通过 HTTP 方式访问（本地可用 `python -m http.server` 启动），并检查网络能否访问 CDN。');
+    if (resolveWait) { resolveWait(null, null, err); resolveWait = null; }
+  });
+}
+
+/** 等待 DB 就绪；返回 { overview, tableInfo }，出错时 reject */
+function ensureReady(timeoutMs = 90000) {
+  if (isReady()) return Promise.resolve({ overview: null, tableInfo: getTableInfo() });
+  return new Promise((resolve, reject) => {
+    resolveWait = (ov, info, err) => {
+      if (err) reject(err);
+      else resolve({ overview: ov, tableInfo: info });
+    };
+    // 超时保护：不让用户永远挂在等待里
+    setTimeout(() => {
+      if (resolveWait) {
+        resolveWait = null;
+        reject(new Error('数据库初始化超时，请刷新页面重试，或稍后再试。'));
+      }
+    }, timeoutMs);
+  });
 }
 
 function bannerError(msg) {
@@ -218,11 +248,6 @@ function scrollBottom() {
 
 async function send(preset) {
   if (busy) return;
-  if (!isReady()) {
-    showChat();
-    addMessage('assistant', renderMarkdown('数据库仍在初始化中，请稍候几秒再提问。'));
-    return;
-  }
   const text = (preset != null ? preset : el.userInput.value).trim();
   if (!text) return;
 
@@ -230,13 +255,43 @@ async function send(preset) {
   if (preset == null) { el.userInput.value = ''; autoResize(); }
   addMessage('user', escapeHtml(text).replace(/\n/g, '<br>'));
 
+  // 首次提问：如果 DB 还没就绪，先等它完成
+  let waitWrap, waitContent;
+  if (!isReady()) {
+    ({ wrap: waitWrap, content: waitContent } = addMessage('assistant', ''));
+    waitContent.innerHTML =
+      '<div class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 数据库正在首次加载中…</div>' +
+      '<div class="verify-note" id="waitHint">正在下载并解析 WASM（约 40MB，仅在首次访问时发生；下次打开将秒开）。</div>';
+    waitHint = document.getElementById('waitHint');
+    try {
+      await ensureReady();
+    } catch (e) {
+      waitContent.innerHTML = renderMarkdown('> ⚠️ ' + e.message);
+      return;
+    } finally {
+      waitHint = null;
+    }
+  }
+
   const cfg = loadConfig();
   const useLLM = hasLLM(cfg);
   const wantResearch = el.researchToggle && !el.researchToggle.disabled && el.researchToggle.checked;
 
+  // 若之前有"等待加载"占位消息，就地切换到"正在查询"状态
+  if (waitContent) {
+    waitContent.innerHTML = '<span class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 正在查询知识本体…</span>';
+    const { content } = { content: waitContent };
+    doQuery(text, cfg, wantResearch, { waitWrap, content });
+    return;
+  }
+
   const { wrap, content } = addMessage('assistant', '');
   content.innerHTML = '<span class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 正在查询知识本体…</span>';
+  await doQuery(text, cfg, wantResearch, { wrap, content });
+}
 
+/** 实际执行一次查询并渲染结果（等待加载 / 已就绪两条路径共用） */
+async function doQuery(text, cfg, wantResearch, { wrap, content }) {
   busy = true;
   el.sendBtn.disabled = true;
 

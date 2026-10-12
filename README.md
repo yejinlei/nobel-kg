@@ -62,36 +62,33 @@ nobel-kg/
 │   ├── agent.js                 # LangGraph.js 状态图（plan → act → compose）
 │   ├── render.js                # Markdown / 表格 / SVG 图表 / 内嵌 iframe 渲染
 │   └── main.js                  # 界面控制器（串联数据 → 工具 → Agent → 渲染）
-├── data/                        # ⭐ 唯一数据源：Parquet 数据表 + manifest.json
+├── data/                        # ⭐ 唯一数据源：33 张 Parquet + manifest.json
 │   ├── persons.parquet
 │   ├── mentorship.parquet
 │   ├── papers.parquet
 │   ├── schools.parquet
 │   ├── features.parquet
-│   └── ... (共 19 张 parquet)
+│   └── ... (共 33 张 parquet，合计约 430KB)
 ├── lib/
-│   ├── duckdb.bundle.js         # DuckDB-WASM 打包
-│   ├── duckdb/                  # WASM 内核 + Worker（本地化，不依赖 CDN）
-│   ├── langgraph.bundle.js      # LangGraph.js 打包
-│   └── vendors/                 # echarts / d3 / tailwind
-├── mock_server.py               # 本地 Mock LLM 端点（零 Key 验证 Agent 流程）
-├── BUILD.md                     # 📘 构建文档：如何新增数据 / 重建 / 迭代
-├── TECH.md                      # 📗 技术文档：本体论模型 / 架构 / 关键决策
-└── README.md                    # 本文档
-├── lib/
-│   ├── duckdb.bundle.js         # DuckDB-WASM 打包
+│   ├── duckdb.bundle.js         # DuckDB-WASM 打包（mvp 单线程）
+│   ├── duckdb/                  # WASM 内核 + Worker（本地化，不依赖 CDN，约 40MB）
 │   ├── langgraph.bundle.js      # LangGraph.js + @langchain/openai 打包
-│   ├── duckdb/                  # 本地 WASM / Worker 文件（无需 CDN）
-│   └── vendors/                 # ECharts / D3 / Tailwind 本地拷贝（供 viz 使用）
-├── data/                        # 21 个 Parquet 数据文件 + manifest.json
-├── viz/                         # 三张独立的交互式知识图谱 HTML
-│   ├── 师承关系图谱.html            # ECharts 力导向图，按学派着色
-│   ├── 师承关系拓扑图_含代表作.html # D3 力导向图，叠加论文层
-│   └── 论文层与合著网络.html        # ECharts 多面板：时间线/合著/期刊/时滞
+│   └── vendors/                 # echarts / d3 / tailwind 本地拷贝（供 viz 使用）
+├── viz/                         # 独立可视化页（数据均内嵌在 HTML，无 SQL 依赖）
+│   ├── 和平奖领域与组织图谱.html
+│   ├── 论文层与合著网络.html
+│   ├── 诺奖年谱.html
+│   ├── 诺奖时光机.html
+│   ├── 师承关系拓扑图_含代表作.html
+│   ├── 师承六度挑战.html
+│   ├── 文学奖作品与传承图谱.html
+│   └── 学术星座图.html
 ├── assets/                      # 站点图标/图片
 ├── mock_server.py               # 本地 Mock OpenAI 端点（零真 Key 测试 Agent 链路）
 ├── .nojekyll                    # 让 GitHub Pages 不跑 Jekyll（避免下划线目录被忽略）
-└── README.md                    # 本文件
+├── BUILD.md                     # 📘 构建文档：如何新增数据 / 重建 / 迭代
+├── TECH.md                      # 📗 技术文档：本体论模型 / 架构 / 关键决策
+└── README.md                    # 本文档
 ```
 
 ---
@@ -109,7 +106,7 @@ python3 -m http.server 8080
 #   http://localhost:8080/
 ```
 
-页面启动后会自动加载 DuckDB-WASM（首次约 40MB，后续由浏览器缓存），数据库就绪后即可使用。
+页面启动后**不阻塞任何交互**——UI 立即可浏览（侧栏、图谱入口、设置、欢迎语均可点击），DuckDB-WASM（约 40MB）在后台异步加载。首次提问时才等待 DB 就绪；加载完成后 `Cache Storage` 会记住 WASM 与 Parquet 字节，**下次打开页面几乎秒回**。
 
 ### 零真 Key 测试 Agent 全链路（可选）
 
@@ -256,8 +253,8 @@ LLM 自主决定调用哪些本体查询工具，可**多步推理**、**自然�
 
 ## ❓常见问题
 
-**Q：为什么第一次打开很慢？**
-A：DuckDB-WASM 的 `.wasm` 文件约 40MB，首次加载需要下载；之后由浏览器缓存，再次打开会非常快。
+**Q：为什么第一次打开会有加载？**
+A：DuckDB-WASM 的 `.wasm` 文件约 40MB，首次访问需要下载。加载过程**不阻塞页面**——侧栏、图谱入口、设置、欢迎语在页面加载后即可使用，只有首次提问才会等待 WASM 就绪；加载完成后会写入浏览器的 `Cache Storage`，下次打开几乎秒回。若网络缓慢，可先浏览图谱或看其他页面，回到主页时 WASM 通常已下载完毕。
 
 **Q：为什么我填了 Key 还是连不上？**
 A：大概率是跨域（CORS）。浏览器控制台会显示具体错误。官方 OpenAI 和部分国内服务会拦截浏览器直连，请用 OpenRouter 或自建中转。
