@@ -787,9 +787,20 @@ export const TOOLS = [
         const lines = [`### ${year} 年诺贝尔奖（学术奖项）`];
         const blocks=[];
         yr.rows.forEach((r) => {
-          lines.push(`\n**${r.category}**（${r.share_note}）——${r.names.join('、')}`);
+          // DuckDB LIST(...) 在 browser DuckDB-WASM 里可能返回数组也可能被序列化成 JSON 字符串
+          const listify = (v) => {
+            if (Array.isArray(v)) return v;
+            if (typeof v === 'string') {
+              try { const p = JSON.parse(v); if (Array.isArray(p)) return p; } catch(_){}
+              return v ? [v] : [];
+            }
+            return v ? [v] : [];
+          };
+          const namesArr = listify(r.names);
+          const namesStr = namesArr.join('、');
+          lines.push(`\n**${r.category}**（${r.share_note}）——${namesStr}`);
           if (r.motivation) lines.push(`> ${r.motivation}`);
-          blocks.push({ type: 'card', title: `${year}·${r.category}`, content: r.names.join('、'), meta: r.share_note });
+          blocks.push({ type: 'card', title: `${year}·${r.category}`, content: namesStr, meta: r.share_note });
         });
         return { text: lines.join('\n'), blocks, payload: { year, items: yr.rows } };
       }
@@ -833,6 +844,312 @@ export const TOOLS = [
         text: `### 数据核查与订正记录（${r.rows.length} 条）\n` + r.rows.map((x) => `- **${x.target}**：\`${x.original_value}\` → \`${x.corrected_value}\`\n  _依据：${x.basis || '—'}_`).join('\n'),
         blocks: [{ type: 'table', title: '订正明细', columns: ['对象', '原值', '订正为', '依据'], rows: r.rows.map((x) => [x.target, x.original_value, x.corrected_value, x.basis || '']) }],
         payload: { corrections: r.rows },
+      };
+    },
+  },
+
+  /* 15. 和平奖得主（v3.1 新增） */
+  {
+    name: '和平奖得主',
+    label: '和平奖得主',
+    description: '查询诺贝尔和平奖得主与获奖机构。本体收录 141 位和平奖得主/机构（含大量政治人物，如各国总统/总理/外交官/活动家）+ 28 个获奖组织，年份 1901–2026。注意：和平奖得主没有师承关系记录。',
+    parameters: {
+      type: 'object',
+      properties: {
+        year: { type: 'integer', description: '年份，如 1901、2009、2023（可选）' },
+        country: { type: 'string', description: '国籍/组织所在国，如 美国、挪威、法国（可选）' },
+        keyword: { type: 'string', description: '姓名/组织名/获奖理由关键词（中英文均可，如 Trump、Obama、联合国、红十字、人权）' },
+        orgOnly: { type: 'boolean', description: '只看机构（true）或个人（false），默认 false' },
+        limit: { type: 'integer', description: '返回条数，默认 30' },
+      },
+    },
+    async run(args) {
+      const year = args.year ? Math.trunc(args.year) : null;
+      const country = String(args.country || '').trim();
+      let kw = String(args.keyword || '').trim();
+      const orgOnly = args.orgOnly === true;
+      const lim = Math.max(1, Math.min(200, args.limit ? Math.trunc(args.limit) : 30));
+
+      // 中文关键词 → 英文等价（peace_subjects / peace_orgs 主表以 name_en/acronym 为主，
+      // 直接搜中文会漏掉大量真结果）
+      const ZH_EN = {
+        '联合国': 'united nations', '红十字': 'red cross', '红十字会': 'red cross',
+        '红新月': 'red crescent', '难民': 'refugee', '联合国难民': 'unhcr', '难民署': 'unhcr',
+        '人权': 'human rights', '世卫': 'who', '教科文': 'unesco', '世界卫生组织': 'who',
+        '诺贝尔': 'nobel', '诺贝尔基金会': 'nobel foundation', '诺贝尔基金会': 'nobel foundation',
+        '美国': 'usa', '中国': 'china', '日本': 'japan', '英国': 'uk', '德国': 'germany', '法国': 'france',
+      };
+      const kwAliases = [];
+      if (kw) {
+        for (const [zh, en] of Object.entries(ZH_EN)) {
+          if (kw.includes(zh) && !kwAliases.includes(en)) kwAliases.push(en);
+        }
+      }
+      // 用户关键词 + 英文别名，全部作为 OR 检索
+      const kwAll = [];
+      if (kw) kwAll.push(kw);
+      for (const a of kwAliases) if (!kwAll.includes(a)) kwAll.push(a);
+
+      // 无参数：总览统计
+      if (!year && !country && !kw && !orgOnly) {
+        const tot = await scalar('SELECT count(*) FROM peace_subjects');
+        const indiv = await scalar("SELECT count(*) FROM peace_subjects WHERE subject_type='个人'");
+        const orgN = await scalar("SELECT count(*) FROM peace_subjects WHERE subject_type='组织'");
+        const yrange = await scalar('SELECT MIN(nobel_year::int)||\'–\'||MAX(nobel_year::int) FROM peace_subjects');
+        const byCountry = await query(`SELECT country, count(*) AS n FROM peace_subjects WHERE country IS NOT NULL AND country <> '' GROUP BY country ORDER BY n DESC LIMIT 12`);
+        const lastYear = await scalar('SELECT MAX(nobel_year::int) FROM peace_subjects');
+        const recent = await query(`SELECT name_en, acronym, subject_type, nobel_year, country, motivation_en FROM peace_subjects WHERE nobel_year::int >= ${Math.max(1900, (lastYear||2026) - 20)} ORDER BY nobel_year::int DESC, name_en`);
+
+        const lines = [
+          '### 诺贝尔和平奖得主 · 全量概览',
+          `- **总量**：${tot} 位（个人 ${indiv} 位 + 机构 ${orgN} 个），${yrange}`,
+          `- 和平奖得主/机构**无师承关系记录**（本体中 peace_subjects 表不接 mentorship）`,
+          '- 可通过年份/国籍/关键词进一步过滤',
+        ];
+        if (byCountry.rows.length) {
+          lines.push('', '**国籍/机构所在地分布**：' + byCountry.rows.map((x) => `${x.country} ${x.n}`).join('｜'));
+        }
+        if (recent.rows.length) {
+          lines.push('', '**近 20 年获奖情况（含政治人物）**：');
+          recent.rows.slice(0, 15).forEach((x) => {
+            const label = x.acronym || x.name_en;
+            lines.push(`- **${Math.trunc(x.nobel_year)}**｜${x.subject_type === '组织' ? '🏛 ' : '👤 '}${label}${x.country ? '（'+x.country+'）' : ''}`);
+          });
+        }
+        return {
+          text: lines.join('\n'),
+          blocks: [
+            { type: 'bar', title: '国籍/机构所在地分布 Top12', data: byCountry.rows.map((x) => ({ label: x.country, value: Number(x.n) })) },
+          ],
+          payload: { total: tot, individuals: indiv, orgs: orgN, yrange, byCountry: byCountry.rows, recent: recent.rows.slice(0, 15) },
+        };
+      }
+
+      // 构建过滤条件
+      const esc = (s) => String(s).replace(/'/g, "''");
+      const conds = [];
+      if (year) conds.push(`nobel_year::int = ${year}`);
+      if (country) conds.push(`(lower(country) LIKE lower('%${esc(country)}%'))`);
+      if (orgOnly) conds.push(`subject_type = '组织'`);
+      else if (args.orgOnly === false) conds.push(`subject_type = '个人'`);
+      if (kwAll.length) {
+        const orParts = kwAll.map((k) => {
+          const ek = esc(k);
+          return `(lower(name_en) LIKE lower('%${ek}%') OR lower(acronym) LIKE lower('%${ek}%') OR lower(motivation_en) LIKE lower('%${ek}%'))`;
+        });
+        conds.push('(' + orParts.join(' OR ') + ')');
+      }
+      // 中文关键词命中时，同时并查 peace_orgs 表（28 个获奖组织）合并到结果
+      let orgRows = [];
+      if (kwAll.length) {
+        const orgConds = kwAll.map((k) => {
+          const ek = esc(k);
+          return `(lower(name_en) LIKE lower('%${ek}%') OR lower(acronym) LIKE lower('%${ek}%') OR lower(name_native) LIKE lower('%${ek}%'))`;
+        });
+        let orgWhere = '';
+        if (country) orgWhere = ` WHERE lower(founded_country) LIKE lower('%${esc(country)}%') AND ` + orgConds.join(' OR ');
+        else orgWhere = ` WHERE ` + orgConds.join(' OR ');
+        try {
+          const orgR = await query(`SELECT org_id, name_en, name_native, acronym, founded_year, founded_country FROM peace_orgs${orgWhere} ORDER BY founded_year::int NULLS LAST, name_en LIMIT ${lim}`);
+          orgRows = orgR.rows || [];
+        } catch (e) { /* ignore */ }
+      }
+      const where = conds.length ? ' WHERE ' + conds.join(' AND ') : '';
+      const sql = `SELECT peace_id, subject_type, name_en, acronym, country, nobel_year, motivation_en
+        FROM peace_subjects${where} ORDER BY nobel_year::int DESC, name_en LIMIT ${lim}`;
+      const r = await query(sql);
+
+      const subjects = r.rows || [];
+      const orgItems = orgRows.map((o) => ({
+        peace_id: o.org_id, subject_type: '机构', name_en: o.name_native || o.name_en,
+        acronym: o.acronym || '', country: o.founded_country || '', nobel_year: '',
+        motivation_en: '和平奖获奖组织（成立于 ' + (o.founded_year || '?') + '）',
+        _org: true,
+      }));
+      const allRows = subjects.concat(orgItems);
+
+      if (!allRows.length) {
+        return {
+          text: `未找到匹配的和平奖得主/机构。已尝试过滤：${[year?'年份 '+year:null, country?'国籍 '+country:null, kw?'关键词 '+kw:null, orgOnly?'仅机构':args.orgOnly===false?'仅个人':null].filter(Boolean).join('、') || '无'}`,
+          payload: { error: 'not_found' },
+        };
+      }
+
+      const titleParts = [];
+      if (year) titleParts.push(year + ' 年');
+      if (country) titleParts.push('国籍 ' + country);
+      if (kw) titleParts.push('「' + kw + '」');
+      titleParts.push(orgOnly ? '仅机构' : args.orgOnly === false ? '仅个人' : '');
+      const title = `### 和平奖得主 · ${titleParts.filter(Boolean).join(' / ')}（${allRows.length} 位）`;
+
+      const lines = [title];
+      allRows.forEach((x) => {
+        const label = x.acronym ? `${x.name_en}（${x.acronym}）` : x.name_en;
+        const yr = x._org ? '' : (Math.trunc(x.nobel_year) + ' 年');
+        lines.push(`- ${yr ? '**' + yr + '**｜' : ''}${x.subject_type === '机构' ? '🏛 ' : '👤 '}${label}${x.country ? '（'+x.country+'）' : ''}`);
+        if (x.motivation_en) lines.push(`  > ${x.motivation_en}`);
+      });
+
+      return {
+        text: lines.join('\n'),
+        blocks: [{
+          type: 'table', title: '和平奖得主明细',
+          columns: ['年份', '类型', '姓名', '缩写', '国籍', '获奖理由'],
+          rows: allRows.map((x) => [x._org ? '（组织）' : Math.trunc(x.nobel_year), x.subject_type, x.name_en, x.acronym || '', x.country || '', x.motivation_en || '']),
+        }],
+        payload: { items: allRows },
+      };
+    },
+  },
+
+  /* 16. 文学奖得主（v3.1 新增） */
+  {
+    name: '文学奖得主',
+    label: '文学奖得主',
+    description: '查询诺贝尔文学奖得主。本体收录 123 位文学奖得主，年份 1901–2026，字段含姓名（中/英）、性别、生卒、国籍、获奖年份、获奖理由。注意：文学奖得主没有师承关系记录。',
+    parameters: {
+      type: 'object',
+      properties: {
+        year: { type: 'integer', description: '年份（可选）' },
+        country: { type: 'string', description: '国籍（可选）' },
+        gender: { type: 'string', description: '性别：male / female（可选）' },
+        keyword: { type: 'string', description: '姓名/获奖理由关键词（中英文均可）' },
+        limit: { type: 'integer', description: '返回条数，默认 30' },
+      },
+    },
+    async run(args) {
+      const year = args.year ? Math.trunc(args.year) : null;
+      const country = String(args.country || '').trim();
+      const gender = String(args.gender || '').trim();
+      const kw = String(args.keyword || '').trim();
+      const lim = Math.max(1, Math.min(200, args.limit ? Math.trunc(args.limit) : 30));
+
+      // 无参数：总览
+      if (!year && !country && !gender && !kw) {
+        const tot = await scalar('SELECT count(*) FROM writers');
+        const yrange = await scalar('SELECT MIN(nobel_year::int)||\'–\'||MAX(nobel_year::int) FROM writers');
+        const byCountry = await query(`SELECT country, count(*) AS n FROM writers WHERE country IS NOT NULL AND country <> '' GROUP BY country ORDER BY n DESC LIMIT 12`);
+        const byGender = await query(`SELECT gender, count(*) AS n FROM writers GROUP BY gender ORDER BY n DESC`);
+        const recent = await query(`SELECT name_en, name_native, gender, nobel_year, country, motivation_en FROM writers ORDER BY nobel_year::int DESC LIMIT 10`);
+
+        const lines = [
+          '### 诺贝尔文学奖得主 · 全量概览',
+          `- **总量**：${tot} 位（${yrange}）`,
+          `- 文学奖得主**无师承关系记录**（writers 表不接 mentorship）`,
+        ];
+        if (byGender.rows.length) lines.push('', '**性别分布**：' + byGender.rows.map((x) => `${x.gender} ${x.n}`).join('｜'));
+        if (byCountry.rows.length) lines.push('', '**国籍分布**：' + byCountry.rows.map((x) => `${x.country} ${x.n}`).join('｜'));
+        if (recent.rows.length) {
+          lines.push('', '**近 10 位**：');
+          recent.rows.forEach((x) => {
+            const yr = Math.trunc(x.nobel_year);
+            lines.push(`- **${yr}**｜${x.name_native || x.name_en}${x.country ? '（'+x.country+'）' : ''}`);
+          });
+        }
+        return {
+          text: lines.join('\n'),
+          blocks: [
+            { type: 'bar', title: '国籍分布 Top12', data: byCountry.rows.map((x) => ({ label: x.country, value: Number(x.n) })) },
+          ],
+          payload: { total: tot, yrange, byCountry: byCountry.rows, byGender: byGender.rows, recent: recent.rows },
+        };
+      }
+
+      const esc = (s) => String(s).replace(/'/g, "''");
+      // 中文性别 → 英文（writers 表 gender 值是 male/female）
+      const gMap = {'男':'male','女':'female','男性':'male','女性':'female','woman':'female','men':'male','women':'female'};
+      const genderEn = gMap[gender] || gender;
+      const conds = [];
+      if (year) conds.push(`nobel_year::int = ${year}`);
+      if (country) conds.push(`(lower(country) LIKE lower('%${esc(country)}%'))`);
+      if (genderEn) conds.push(`lower(gender) = '${esc(genderEn).toLowerCase()}'`);
+      if (kw) {
+        const k = esc(kw);
+        conds.push(`(lower(name_en) LIKE lower('%${k}%') OR (name_native LIKE '%${k}%') OR motivation_en LIKE '%${k}%')`);
+      }
+      const where = conds.length ? ' WHERE ' + conds.join(' AND ') : '';
+      const r = await query(`SELECT writer_id, name_en, name_native, gender, birth_year, death_year, country, nobel_year, motivation_en
+        FROM writers${where} ORDER BY nobel_year::int DESC, name_en LIMIT ${lim}`);
+
+      if (!r.rows.length) return { text: `未找到匹配的文学奖得主。`, payload: { error: 'not_found' } };
+
+      const titleParts = [year?''+year+' 年':null, country?'国籍 '+country:null, gender?'性别 '+gender:null, kw?'「'+kw+'」':null].filter(Boolean);
+      const lines = [`### 诺贝尔文学奖得主 · ${titleParts.join(' / ')}（${r.rows.length} 位）`];
+      r.rows.forEach((x) => {
+        const yr = Math.trunc(x.nobel_year);
+        const life = `${Math.trunc(x.birth_year||'')}–${Math.trunc(x.death_year||'')}`;
+        lines.push(`- **${yr}**｜${x.name_native || x.name_en}${x.country ? '（'+x.country+'）' : ''}${life ? ' · '+life : ''}`);
+        if (x.motivation_en) lines.push(`  > ${x.motivation_en}`);
+      });
+      return {
+        text: lines.join('\n'),
+        blocks: [{
+          type: 'table', title: '文学奖得主明细',
+          columns: ['年份', '姓名(英)', '姓名(原语)', '国籍', '生卒', '获奖理由'],
+          rows: r.rows.map((x) => [Math.trunc(x.nobel_year), x.name_en, x.name_native || '', x.country || '', `${Math.trunc(x.birth_year||'')}–${Math.trunc(x.death_year||'')}`, x.motivation_en || '']),
+        }],
+        payload: { items: r.rows },
+      };
+    },
+  },
+
+  /* 17. 和平奖组织（v3.1 新增） */
+  {
+    name: '和平奖组织',
+    label: '和平奖组织',
+    description: '查询诺贝尔和平奖授予的机构/组织。本体收录 28 个获奖组织（如红十字会、联合国相关机构、国际组织等），含成立时间与来源国。',
+    parameters: {
+      type: 'object',
+      properties: {
+        keyword: { type: 'string', description: '组织名/缩写关键词（中英文均可，如 UN、红十字会、UNHCR）' },
+        country: { type: 'string', description: '来源国' },
+        foundedBefore: { type: 'integer', description: '成立年份上限，如 1950' },
+        foundedAfter: { type: 'integer', description: '成立年份下限，如 1990' },
+      },
+    },
+    async run(args) {
+      let kw = String(args.keyword || '').trim();
+      const country = String(args.country || '').trim();
+      const fb = args.foundedBefore ? Math.trunc(args.foundedBefore) : null;
+      const fa = args.foundedAfter ? Math.trunc(args.foundedAfter) : null;
+      const esc = (s) => String(s).replace(/'/g, "''");
+      // 中文关键词 → 英文（peace_orgs 主表 name_en/acronym 都是英文）
+      const ZH_EN = {
+        '联合国': 'united nations', '红十字': 'red cross', '红十字会': 'red cross',
+        '红新月': 'red crescent', '难民': 'refugee', '联合国难民': 'unhcr', '难民署': 'unhcr',
+        '教科文': 'unesco', '世卫': 'who', '世界卫生组织': 'who',
+        '诺贝尔': 'nobel', '诺贝尔基金会': 'nobel foundation',
+      };
+      const kwAll = [];
+      if (kw) {
+        kwAll.push(kw);
+        for (const [zh, en] of Object.entries(ZH_EN)) {
+          if (kw.includes(zh) && !kwAll.includes(en)) kwAll.push(en);
+        }
+      }
+      const conds = [];
+      if (kwAll.length) {
+        const orParts = kwAll.map((k) => `(lower(name_en) LIKE lower('%${esc(k)}%') OR lower(acronym) LIKE lower('%${esc(k)}%') OR lower(name_native) LIKE lower('%${esc(k)}%'))`);
+        conds.push('(' + orParts.join(' OR ') + ')');
+      }
+      if (country) conds.push(`lower(founded_country) LIKE lower('%${esc(country)}%')`);
+      if (fb) conds.push(`founded_year::int <= ${fb}`);
+      if (fa) conds.push(`founded_year::int >= ${fa}`);
+      const where = conds.length ? ' WHERE ' + conds.join(' AND ') : '';
+      const r = await query(`SELECT org_id, name_en, name_native, acronym, founded_year, founded_country FROM peace_orgs${where} ORDER BY founded_year::int NULLS LAST, name_en`);
+
+      if (!r.rows.length) return { text: `未找到匹配的和平奖获奖组织。`, payload: { error: 'not_found' } };
+
+      const lines = [`### 诺贝尔和平奖获奖组织（${r.rows.length} 个）`];
+      r.rows.forEach((x) => {
+        const fy = x.founded_year ? Math.trunc(x.founded_year) : '—';
+        const name = x.acronym ? `${x.name_en}（${x.acronym}）` : x.name_en;
+        lines.push(`- **${name}**${x.founded_country ? '｜'+x.founded_country : ''}｜创立于 ${fy}`);
+      });
+      return {
+        text: lines.join('\n'),
+        blocks: [{ type: 'table', title: '获奖组织', columns: ['组织', '缩写', '来源国', '成立年'], rows: r.rows.map((x) => [x.name_en, x.acronym || '', x.founded_country || '', x.founded_year ? Math.trunc(x.founded_year) : '']) }],
+        payload: { items: r.rows },
       };
     },
   },

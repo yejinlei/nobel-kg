@@ -11,13 +11,9 @@ let DB = null;
 let CONN = null;
 let READY = false;
 let TABLE_INFO = [];
-let initPromise = null;   // 幂等锁：并发调用共享同一次初始化
 
 export function isReady() { return READY; }
 export function getTableInfo() { return TABLE_INFO; }
-
-/** 初始化进行中/已完成的 Promise，供调用方在需要时 await */
-export function initReady() { return initPromise || Promise.resolve(); }
 
 /** 基于本模块 URL 解析资源地址（db.js 位于 js/ 下，资源在项目根）；
  *  用 import.meta.url 而非 document.baseURI，保证 viz/ 等子目录页面调用时
@@ -26,27 +22,9 @@ function assetUrl(relPath) {
   return new URL('../' + relPath, import.meta.url).href;
 }
 
-/** Cache Storage 包装：把重复访问的 WASM/Parquet 字节写入浏览器缓存。
- *  失败静默降级——不能因为缓存 API 不可用而影响主流程。 */
-async function cachedFetch(url, opts = {}) {
-  try {
-    if (window.caches) {
-      const cache = await caches.open('nobel-kg-v1');
-      const hit = await cache.match(url);
-      if (hit) return hit;
-      const res = await fetch(url, opts);
-      if (res && res.ok) {
-        try { await cache.put(url, res.clone()); } catch (_) {}
-      }
-      return res;
-    }
-  } catch (_) { /* 缓存读写失败则回退到普通 fetch */ }
-  return fetch(url, opts);
-}
-
 /** 读取数据清单 */
 async function fetchManifest() {
-  const res = await cachedFetch(assetUrl('data/manifest.json'), { cache: 'no-cache' });
+  const res = await fetch(assetUrl('data/manifest.json'), { cache: 'no-cache' });
   if (!res.ok) throw new Error(`数据清单 data/manifest.json 加载失败（HTTP ${res.status}）`);
   return res.json();
 }
@@ -64,21 +42,18 @@ function normalizeValue(v) {
 }
 
 /**
- * 初始化数据库（幂等）
- * 并发调用共享同一次初始化；已就绪时立即 resolve。
+ * 初始化数据库
  * @param {(msg:string)=>void} onProgress 进度回调（用于界面提示）
  */
-export function initDB(onProgress) {
-  if (initPromise) return initPromise;
-  initPromise = (async () => {
-    if (READY) return;
-    const log = (m) => { try { onProgress && onProgress(m); } catch (_) {} };
+export async function initDB(onProgress) {
+  if (READY) return;
+  const log = (m) => { try { onProgress && onProgress(m); } catch (_) {} };
 
-    log('正在读取数据清单…');
-    const manifest = await fetchManifest();
-    const names = Object.keys(manifest);
+  log('正在读取数据清单…');
+  const manifest = await fetchManifest();
+  const names = Object.keys(manifest);
 
-    log('正在初始化浏览器内数据库引擎（WASM 约 40MB，首次下载后由浏览器缓存）…');
+  log('正在初始化浏览器内数据库引擎（WASM 约 34 MB，首次下载后由 Service Worker 缓存，下次访问零下载）…');
   // 使用本地 WASM/Worker 资源，避免依赖 CDN 与跨域问题
   const bundles = duckdb.getJsDelivrBundles();
   // 覆盖为本地路径
@@ -96,6 +71,35 @@ export function initDB(onProgress) {
   let bundle = await duckdb.selectBundle(localBundles);
   if (!bundle || !bundle.mainModule) bundle = localBundles.eh;
 
+  // --- Brotli 预压缩加速（可选，浏览器不支持时自动降级）---
+  // GitHub Pages 不支持服务端 Brotli，我们预生成 .wasm.br 提交到仓库；
+  // 主线程用 DecompressionStream 解压成 blob URL 传给 worker。
+  // 未支持时 fallback 到原始 wasm 路径。
+  const wasmUrl = bundle.mainModule;
+  const wasmBrUrl = wasmUrl + '.br';
+  const hasDecompressStream = typeof DecompressionStream !== 'undefined';
+  let effectiveWasmUrl = wasmUrl;
+
+  if (hasDecompressStream) {
+    try {
+      log('正在下载并解压 WASM 引擎（Brotli 5.5 MB → 34 MB）…');
+      const brResp = await fetch(wasmBrUrl, { cache: 'force-cache' });
+      if (brResp.ok) {
+        const brBuf = await brResp.arrayBuffer();
+        const blob = new Blob([brBuf]);
+        const dsStream = blob.stream().pipeThrough(new DecompressionStream('br'));
+        const wasmBuf = await new Response(dsStream).arrayBuffer();
+        // 用 blob URL 代替网络 URL，让 worker 内部直接 instantiateStreaming
+        effectiveWasmUrl = URL.createObjectURL(
+          new Blob([wasmBuf], { type: 'application/wasm' })
+        );
+        bundle = Object.assign({}, bundle, { mainModule: effectiveWasmUrl });
+      }
+    } catch (_) {
+      // Brotli 下载/解压失败时降级到原始 wasm
+    }
+  }
+
   const workerUrl = URL.createObjectURL(
     new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
   );
@@ -110,6 +114,11 @@ export function initDB(onProgress) {
 
   DB = new duckdb.AsyncDuckDB(logger, worker);
   await DB.instantiate(bundle.mainModule, bundle.prelude);
+
+  // 清理 blob URL
+  if (effectiveWasmUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(effectiveWasmUrl);
+  }
 
   log('正在装载本体论数据表…');
   CONN = await DB.connect();
@@ -137,14 +146,8 @@ export function initDB(onProgress) {
     }
   }
 
-    READY = true;
-    log('数据库就绪');
-  })().catch((err) => {
-    // 初始化失败：释放锁以便后续重试，同时把异常抛给调用方
-    initPromise = null;
-    throw err;
-  });
-  return initPromise;
+  READY = true;
+  log('数据库就绪');
 }
 
 /** 执行 SQL，返回 { columns, rows } */

@@ -26,7 +26,9 @@ body { background: var(--peace-bg); margin: 0; font-family: -apple-system, syste
 .stat-label { color: #666; font-size: 0.85rem; margin-top: 0.3rem; }
 .special-note { background: #fff8e1; border-left: 4px solid #ffc107; padding: 0.75rem 1rem; margin: 0.5rem 0; border-radius: 0 6px 6px 0; font-size: 0.9rem; }
 .subject-list { max-height: 500px; overflow-y: auto; }
-.subject-item { padding: 0.75rem; border-bottom: 1px solid #eef3f7; }
+.subject-item { padding: 0.75rem; border-bottom: 1px solid #eef3f7; cursor: pointer; transition: background 0.2s; }
+.subject-item:hover { background: #f0f7fd; }
+.subject-item.active { background: #e3f2fd; border-left: 3px solid var(--peace-accent); }
 .subject-year { color: var(--peace-secondary); font-size: 0.85rem; font-weight: 600; }
 .subject-name { font-weight: 500; margin: 0.2rem 0; }
 .subject-type { display: inline-block; background: #e3f2fd; color: var(--peace-accent); padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.75rem; margin-right: 0.5rem; }
@@ -38,10 +40,80 @@ body { background: var(--peace-bg); margin: 0; font-family: -apple-system, syste
 .badge-decline { background: #f44336; }
 .badge-posthumous { background: #9c27b0; }
 .badge-in-office { background: #ff9800; }
+/* 交互控件 */
+.net-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:8px; font-size:12px; }
+.net-toolbar label { display:flex; align-items:center; gap:4px; color:#334; cursor:pointer; }
+.net-toolbar select, .net-toolbar input[type="range"] { font-size:12px; padding:2px 4px; border:1px solid #cbd5e1; border-radius:4px; }
+.net-toolbar .reset-btn { padding:4px 10px; background:#1e5799; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px; }
+.net-toolbar .reset-btn:hover { background:#0d3a66; }
+.net-hint { font-size:11px; color:#888; margin-left:auto; }
+.tooltip-net { position:fixed; background:rgba(255,255,255,0.98); border:1px solid var(--peace-accent); border-radius:8px; padding:10px 12px; max-width:280px; font-size:12px; pointer-events:none; z-index:200; box-shadow:0 4px 16px rgba(30,87,153,0.2); display:none; }
+.tooltip-net h4 { font-size:13px; color:var(--peace-accent); margin:0 0 4px; }
+.tooltip-net .meta { color:#666; font-size:11px; margin-bottom:6px; }
+.tooltip-net .field { color:var(--peace-olive); font-size:11px; }
+.tooltip-net .field-tag { display:inline-block; background:#f1f8e9; color:var(--peace-olive); padding:1px 6px; border-radius:8px; font-size:11px; margin:1px; }
+#chart_network { background:#fff; border-radius:8px; width:100%; height:550px; display:block; }
+.net-node circle { cursor:pointer; stroke:#fff; stroke-width:1.5px; transition:all .2s; }
+.net-node:hover circle { stroke:#ffc107; stroke-width:2.5px; filter:drop-shadow(0 0 6px #ffc107); }
+.net-node text { font-size:9px; fill:#333; pointer-events:none; text-shadow:0 1px 2px rgba(255,255,255,.9); }
+.net-node.dim { opacity:.15; }
+.net-link { stroke-opacity:.4; fill:none; transition:all .2s; }
+.net-link.dim { opacity:.05; }
+.net-link.active { stroke:#ffc107 !important; stroke-opacity:1 !important; stroke-width:2.5px !important; }
+
+/* ===== AI 面板 ===== */
+.ai-btn {
+  position:fixed; bottom:22px; right:22px; z-index:120;
+  background:linear-gradient(135deg,#1e5799,#6B8E23); color:#fff;
+  border:0; border-radius:999px; padding:10px 18px; font-weight:700;
+  font-family:inherit; font-size:13px; cursor:pointer;
+  box-shadow:0 8px 24px rgba(30,87,153,.35);
+}
+.ai-btn:hover { transform:translateY(-1px); }
+.ai-panel {
+  position:fixed; top:24px; right:22px; width:380px; max-width:calc(100vw - 32px); z-index:110;
+  background:#fff; border:1px solid var(--peace-accent); border-radius:14px;
+  padding:14px 16px; box-shadow:0 16px 48px rgba(30,87,153,.3);
+  display:none;
+}
+.ai-panel.on { display:block; }
+.ai-panel .ai-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ai-panel .ai-head h3 { margin:0; font-size:14px; font-weight:700; color:var(--peace-accent); flex:1; }
+.ai-panel .ai-head .ai-close { background:none; border:0; color:#666; cursor:pointer; font-size:16px; padding:2px 6px; }
+.ai-panel .ai-head .ai-close:hover { color:#000; }
+.ai-panel .ai-state { font-size:11px; color:#888; margin-bottom:8px; }
+.ai-panel .ai-body {
+  max-height:60vh; overflow-y:auto; font-size:12.5px; line-height:1.65;
+  padding:10px 12px; background:#f5f9fc; border-radius:8px; border:1px solid #e0ecf5;
+  color:#334;
+}
+.ai-panel .ai-body.empty { color:#888; font-size:12px; }
+.ai-panel .ai-body .error { color:#dc2626; }
+.ai-panel .ai-cta {
+  margin-top:10px; background:linear-gradient(135deg,#1e5799,#6B8E23); color:#fff;
+  border:0; border-radius:8px; padding:9px 14px; font-weight:600; font-size:12.5px; cursor:pointer;
+  font-family:inherit; width:100%;
+}
+.ai-panel .ai-cta:hover { filter:brightness(1.05); }
+.ai-panel .ai-cta:disabled { opacity:.5; cursor:not-allowed; }
+.ai-panel .ai-input {
+  margin-top:8px; width:100%; background:#f5f9fc; border:1px solid #e0ecf5;
+  color:#334; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:12.5px; outline:none;
+}
+.ai-panel .ai-input:focus { border-color:var(--peace-accent); }
 </style>
 </head>
 <body>
 <a href="../index.html" class="back-link">← 返回主页</a>
+<div class="tooltip-net" id="tip"></div>
+<button class="ai-btn" id="aiBtn">✨ AI 解读和平奖</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head"><h3>✨ 和平奖 AI 解读</h3><button class="ai-close" id="aiClose">✕</button></div>
+  <div class="ai-state" id="aiState">加载配置中…</div>
+  <div class="ai-body empty" id="aiBody">点击下方按钮，让 AI 分析 141 位和平奖得主在领域、类型、地区与时间维度上的整体格局。</div>
+  <button class="ai-cta" id="aiAsk">生成解读</button>
+  <input class="ai-input" id="aiFollow" placeholder="追问：环保领域为何上升？">
+</div>
 <div class="header">
   <h1>☮️ 诺贝尔和平奖 · 领域与组织图谱</h1>
   <p>1901-2026 · 141位获奖主体（个人/组织） · 人道、人权、裁军、环保等7大领域</p>
@@ -75,6 +147,20 @@ body { background: var(--peace-bg); margin: 0; font-family: -apple-system, syste
     <div class="grid">
       <div class="card full">
         <h3>🕸️ 主体-领域关系网络</h3>
+        <div class="net-toolbar">
+          <label><input type="checkbox" id="netShowPerson" checked> 个人</label>
+          <label><input type="checkbox" id="netShowOrg" checked> 组织</label>
+          <label><input type="checkbox" id="netShowField" checked> 领域</label>
+          <select id="netColorMode">
+            <option value="type">按类型着色</option>
+            <option value="field">按领域着色</option>
+            <option value="decade">按年代着色</option>
+          </select>
+          <select id="netFieldFilter"><option value="">全部领域</option></select>
+          <label style="display:flex;align-items:center;gap:4px;">年份≥<input type="range" id="netYearRange" min="1901" max="2020" step="5" value="1901" style="width:100px;"> <span id="netYearLabel" style="font-weight:600;">1901</span></label>
+          <button class="reset-btn" id="netReset">清除高亮</button>
+          <span class="net-hint">滚轮缩放 · 拖拽节点 · 点击高亮链路 · 双击重置</span>
+        </div>
         <svg id="chart_network" width="100%" height="550"></svg>
       </div>
     </div>
@@ -93,6 +179,7 @@ body { background: var(--peace-bg); margin: 0; font-family: -apple-system, syste
 
 <script type="module">
 import * as db from '../js/db.js';
+import { hasLLM, ask, askStream, friendlyError } from '../js/ai.js';
 const log = msg => document.getElementById('loading').textContent = msg;
 
 await db.initDB(log);
@@ -121,7 +208,7 @@ const sl = document.getElementById('subject_list');
 subjects.forEach(s => {
   const div = document.createElement('div');
   div.className = 'subject-item';
-  const fieldRel = sf.filter(r=>r.subject_id===s.subject_id).map(r=>fields.find(f=>f.field_id===r.field_id)?.name_zh).filter(Boolean);
+  const fieldRel = sf.filter(r=>r.peace_id===s.peace_id).map(r=>fields.find(f=>f.cause_id===r.cause_id)?.name_zh).filter(Boolean);
   let badges = '';
   if(s.declined === '是') badges += '<span class="badge badge-decline">拒领</span>';
   if(s.posthumous === '是') badges += '<span class="badge badge-posthumous">追授</span>';
@@ -140,7 +227,7 @@ subjects.forEach(s => {
 
 // 领域分布
 const fieldCount = {};
-sf.forEach(r=>{ const f = fields.find(x=>x.field_id===r.field_id); if(f) fieldCount[f.name_zh]=(fieldCount[f.name_zh]||0)+1; });
+sf.forEach(r=>{ const f = fields.find(x=>x.cause_id===r.cause_id); if(f) fieldCount[f.name_zh]=(fieldCount[f.name_zh]||0)+1; });
 const fieldData = Object.entries(fieldCount).map(([k,v])=>({name:k,value:v})).sort((a,b)=>b.value-a.value);
 echarts.init(document.getElementById('chart_field')).setOption({
   tooltip:{trigger:'item'},
@@ -184,35 +271,416 @@ echarts.init(document.getElementById('chart_year')).setOption({
   ]
 });
 
-// 领域关系网络
+// 领域关系网络（带缩放/tooltip/高亮/筛选）
+// 用固定 viewBox + preserveAspectRatio，绕开 display:none→block 时序问题
 const svg = d3.select('#chart_network');
-const width = svg.node().getBoundingClientRect().width;
-const height = 550;
-svg.attr('viewBox',`0 0 ${width} ${height}`);
+const width = 1200, height = 550;
+svg.attr('viewBox', `0 0 ${width} ${height}`)
+   .attr('preserveAspectRatio', 'xMidYMid meet')
+   .attr('width', '100%')
+   .attr('height', height);
 
+// 领域色板
+const fieldColors = {};
+fields.forEach((f,i)=>{ fieldColors[f.cause_id] = ['#1e5799','#2989d8','#6B8E23','#e67e22','#9b59b6','#0d9488','#d946ef','#dc2626','#f59e0b','#3b82f6','#84cc16','#ec4899','#06b6d4','#a855f7','#f97316','#14b8a6','#6366f1','#8b5cf6','#e11d48','#059669','#c026d3','#0ea5e9'][i%22]; });
+
+// 主体到领域映射
+const subjectFields = {};
+sf.forEach(r=>{ if(!subjectFields[r.peace_id]) subjectFields[r.peace_id]=[]; subjectFields[r.peace_id].push(r.cause_id); });
+
+// 节点数据（保存原始 subject 记录，便于 tooltip）
+// 预置初始坐标，避免 d3.forceSimulation 在某些浏览器下 x/y 为 undefined 导致节点飞出视口
+const cx0 = width/2, cy0 = height/2;
+const nFields = fields.length || 1;
 const networkNodes = [
-  ...fields.map(f=>({id:f.field_id,name:f.name_zh,type:'field',r: 25 + sf.filter(r=>r.field_id===f.field_id).length*1.5})),
-  ...subjects.map(s=>({id:s.subject_id,name:s.subject_type==='组织'?(s.acronym||s.name_en.slice(0,10)):s.name_en.split(' ').slice(-1)[0],type:s.subject_type,r:s.subject_type==='组织'?10:6})),
+  ...fields.map((f,i)=>({
+    id:f.cause_id, name:f.name_zh, type:'field',
+    r: 22 + sf.filter(r=>r.cause_id===f.cause_id).length*1.2,
+    _rec:f,
+    x: cx0 + 240*Math.cos(i*Math.PI*2/nFields),
+    y: cy0 + 240*Math.sin(i*Math.PI*2/nFields)
+  })),
+  ...subjects.map((s,i)=>{
+    const angle = (i/subjects.length)*Math.PI*2;
+    return {
+      id:s.peace_id,
+      name: s.subject_type==='组织' ? (s.acronym||s.name_en.slice(0,10)) : s.name_en.split(' ').slice(-1)[0],
+      type:s.subject_type,
+      r: s.subject_type==='组织'?10:6,
+      _rec:s,
+      x: cx0 + 340*Math.cos(angle) + (Math.random()-0.5)*40,
+      y: cy0 + 340*Math.sin(angle) + (Math.random()-0.5)*40
+    };
+  })
 ];
-const networkLinks = sf.map(r=>({source:r.subject_id,target:r.field_id})).filter(l=>networkNodes.find(n=>n.id===l.source)&&networkNodes.find(n=>n.id===l.target));
-const color = d3.scaleOrdinal().domain(['field','个人','组织']).range(['#1e5799','#7db9e8','#6B8E23']);
-const simulation = d3.forceSimulation(networkNodes)
-  .force('link',d3.forceLink(networkLinks).id(d=>d.id).distance(100).strength(0.3))
-  .force('charge',d3.forceManyBody().strength(-50))
-  .force('center',d3.forceCenter(width/2,height/2))
-  .force('collide',d3.forceCollide(d=>d.r+3));
-const link = svg.append('g').selectAll('line').data(networkLinks).join('line')
-  .attr('stroke','#1e5799').attr('stroke-opacity',0.2).attr('stroke-width',1);
-const node = svg.append('g').selectAll('g').data(networkNodes).join('g').call(d3.drag()
-  .on('start',(e,d)=>{if(!e.active) simulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
-  .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
-  .on('end',(e,d)=>{if(!e.active) simulation.alphaTarget(0);d.fx=null;d.fy=null;}));
-node.append('circle').attr('r',d=>d.r).attr('fill',d=>color(d.type)).attr('stroke','#fff').attr('stroke-width',1.5);
-node.append('text').text(d=>d.name).attr('x',d=>d.r+3).attr('y',3).attr('font-size',d=>d.type==='field'?'12px':'9px').attr('fill','#333');
-simulation.on('tick',()=>{
-  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+const networkLinks = sf.map(r=>({source:r.peace_id,target:r.cause_id})).filter(l=>networkNodes.find(n=>n.id===l.source)&&networkNodes.find(n=>n.id===l.target));
+
+function nodeColor(d){
+  const mode = document.getElementById('netColorMode').value;
+  if(mode==='field'){
+    if(d.type==='field') return fieldColors[d.id]||'#1e5799';
+    const first = subjectFields[d.id]&&subjectFields[d.id][0];
+    return first ? fieldColors[first] : '#94a3b8';
+  }
+  if(mode==='decade'){
+    const y = d._rec && d._rec.nobel_year;
+    if(!y) return '#1e5799'; // 领域节点
+    const decade = Math.floor(y/10)*10;
+    const decadeColor = {1900:'#4a5568',1910:'#805ad5',1920:'#2b6cb0',1930:'#c05621',1940:'#dd6b20',1950:'#38a169',1960:'#2f855a',1970:'#b7791f',1980:'#9b2c2c',1990:'#319795',2000:'#553c9a',2010:'#2c5282'};
+    return decadeColor[decade] || '#64748b';
+  }
+  // type
+  if(d.type==='field') return '#1e5799';
+  if(d.type==='组织') return '#6B8E23';
+  return '#7db9e8';
+}
+
+const zoom = d3.zoom().scaleExtent([0.2,4]).on('zoom',e=>{
+  g.attr('transform',e.transform);
 });
+svg.call(zoom).on('dblclick.zoom',null);
+svg.on('dblclick',()=>{ svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity); resetHighlight(); });
+
+const g = svg.append('g');
+
+// 1) 先创建 simulation，跑 120 步 tick 让布局稳定，同时 forceLink 会把 link 的 source/target
+//    从字符串 id 替换为节点对象
+const simulation = d3.forceSimulation(networkNodes)
+  .force('link',d3.forceLink(networkLinks).id(d=>d.id).distance(110).strength(0.28))
+  .force('charge',d3.forceManyBody().strength(-70))
+  .force('center',d3.forceCenter(width/2,height/2))
+  .force('collide',d3.forceCollide(d=>d.r+4))
+  .force('x',d3.forceX(width/2).strength(0.04))
+  .force('y',d3.forceY(height/2).strength(0.06))
+  .stop();
+for (let i=0; i<120; i++) simulation.tick();
+
+// 2) tick 之后，d.source / d.target 已经是节点对象，可以直接读 .x/.y/.id
+const link = g.append('g').selectAll('line').data(networkLinks).join('line')
+  .attr('class','net-link')
+  .attr('stroke',d=>fieldColors[d.target.id] || '#1e5799')
+  .attr('stroke-opacity',0.45)
+  .attr('stroke-width',1)
+  .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+  .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+
+const node = g.append('g').selectAll('g').data(networkNodes).join('g')
+  .attr('class','net-node')
+  .call(d3.drag()
+    .on('start',(e,d)=>{if(!e.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y;})
+    .on('drag',(e,d)=>{ d.fx=e.x; d.fy=e.y; })
+    .on('end',(e,d)=>{ if(!e.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; }))
+  .attr('transform',d=>`translate(${d.x},${d.y})`);
+
+node.append('circle').attr('r',d=>d.r).attr('fill',nodeColor);
+node.append('text').text(d=>d.name).attr('x',d=>d.r+3).attr('y',3)
+  .attr('font-size',d=>d.type==='field'?'12px':'9px')
+  .attr('font-weight',d=>d.type==='field'?'600':'400')
+  .attr('fill','#333');
+
+function updatePositions(){
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+      .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+}
+simulation.on('tick', updatePositions);
+
+// 交互：tooltip / highlight
+const tip = document.getElementById('tip');
+function showTooltip(e,d){
+  let html='';
+  if(d.type==='field'){
+    const count = sf.filter(r=>r.cause_id===d.id).length;
+    html = `<h4>◆ ${d.name}</h4>
+      <div class="meta">领域 · ${count} 位获奖主体</div>`;
+  } else {
+    const s = d._rec;
+    const fRel = (subjectFields[d.id]||[]).map(fid=>fields.find(f=>f.cause_id===fid)?.name_zh).filter(Boolean);
+    html = `<h4>${s.name_en}${s.acronym?' <span style="color:#6B8E23;">'+s.acronym+'</span>':''}</h4>
+      <div class="meta">🏆 ${s.nobel_year} · ${s.subject_type} · ${s.country||'国际组织'}</div>`;
+    if(fRel.length) html += `<div style="margin-top:4px;">${fRel.map(f=>`<span class="field-tag">${f}</span>`).join('')}</div>`;
+  }
+  tip.innerHTML = html;
+  tip.style.display='block';
+  const x = Math.min(e.clientX+16, window.innerWidth-300);
+  const y = Math.min(e.clientY+16, window.innerHeight-tip.offsetHeight-20);
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function hideTooltip(){ tip.style.display='none'; }
+
+function highlightChain(d){
+  const relIds = new Set([d.id]);
+  const relatedLinks = new Set();
+  networkLinks.forEach((l,i)=>{
+    const sid = l.source.id||l.source, tid = l.target.id||l.target;
+    if(sid===d.id || tid===d.id){
+      relatedLinks.add(i);
+      relIds.add(sid); relIds.add(tid);
+    }
+  });
+  node.classed('dim',n=>!relIds.has(n.id));
+  link.classed('dim',(l,i)=>!relatedLinks.has(i)).classed('active',(l,i)=>relatedLinks.has(i));
+}
+function resetHighlight(){
+  node.classed('dim',false);
+  link.classed('dim',false).classed('active',false);
+}
+node.on('mouseover',showTooltip).on('mouseout',hideTooltip).on('click',(e,d)=>{ e.stopPropagation(); highlightChain(d); });
+
+// 控件
+document.getElementById('netColorMode').onchange = ()=>{
+  node.select('circle').transition().duration(300).attr('fill',nodeColor);
+};
+document.getElementById('netReset').onclick = resetHighlight;
+
+// 图层显隐 + 领域筛选 + 年份筛选
+function applyFilters(){
+  const showPerson = document.getElementById('netShowPerson').checked;
+  const showOrg = document.getElementById('netShowOrg').checked;
+  const showField = document.getElementById('netShowField').checked;
+  const ff = document.getElementById('netFieldFilter').value;
+  const minY = +document.getElementById('netYearRange').value;
+
+  node.style('display',d=>{
+    if(d.type==='field'){
+      if(!showField) return 'none';
+      if(ff && d.id!==ff) return 'none';
+      return null;
+    }
+    if(d.type==='个人' && !showPerson) return 'none';
+    if(d.type==='组织' && !showOrg) return 'none';
+    const y = d._rec && d._rec.nobel_year;
+    if(y && y < minY) return 'none';
+    if(ff){
+      const myFields = subjectFields[d.id]||[];
+      if(!myFields.includes(ff)) return 'none';
+    }
+    return null;
+  });
+  const visible = new Set();
+  node.each(function(d){ if(d3.select(this).style('display')!=='none') visible.add(d.id); });
+  link.style('display',l=>{
+    const sid=l.source.id||l.source, tid=l.target.id||l.target;
+    return (visible.has(sid)&&visible.has(tid)) ? null : 'none';
+  });
+}
+['netShowPerson','netShowOrg','netShowField','netFieldFilter'].forEach(id=>{
+  document.getElementById(id).onchange = applyFilters;
+});
+document.getElementById('netYearRange').oninput = (e)=>{
+  document.getElementById('netYearLabel').textContent = e.target.value;
+  applyFilters();
+};
+
+// 填充领域筛选
+const ffSel = document.getElementById('netFieldFilter');
+fields.forEach(f=>{
+  const o = document.createElement('option');
+  o.value = f.cause_id; o.textContent = f.name_zh;
+  ffSel.appendChild(o);
+});
+
+// 名录点击 → 联动网络图高亮
+const listItems = document.querySelectorAll('.subject-item');
+listItems.forEach((item,idx)=>{
+  const s = subjects[idx];
+  item.onclick = ()=>{
+    listItems.forEach(x=>x.classList.remove('active'));
+    item.classList.add('active');
+    // 复位缩放
+    svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+    // 高亮对应节点及其边
+    setTimeout(()=>{
+      const target = networkNodes.find(n=>n.id===s.peace_id);
+      if(target){
+        highlightChain(target);
+        // 滚动到该节点
+        const scale = 1.6;
+        const tx = width/2 - target.x*scale;
+        const ty = height/2 - target.y*scale;
+        svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(scale));
+      }
+    }, 100);
+  };
+});
+
+/* ================= AI 面板 ================= */
+(function initAI(){
+  const btn = document.getElementById('aiBtn');
+  const panel = document.getElementById('aiPanel');
+  const stateEl = document.getElementById('aiState');
+  const body = document.getElementById('aiBody');
+  const cta = document.getElementById('aiAsk');
+  const closeBtn = document.getElementById('aiClose');
+  const follow = document.getElementById('aiFollow');
+
+  const SYSTEM_PROMPT = `你是诺贝尔和平奖研究专家。基于用户提供的和平奖数据摘要，用简体中文回答，控制在 220–350 字之间，包含 3 个要点：
+1) 领域与获奖主体类型的整体格局（个人 vs 组织，7 大领域分布）
+2) 值得关注的历史节点或代表人物（尤其拒领/追授/在任获奖等特殊案例）
+3) 一句话总结和平奖的价值取向或演变趋势
+使用 **加粗** 强调关键数字，允许分点（- 开头）。不添加寒暄。`;
+
+  function esc(s){ return String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function buildContext(){
+    const fieldByName = {};
+    fields.forEach(f=> fieldByName[f.cause_id] = f.name_zh);
+    const fieldCountMap = {};
+    sf.forEach(r=>{ const n = fieldByName[r.cause_id]; if(n) fieldCountMap[n]=(fieldCountMap[n]||0)+1; });
+    const topFields = Object.entries(fieldCountMap).sort((a,b)=>b[1]-a[1]);
+
+    const countryCountMap = {};
+    subjects.forEach(s=>{ if(s.country) countryCountMap[s.country]=(countryCountMap[s.country]||0)+1; });
+    const topCountries = Object.entries(countryCountMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+    const decadeCount = {};
+    subjects.forEach(s=>{ const d=Math.floor((s.nobel_year||1900)/10)*10; decadeCount[d]=(decadeCount[d]||0)+1; });
+    const topDecades = Object.entries(decadeCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+    const declined = subjects.filter(s=>s.declined==='是');
+    const posthumous = subjects.filter(s=>s.posthumous==='是');
+    const inOffice = subjects.filter(s=>s.in_office==='是');
+
+    const recent = subjects.slice(-8).map(s=>{
+      const fs = (subjectFields[s.peace_id]||[]).map(fid=>fieldByName[fid]).filter(Boolean).join('/');
+      return `  - ${s.nobel_year} ${s.subject_type==='组织'?(s.acronym||s.name_en):s.name_en.split(' ').slice(-1)[0]}${fs?' · '+fs:''}`;
+    }).join('\n');
+
+    return {
+      total: subjects.length,
+      person: personSubjects.length,
+      org: orgSubjects.length,
+      countryCount: countries.size,
+      fieldCount: fields.length,
+      topFields, topCountries, topDecades,
+      declined: declined.map(s=>`${s.nobel_year} ${s.name_en.split(' ').slice(-1)[0]}`),
+      posthumous: posthumous.map(s=>`${s.nobel_year} ${s.name_en.split(' ').slice(-1)[0]}`),
+      inOffice: inOffice.map(s=>`${s.nobel_year} ${s.name_en.split(' ').slice(-1)[0]}`),
+      recent
+    };
+  }
+
+  function ctxPrompt(c){
+    return [
+      `【主体】共 ${c.total} 位 · 个人 ${c.person} / 组织 ${c.org} · 覆盖 ${c.fieldCount} 领域 / ${c.countryCount} 国家地区`,
+      `【Top 领域】` + c.topFields.slice(0,7).map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【Top 国家】` + c.topCountries.map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【最多年代】` + c.topDecades.map(([k,v])=>`${k}s:${v}`).join(' · '),
+      c.declined.length ? `【拒领】` + c.declined.join('、') : '',
+      c.posthumous.length ? `【追授】` + c.posthumous.join('、') : '',
+      c.inOffice.length ? `【在任获奖】` + c.inOffice.slice(0,5).join('、') : '',
+      c.recent ? `【近年得主示例】\n${c.recent}` : ''
+    ].filter(Boolean).join('\n');
+  }
+
+  function renderMd(text){
+    if (!text) return '';
+    const lines = String(text).split('\n');
+    let html = '', inList = false, inCode = false;
+    for (let line of lines){
+      if (line.startsWith('```')){
+        if (inCode){ html += '</pre>'; inCode=false; }
+        else { if(inList){ html += '</ul>'; inList=false; } html += '<pre style="background:#fff;padding:8px;border-radius:6px;font-size:11.5px;overflow-x:auto">'; inCode=true; }
+        continue;
+      }
+      if (inCode){ html += line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); continue; }
+      let t = line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+      t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      t = t.replace(/\*(.+?)\*/g, '<i>$1</i>');
+      if (/^\s*[-*]\s+/.test(line)){
+        if (!inList){ html += '<ul style="margin:6px 0;padding-left:18px">'; inList=true; }
+        html += `<li>${t.replace(/^\s*[-*]\s+/,'')}</li>`;
+        continue;
+      }
+      if (inList){ html += '</ul>'; inList=false; }
+      if (line.trim()) html += `<p style="margin:4px 0">${t}</p>`;
+    }
+    if (inList) html += '</ul>';
+    if (inCode) html += '</pre>';
+    return html;
+  }
+
+  function offlineInterpret(c){
+    const top3 = c.topFields.slice(0,3).map(([k,v])=>`${k}(${v})`).join('、');
+    const top2c = c.topCountries.slice(0,3).map(([k,v])=>`${k}(${v})`).join('、');
+    return `<p><b>☮️ 离线解读</b>（未配置 LLM，使用本地数据聚合）</p>
+      <ul>
+        <li>共 <b>${c.total}</b> 位和平奖得主：个人 ${c.person} · 组织 ${c.org}</li>
+        <li>Top 领域：${top3}</li>
+        <li>Top 国家/地区：${top2c}</li>
+        <li>特殊案例：拒领 ${c.declined.length}、追授 ${c.posthumous.length}、在任获奖 ${c.inOffice.length}</li>
+        <li>💡 若需更深入洞察，可在 <code>js/ai.js</code> 中配置 OpenAI 兼容端点</li>
+      </ul>`;
+  }
+
+  let history = [];
+
+  async function runGenerate(){
+    const c = buildContext();
+    const userPrompt = ctxPrompt(c);
+    cta.disabled = true; cta.textContent = '生成中…';
+    if (hasLLM()){
+      body.innerHTML = '<div class="empty">思考中…</div>';
+      stateEl.textContent = '正在调用 LLM…';
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: userPrompt}];
+      try {
+        let acc = '';
+        for await (const chunk of askStream(history)){
+          acc += chunk;
+          body.classList.remove('empty');
+          body.innerHTML = renderMd(acc);
+        }
+        history.push({role:'assistant', content: acc});
+        stateEl.textContent = '✅ 已生成 · 可继续追问';
+      } catch (err){
+        body.classList.add('empty');
+        body.innerHTML = `<div class="error">❌ ${esc(friendlyError(err))}</div>`;
+        stateEl.textContent = '调用失败';
+      }
+    } else {
+      body.classList.remove('empty');
+      body.innerHTML = offlineInterpret(c);
+      stateEl.textContent = '离线模式（未配置 LLM）';
+    }
+    cta.disabled = false; cta.textContent = '重新生成';
+  }
+
+  async function runFollow(){
+    const q = follow.value.trim();
+    if (!q) return;
+    if (!hasLLM()){
+      body.classList.remove('empty');
+      body.innerHTML += `<p style="color:#888;margin-top:10px"><b>Q:</b> ${esc(q)}</p><p style="color:#888">离线模式不支持追问，请配置 LLM 后重试。</p>`;
+      follow.value = '';
+      return;
+    }
+    if (!history.length){
+      const c = buildContext();
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: ctxPrompt(c)}];
+    }
+    history.push({role:'user', content: q});
+    follow.value = '';
+    body.innerHTML += `<p style="margin-top:8px;padding-top:8px;border-top:1px dashed #e0ecf5"><b>Q:</b> ${esc(q)}</p>`;
+    cta.disabled = true;
+    try {
+      let acc = '';
+      for await (const chunk of askStream(history)) acc += chunk;
+      history.push({role:'assistant', content: acc});
+      body.innerHTML += renderMd(acc);
+      body.scrollTop = body.scrollHeight;
+    } catch (err){
+      body.innerHTML += `<p style="color:#dc2626">❌ ${esc(friendlyError(err))}</p>`;
+    }
+    cta.disabled = false;
+  }
+
+  btn.onclick = ()=> panel.classList.toggle('on');
+  closeBtn.onclick = ()=> panel.classList.remove('on');
+  cta.onclick = runGenerate;
+  follow.addEventListener('keydown', e=>{ if (e.key === 'Enter') runFollow(); });
+
+  if (!hasLLM()) btn.style.display = 'none';
+})();
 </script>
 </body>
 </html>

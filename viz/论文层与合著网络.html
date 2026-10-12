@@ -27,10 +27,50 @@
   table{ border-collapse:collapse; width:100%; font-size:12.5px; }
   th,td{ padding:7px 9px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
   th{ background:#f3f6fc; position:sticky; top:0; font-weight:700; }
-  tr:hover td{ background:#f8fbff; }
+  tr:hover td{ background:#f8fbff; cursor:pointer; }
+  tr.sel td{ background:#eef4ff; }
   .tag{ font-size:11px; padding:1px 7px; border-radius:999px; white-space:nowrap; }
   .t-phy{ background:#e6efff; color:#1d4ed8; } .t-chem{ background:#e2f6ef; color:#047857; }
-  .t-med{ background:#fdeee4; color:#c2410c; } .t-oth{ background:#eef1f6; color:#475569; }
+  .t-med{ background:#fdeee4; color:#c2410c; } .t-bio{ background:#f3e8ff; color:#7c3aed; }
+  .t-econ{ background:#fef3c7; color:#92400e; } .t-oth{ background:#eef1f6; color:#475569; }
+  /* 影响链类型筛选 chips */
+  .lchip{ display:inline-flex; align-items:center; gap:5px; font-size:12px; padding:4px 11px;
+          border-radius:999px; border:1px solid var(--line); background:#fff; color:#475569;
+          cursor:pointer; user-select:none; transition:all .15s; }
+  .lchip i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .lchip.off{ opacity:.38; }
+  /* 加载条 */
+  #loadbar{ font-size:13px; color:var(--brand); background:rgba(37,99,235,.06);
+            border:1px dashed rgba(37,99,235,.35); border-radius:10px; padding:10px 14px; margin:6px 0 14px; }
+  /* 论文详情抽屉 */
+  #detail{ display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:12px;
+           font-size:12.5px; line-height:1.75; color:#334155; }
+  #detail h4{ margin:0 0 6px; font-size:14px; }
+  #detail .sec{ margin:6px 0; }
+  #detail .li{ margin:2px 0; padding-left:14px; text-indent:-14px; }
+  #detail .ity{ font-size:11px; padding:1px 7px; border-radius:999px; white-space:nowrap; }
+  /* AI 面板（浅色玻璃） */
+  .ai-panel{ position:fixed; top:16px; right:16px; width:342px; max-width:calc(100vw - 32px); z-index:30;
+             background:rgba(255,255,255,.94); border:1px solid #c7d7fb; border-radius:14px;
+             padding:13px 15px; color:#334155; box-shadow:0 10px 34px rgba(37,99,235,.14);
+             backdrop-filter:blur(8px); font-size:12.5px; }
+  .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:9px; cursor:pointer; }
+  .ai-head h3{ margin:0; font-size:13.5px; color:#1d4ed8; letter-spacing:.4px; flex:1; }
+  .ai-head .dot{ width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e; animation:pulse 1.6s infinite; }
+  .ai-head .dot.off{ background:#94a3b8; box-shadow:none; animation:none; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  .ai-body{ max-height:52vh; overflow-y:auto; line-height:1.75; color:#475569; }
+  .ai-body.empty{ color:#94a3b8; text-align:center; padding:10px 2px; }
+  .ai-body .error{ color:#dc2626; }
+  .ai-actions{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .ai-btn{ background:rgba(37,99,235,.08); border:1px solid rgba(37,99,235,.3); color:#1d4ed8;
+           font-size:11.5px; padding:6px 10px; border-radius:8px; cursor:pointer; font-family:inherit; transition:all .15s; }
+  .ai-btn:hover{ background:rgba(37,99,235,.16); transform:translateY(-1px); }
+  .ai-btn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+  .ai-btn.gold{ background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; border-color:transparent; font-weight:700; }
+  .ai-btn.gold:disabled{ background:#cbd5e1; color:#64748b; }
+  .ai-note{ font-size:10.5px; color:#94a3b8; margin-top:8px; line-height:1.5; }
+  @media (max-width:900px){ .ai-panel{ width:calc(100vw - 32px); } }
 </style>
 </head>
 <body>
@@ -38,126 +78,421 @@
   <div style="padding:38px 0 8px;">
     <span class="chip">诺贝尔奖师承本体 · 论文/著作层</span>
     <h1 style="font-size:30px;font-weight:800;margin:6px 0 4px;">论文与合著网络</h1>
-    <p style="color:var(--muted);margin:0 0 18px;">
-      将「代表性工作」下沉到原始论文/著作（含期刊、年份、卷页、DOI），并派生署名与合著关系——
-      合著边把原本仅靠师承相连的师门连接成图。</p>
+    <p style="color:var(--muted);margin:0 0 14px;">
+      将「代表性工作」下沉到原始论文/著作（含期刊、年份、卷页、DOI），派生<b>署名→合著</b>与<b>论文→论文影响链</b>两类关系——
+      合著边把师门连成图，影响链展示范式如何代际演化。本页数据由浏览器内 DuckDB 对本体 Parquet 实时查询生成。</p>
   </div>
 
-  <div class="grid grid-cols-2 md:grid-cols-6 gap-3" id="kpis"></div>
+  <div id="loadbar">⏳ 正在初始化浏览器内数据库…</div>
+  <div id="main" style="display:none;">
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3" id="kpis"></div>
 
-  <div class="grid md:grid-cols-2 gap-4" style="margin-top:20px;">
-    <div class="card"><div id="timeline" style="height:420px;"></div></div>
-    <div class="card"><div id="graph" style="height:420px;"></div></div>
-    <div class="card"><div id="journals" style="height:420px;"></div></div>
-    <div class="card"><div id="lag" style="height:420px;"></div></div>
-  </div>
-
-  <div class="card" style="margin:20px 0 10px;">
-    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;">
-      <strong style="font-size:16px;">里程碑论文/著作明细</strong>
-      <input id="q" placeholder="搜索标题 / 作者 / 期刊" style="border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:13px;min-width:220px;">
-      <select id="disc" style="border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:13px;">
-        <option value="">全部门类</option><option>物理学</option><option>化学</option><option>生理学或医学</option>
-      </select>
-      <label style="font-size:13px;color:var(--muted);"><input type="checkbox" id="lmonly" checked> 仅里程碑</label>
-      <span id="cnt" style="font-size:13px;color:var(--muted);"></span>
+    <div class="grid md:grid-cols-2 gap-4" style="margin-top:20px;">
+      <div class="card"><div id="timeline" style="height:420px;"></div></div>
+      <div class="card"><div id="graph" style="height:420px;"></div></div>
     </div>
-    <div style="overflow:auto;max-height:520px;"><table id="tbl">
-      <thead><tr><th>年份</th><th>论文/著作</th><th>作者</th><th>期刊/出版方</th><th>卷页</th><th>研究方向</th><th>里程碑</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
+
+    <div class="card" style="margin-top:16px;">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 4px 12px;">
+        <span style="font-weight:700;font-size:14px;">论文影响链（师门论文间的传承网络）</span>
+        <span id="lchips" style="display:flex;gap:8px;flex-wrap:wrap;margin-left:8px;"></span>
+      </div>
+      <div id="lineage" style="height:560px;"></div>
+      <p style="color:var(--muted);font-size:11.5px;margin:2px 0 0 12px;">
+        节点 = 论文/著作（大小 = 被下游引用次数，颜色 = 学科），箭头 = 影响方向（师作 → 生作），悬停查看传承说明。</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4" style="margin-top:16px;">
+      <div class="card"><div id="journals" style="height:420px;"></div></div>
+      <div class="card"><div id="lag" style="height:420px;"></div></div>
+    </div>
+
+    <div class="card" style="margin:20px 0 10px;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;">
+        <strong style="font-size:16px;">论文/著作明细</strong>
+        <input id="q" placeholder="搜索标题 / 作者 / 期刊" style="border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:13px;min-width:220px;">
+        <select id="disc" style="border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:13px;"></select>
+        <label style="font-size:13px;color:var(--muted);"><input type="checkbox" id="lmonly" checked> 仅里程碑</label>
+        <span id="cnt" style="font-size:13px;color:var(--muted);"></span>
+      </div>
+      <div style="overflow:auto;max-height:520px;"><table id="tbl">
+        <thead><tr><th>年份</th><th>论文/著作</th><th>作者</th><th>期刊/出版方</th><th>卷页</th><th>研究方向</th><th>里程碑</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div id="detail"></div>
+    </div>
+    <p style="color:var(--muted);font-size:12px;padding-bottom:34px;">
+      数据来源：诺奖师承本体 DuckDB（papers / paper_author / paper_lineage / collaboration / works / fields / persons 实时查询）。
+      ★ 里程碑 = 该项代表性工作的原始奠定性发表。点击表格行可查看该文的传承关系与备注。</p>
   </div>
-  <p style="color:var(--muted);font-size:12px;padding-bottom:34px;">
-    数据来源：诺奖师承本体 DuckDB（论文著作 / 论文作者 / v_合作网络 / v_论文诺奖时滞 / v_期刊分布）。
-    ★ 里程碑 = 该项代表性工作的原始奠定性发表。</p>
 </div>
 
-<script>
-const DATA = {"kpi": {"papers": 58, "lm": 44, "jr": 23, "doi": 46, "lag": 13.6, "co": 11}, "papers": [{"id": "PA051", "tz": "关于细微分散体光学性质的研究", "t": "Untersuchungen über die optischen Eigenschaften von fein vertheilten Körpern", "au": "C. Christiansen", "j": "Annalen der Physik", "y": 1884, "type": "期刊论文", "lm": false, "vp": "23: 298-306", "doi": "10.1002/andp.18842580611", "work": "詹森效应/光散射研究", "disc": "物理学", "field": "光学与光谱学"}, {"id": "PA003", "tz": "阴极射线", "t": "Cathode Rays", "au": "J. J. Thomson", "j": "Philosophical Magazine", "y": 1897, "type": "期刊论文", "lm": true, "vp": "44: 293-316", "doi": null, "work": "电子的发现", "disc": "物理学", "field": "电子物理"}, {"id": "PA029", "tz": "论沥青铀矿中一种强放射性新物质", "t": "Sur une nouvelle substance fortement radio-active contenue dans la pechblende", "au": "P. Curie, M. Curie, G. Bémont", "j": "Comptes Rendus de l'Académie des Sciences", "y": 1898, "type": "期刊论文", "lm": true, "vp": "127: 175-178", "doi": null, "work": "镭和钋的发现", "disc": "化学", "field": "放射化学"}, {"id": "PA004", "tz": "α与β粒子被物质散射及原子结构", "t": "The Scattering of α and β Particles by Matter and the Structure of the Atom", "au": "E. Rutherford", "j": "Philosophical Magazine", "y": 1911, "type": "期刊论文", "lm": true, "vp": "21: 669-688", "doi": null, "work": "原子核的发现", "disc": "物理学", "field": "核物理"}, {"id": "PA022", "tz": "比热理论", "t": "Zur Theorie der spezifischen Wärmen", "au": "P. Debye", "j": "Annalen der Physik", "y": 1912, "type": "期刊论文", "lm": true, "vp": "39: 789-839", "doi": "10.1002/andp.19123441404", "work": "德拜模型与偶极矩理论", "disc": "化学", "field": "物理化学"}, {"id": "PA019", "tz": "短电磁波被晶体的衍射", "t": "The Diffraction of Short Electromagnetic Waves by a Crystal", "au": "W. L. Bragg", "j": "Proceedings of the Cambridge Philosophical Society", "y": 1913, "type": "期刊论文", "lm": true, "vp": "17: 43-57", "doi": null, "work": "布拉格定律与X射线晶体分析", "disc": "物理学", "field": "固体物理与晶体学"}, {"id": "PA001", "tz": "论原子和分子的构造（玻尔三部曲）", "t": "On the Constitution of Atoms and Molecules", "au": "N. Bohr", "j": "Philosophical Magazine", "y": 1913, "type": "期刊论文", "lm": true, "vp": "26: 1-25, 476-502, 857-875", "doi": null, "work": "玻尔原子模型", "disc": "物理学", "field": "原子与分子物理"}, {"id": "PA002", "tz": "光谱线的量子理论", "t": "Zur Quantentheorie der Spektrallinien", "au": "A. Sommerfeld", "j": "Annalen der Physik", "y": 1916, "type": "期刊论文", "lm": true, "vp": "51: 1-94, 125-167", "doi": null, "work": "索末菲精细结构理论", "disc": "物理学", "field": "原子与分子物理"}, {"id": "PA055", "tz": "量子力学", "t": "Zur Quantenmechanik", "au": "M. Born, P. Jordan", "j": "Zeitschrift für Physik", "y": 1925, "type": "期刊论文", "lm": false, "vp": "34: 858-888", "doi": "10.1007/BF01328531", "work": "矩阵力学", "disc": "物理学", "field": "量子力学"}, {"id": "PA007", "tz": "关于运动学与力学关系的量子论重构", "t": "Über quantentheoretische Umdeutung kinematischer und mechanischer Beziehungen", "au": "W. Heisenberg", "j": "Zeitschrift für Physik", "y": 1925, "type": "期刊论文", "lm": true, "vp": "33: 879-893", "doi": "10.1007/BF01328377", "work": "矩阵力学", "disc": "物理学", "field": "量子力学"}, {"id": "PA009", "tz": "论原子电子壳层闭合与光谱复杂结构的关系", "t": "Über den Zusammenhang des Abschlusses der Elektronengruppen im Atom mit der Komplexstruktur der Spektren", "au": "W. Pauli", "j": "Zeitschrift für Physik", "y": 1925, "type": "期刊论文", "lm": true, "vp": "31: 765-783", "doi": "10.1007/BF02980631", "work": "泡利不相容原理", "disc": "物理学", "field": "量子力学"}, {"id": "PA056", "tz": "量子力学 II", "t": "Zur Quantenmechanik II", "au": "M. Born, W. Heisenberg, P. Jordan", "j": "Zeitschrift für Physik", "y": 1926, "type": "期刊论文", "lm": true, "vp": "35: 557-615", "doi": "10.1007/BF01379806", "work": "矩阵力学", "disc": "物理学", "field": "量子力学"}, {"id": "PA013", "tz": "理想单原子气体的量子化", "t": "Zur Quantelung des idealen einatomigen Gases", "au": "E. Fermi", "j": "Zeitschrift für Physik", "y": 1926, "type": "期刊论文", "lm": true, "vp": "36: 902-912", "doi": "10.1007/BF01400221", "work": "费米-狄拉克统计", "disc": "物理学", "field": "统计力学"}, {"id": "PA012", "tz": "量子力学中的碰撞过程", "t": "Zur Quantenmechanik der Stoßvorgänge", "au": "M. Born", "j": "Zeitschrift für Physik", "y": 1926, "type": "期刊论文", "lm": true, "vp": "37: 863-867", "doi": "10.1007/BF01397477", "work": "波函数统计解释", "disc": "物理学", "field": "量子力学"}, {"id": "PA020", "tz": "电子被镍晶体的衍射", "t": "Diffraction of Electrons by a Crystal of Nickel", "au": "C. J. Davisson, L. H. Germer", "j": "Physical Review", "y": 1927, "type": "期刊论文", "lm": true, "vp": "30: 705-740", "doi": "10.1103/PhysRev.30.705", "work": "电子衍射实验", "disc": "物理学", "field": "电子物理"}, {"id": "PA008", "tz": "量子论运动学与力学的直观内容", "t": "Über den anschaulichen Inhalt der quantentheoretischen Kinematik und Mechanik", "au": "W. Heisenberg", "j": "Zeitschrift für Physik", "y": 1927, "type": "期刊论文", "lm": true, "vp": "43: 172-198", "doi": "10.1007/BF01397280", "work": "不确定性原理", "disc": "物理学", "field": "量子力学"}, {"id": "PA021", "tz": "阴极射线被薄膜的衍射", "t": "Diffraction of Cathode Rays by a Thin Film", "au": "G. P. Thomson, A. Reid", "j": "Nature", "y": 1927, "type": "期刊论文", "lm": true, "vp": "119: 890", "doi": "10.1038/119890b0", "work": "电子衍射实验", "disc": "物理学", "field": "电子物理"}, {"id": "PA011", "tz": "电子的量子理论（第二部分）", "t": "The Quantum Theory of the Electron. Part II", "au": "P. A. M. Dirac", "j": "Proceedings of the Royal Society A", "y": 1928, "type": "期刊论文", "lm": false, "vp": "118: 351-361", "doi": "10.1098/rspa.1928.0056", "work": "反粒子预言", "disc": "物理学", "field": "粒子物理"}, {"id": "PA010", "tz": "电子的量子理论", "t": "The Quantum Theory of the Electron", "au": "P. A. M. Dirac", "j": "Proceedings of the Royal Society A", "y": 1928, "type": "期刊论文", "lm": true, "vp": "117: 610-624", "doi": "10.1098/rspa.1928.0023", "work": "狄拉克方程", "disc": "物理学", "field": "量子力学"}, {"id": "PA005", "tz": "中子的可能存在", "t": "Possible Existence of a Neutron", "au": "J. Chadwick", "j": "Nature", "y": 1932, "type": "期刊论文", "lm": true, "vp": "129: 312", "doi": "10.1038/129312a0", "work": "中子的发现", "disc": "物理学", "field": "核物理"}, {"id": "PA006", "tz": "中子的存在", "t": "The Existence of a Neutron", "au": "J. Chadwick", "j": "Proceedings of the Royal Society A", "y": 1932, "type": "期刊论文", "lm": false, "vp": "136: 692-708", "doi": "10.1098/rspa.1932.0112", "work": "中子的发现", "disc": "物理学", "field": "核物理"}, {"id": "PA054", "tz": "原子序数大于92的元素之可能生成", "t": "Possible Production of Elements of Atomic Number Higher than 92", "au": "E. Fermi", "j": "Nature", "y": 1934, "type": "期刊论文", "lm": false, "vp": "133: 898-899", "doi": "10.1038/133898a0", "work": "慢中子诱发放射性", "disc": "物理学", "field": "核物理"}, {"id": "PA030", "tz": "一种新型放射性", "t": "Un nouveau type de radioactivité", "au": "F. Joliot, I. Curie", "j": "Comptes Rendus de l'Académie des Sciences", "y": 1934, "type": "期刊论文", "lm": true, "vp": "198: 254-256", "doi": null, "work": "人工放射性", "disc": "化学", "field": "放射化学"}, {"id": "PA032", "tz": "结晶胃蛋白酶的X射线照片", "t": "X-ray Photographs of Crystalline Pepsin", "au": "J. D. Bernal, D. Crowfoot", "j": "Nature", "y": 1934, "type": "期刊论文", "lm": true, "vp": "133: 794-795", "doi": "10.1038/133794b0", "work": "蛋白质与病毒X射线衍射", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA052", "tz": "恒星内部的元素转变 II", "t": "Über Elementumwandlungen in Innern der Sterne II", "au": "C. F. von Weizsäcker", "j": "Physikalische Zeitschrift", "y": 1938, "type": "期刊论文", "lm": false, "vp": "39: 633-646", "doi": null, "work": "碳-氮-氧循环（CNO循环）", "disc": "物理学", "field": "核物理"}, {"id": "PA024", "tz": "统计热力学", "t": "Statistical Thermodynamics", "au": "R. H. Fowler, E. A. Guggenheim", "j": "Cambridge University Press", "y": 1939, "type": "专著", "lm": true, "vp": null, "doi": null, "work": "热力学第零定律", "disc": "物理学", "field": "统计力学"}, {"id": "PA018", "tz": "恒星中的能量产生", "t": "Energy Production in Stars", "au": "H. A. Bethe", "j": "Physical Review", "y": 1939, "type": "期刊论文", "lm": true, "vp": "55: 434-456", "doi": "10.1103/PhysRev.55.434", "work": "恒星核合成理论", "disc": "物理学", "field": "核物理"}, {"id": "PA025", "tz": "第一个反应堆", "t": "The First Reactor（芝加哥一号堆）", "au": "E. Fermi et al.", "j": "技术报告", "y": 1942, "type": "报告", "lm": true, "vp": null, "doi": null, "work": "芝加哥一号堆", "disc": "物理学", "field": "核物理"}, {"id": "PA050", "tz": "细菌由病毒敏感向病毒抗性的突变", "t": "Mutations of Bacteria from Virus Sensitivity to Virus Resistance", "au": "S. E. Luria, M. Delbrück", "j": "Genetics", "y": 1943, "type": "期刊论文", "lm": true, "vp": "28: 491-511", "doi": "10.1093/genetics/28.6.491", "work": "噬菌体遗传机制研究", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA016", "tz": "论原子核中的闭合壳层", "t": "On Closed Shells in Nuclei", "au": "M. Goeppert-Mayer", "j": "Physical Review", "y": 1948, "type": "期刊论文", "lm": true, "vp": "74: 235-239", "doi": "10.1103/PhysRev.74.235", "work": "原子核壳层模型", "disc": "物理学", "field": "核物理"}, {"id": "PA017", "tz": "若干闭壳核的解释", "t": "On the Interpretation of Some Closed-Shell Nuclei", "au": "M. Goeppert-Mayer", "j": "Physical Review", "y": 1949, "type": "期刊论文", "lm": false, "vp": "75: 1969-1970", "doi": "10.1103/PhysRev.75.1969", "work": "原子核壳层模型", "disc": "物理学", "field": "核物理"}, {"id": "PA026", "tz": "论异催化爆轰 I", "t": "On Heterocatalytic Detonations I（Teller-Ulam 构型）", "au": "E. Teller, S. Ulam", "j": "机密技术报告", "y": 1951, "type": "报告", "lm": true, "vp": null, "doi": null, "work": "Teller-Ulam热核构型", "disc": "物理学", "field": "核物理"}, {"id": "PA031", "tz": "核酸的分子结构——脱氧核糖核酸的一种结构", "t": "Molecular Structure of Nucleic Acids: A Structure for Deoxyribose Nucleic Acid", "au": "J. D. Watson, F. H. C. Crick", "j": "Nature", "y": 1953, "type": "期刊论文", "lm": true, "vp": "171: 737-738", "doi": "10.1038/171737a0", "work": "DNA双螺旋结构模型", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA057", "tz": "胸腺核酸钠盐的分子构型", "t": "Molecular Configuration in Sodium Thymonucleate", "au": "R. E. Franklin, R. G. Gosling", "j": "Nature", "y": 1953, "type": "期刊论文", "lm": true, "vp": "171: 740-741", "doi": "10.1038/171740a0", "work": "DNA X射线衍射证据", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA023", "tz": "核结构的集体与单粒子图像", "t": "Collective and Individual-Particle Aspects of Nuclear Structure", "au": "A. Bohr, B. R. Mottelson", "j": "Matematisk-fysiske Meddelelser (Dan. Vid. Selsk.)", "y": 1953, "type": "期刊论文", "lm": true, "vp": "27(16)", "doi": null, "work": "原子核集体运动模型", "disc": "物理学", "field": "核物理"}, {"id": "PA058", "tz": "脱氧戊糖核酸的分子结构", "t": "Molecular Structure of Deoxypentose Nucleic Acids", "au": "M. H. F. Wilkins, A. R. Stokes, H. R. Wilson", "j": "Nature", "y": 1953, "type": "期刊论文", "lm": false, "vp": "171: 738-740", "doi": "10.1038/171738a0", "work": "DNA X射线衍射证据", "disc": "生理学或医学", "field": "分子生物学"}, {"id": "PA015", "tz": "同位旋守恒与同位旋规范不变性", "t": "Conservation of Isotopic Spin and Isotopic Gauge Invariance", "au": "C. N. Yang, R. L. Mills", "j": "Physical Review", "y": 1954, "type": "期刊论文", "lm": true, "vp": "96: 191-195", "doi": "10.1103/PhysRev.96.191", "work": "杨-米尔斯规范场论", "disc": "物理学", "field": "粒子物理"}, {"id": "PA033", "tz": "血红蛋白结构 IV：同晶置换法确定相位", "t": "The Structure of Haemoglobin IV. Sign Determination by the Isomorphous Replacement Method", "au": "D. W. Green, V. M. Ingham, M. F. Perutz", "j": "Proceedings of the Royal Society A", "y": 1954, "type": "期刊论文", "lm": true, "vp": "225: 287-307", "doi": "10.1098/rspa.1954.0203", "work": "同晶置换法", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA014", "tz": "弱相互作用中宇称守恒问题", "t": "Question of Parity Conservation in Weak Interactions", "au": "T. D. Lee, C. N. Yang", "j": "Physical Review", "y": 1956, "type": "期刊论文", "lm": true, "vp": "104: 254-258", "doi": "10.1103/PhysRev.104.254", "work": "宇称不守恒", "disc": "物理学", "field": "粒子物理"}, {"id": "PA035", "tz": "由X射线分析获得的肌红蛋白三维模型", "t": "A Three-Dimensional Model of the Myoglobin Molecule Obtained by X-Ray Analysis", "au": "J. C. Kendrew et al.", "j": "Nature", "y": 1958, "type": "期刊论文", "lm": true, "vp": "181: 662-666", "doi": "10.1038/181662a0", "work": "肌红蛋白三维结构解析", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA034", "tz": "血红蛋白结构：5.5埃分辨率三维傅里叶合成", "t": "Structure of Haemoglobin: A Three-Dimensional Fourier Synthesis at 5.5-Å Resolution", "au": "M. F. Perutz et al.", "j": "Nature", "y": 1960, "type": "期刊论文", "lm": true, "vp": "185: 416-422", "doi": "10.1038/185416a0", "work": "血红蛋白三维结构解析", "disc": "化学", "field": "结构生物学与X射线晶体学"}, {"id": "PA036", "tz": "盐生盐杆菌紫膜中的视紫红质样蛋白", "t": "Rhodopsin-like Protein from the Purple Membrane of Halobacterium halobium", "au": "D. Oesterhelt, W. Stoeckenius", "j": "Nature New Biology", "y": 1971, "type": "期刊论文", "lm": true, "vp": "233: 149-152", "doi": "10.1038/newbio233149a0", "work": "细菌视紫红质", "disc": "生理学或医学", "field": "生物化学"}, {"id": "PA045", "tz": "过渡金属配合物的不对称催化还原 I：一种新手性双膦配体 DIOP", "t": "Asymmetric Catalytic Reduction with Transition Metal Complexes. I. A New Chiral Diphosphine (DIOP)", "au": "H. B. Kagan, T.-P. Dang", "j": "Journal of the American Chemical Society", "y": 1972, "type": "期刊论文", "lm": false, "vp": "94: 6429-6433", "doi": "10.1021/ja00773a028", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA053", "tz": "新型羟醛反应（向山反应）", "t": "New Aldol Type Reaction", "au": "T. Mukaiyama, K. Narasaka, K. Banno", "j": "Chemistry Letters", "y": 1973, "type": "期刊论文", "lm": false, "vp": "2: 1011-1014", "doi": "10.1246/cl.1973.1011", "work": "向山羟醛反应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA046", "tz": "硫醚高效不对称氧化为亚砜", "t": "An Efficient Asymmetric Oxidation of Sulfides to Sulfoxides", "au": "P. Pitchen, E. Duñach, M. N. Deshmukh, H. B. Kagan", "j": "Journal of the American Chemical Society", "y": 1984, "type": "期刊论文", "lm": false, "vp": "106: 8188-8193", "doi": "10.1021/ja00338a030", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA043", "tz": "三种具有不同钙激动剂敏感性的神经元钙通道", "t": "Three Types of Neuronal Calcium Channel with Different Calcium Agonist Sensitivity", "au": "M. C. Nowycky, A. P. Fox, R. W. Tsien", "j": "Nature", "y": 1985, "type": "期刊论文", "lm": true, "vp": "316: 440-443", "doi": "10.1038/316440a0", "work": "钙离子通道与突触传递研究", "disc": "生理学或医学", "field": "神经科学"}, {"id": "PA044", "tz": "不对称合成中的非线性效应：不对称氧化与羟醛反应中的实例", "t": "Nonlinear Effects in Asymmetric Synthesis. Examples in Asymmetric Oxidations and Aldolization Reactions", "au": "C. Puchot, O. Samuel, E. Duñach, S. Zhao, C. Agami, H. B. Kagan", "j": "Journal of the American Chemical Society", "y": 1986, "type": "期刊论文", "lm": true, "vp": "108: 2353-2357", "doi": "10.1021/ja00269a036", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA042", "tz": "改进的绿色荧光", "t": "Improved Green Fluorescence", "au": "R. Heim, A. B. Cubitt, R. Y. Tsien", "j": "Nature", "y": 1994, "type": "期刊论文", "lm": true, "vp": "373: 663-664", "doi": "10.1038/373663b0", "work": "绿色荧光蛋白GFP", "disc": "生理学或医学", "field": "生物化学"}, {"id": "PA048", "tz": "不对称催化中的非线性效应", "t": "Nonlinear Effects in Asymmetric Catalysis", "au": "D. Guillaneux, S.-H. Zhao, O. Samuel, D. Rainford, H. B. Kagan", "j": "Journal of the American Chemical Society", "y": 1994, "type": "期刊论文", "lm": false, "vp": "116: 9430-9439", "doi": "10.1021/ja00100a004", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA039", "tz": "卵母细胞中细菌视紫红质的功能表达实现光驱动质子转运", "t": "Functional Expression of Bacteriorhodopsin in Oocytes Allows Light-Driven Proton Transport", "au": "G. Nagel, B. Möckel, G. Büldt, E. Bamberg", "j": "FEBS Letters", "y": 1995, "type": "期刊论文", "lm": true, "vp": "377: 263-266", "doi": "10.1016/0014-5793(95)01364-4", "work": "古菌光控离子泵在动物细胞的表达", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA049", "tz": "手性分子的不对称自催化与对映体过量放大", "t": "Asymmetric Autocatalysis and Amplification of Enantiomeric Excess of a Chiral Molecule", "au": "K. Soai, T. Shibata, H. Morioka, K. Choji", "j": "Nature", "y": 1995, "type": "期刊论文", "lm": true, "vp": "378: 767-768", "doi": "10.1038/378767a0", "work": "Soai反应（不对称自催化）", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA047", "tz": "不对称合成与立体选择反应中的非线性效应：十年研究", "t": "Nonlinear Effects in Asymmetric Synthesis and Stereoselective Reactions: Ten Years of Investigation", "au": "C. Girard, H. B. Kagan", "j": "Angewandte Chemie International Edition", "y": 1998, "type": "期刊论文", "lm": false, "vp": "37: 2922-2959", "doi": "10.1002/(SICI)1521-3773(19981116)37:21<2922::AID-ANIE2922>3.0.CO;2-1", "work": "不对称催化的非线性效应", "disc": "化学", "field": "不对称催化与手性化学"}, {"id": "PA037", "tz": "通道视紫红质-1：绿藻中的光门控质子通道", "t": "Channelrhodopsin-1: A Light-Gated Proton Channel in Green Algae", "au": "G. Nagel et al.", "j": "Science", "y": 2002, "type": "期刊论文", "lm": true, "vp": "296: 2395-2398", "doi": "10.1126/science.1072068", "work": "通道视紫红质ChR1/ChR2", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA038", "tz": "通道视紫红质-2：直接光门控的阳离子选择通道", "t": "Channelrhodopsin-2, a Directly Light-Gated Cation-Selective Membrane Channel", "au": "G. Nagel et al.", "j": "PNAS", "y": 2003, "type": "期刊论文", "lm": true, "vp": "100: 13940-13945", "doi": "10.1073/pnas.1936192100", "work": "通道视紫红质ChR1/ChR2", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA040", "tz": "毫秒级、基因靶向的神经活动光学控制", "t": "Millisecond-Timescale, Genetically Targeted Optical Control of Neural Activity", "au": "E. S. Boyden, F. Zhang, E. Bamberg, G. Nagel, K. Deisseroth", "j": "Nature Neuroscience", "y": 2005, "type": "期刊论文", "lm": true, "vp": "8: 1263-1268", "doi": "10.1038/nn1525", "work": "光遗传学技术体系", "disc": "生理学或医学", "field": "光遗传学"}, {"id": "PA027", "tz": "冰立方探测器高能宇宙中微子证据", "t": "Evidence for High-Energy Extraterrestrial Neutrinos at the IceCube Detector", "au": "IceCube Collaboration (M. G. Aartsen et al.)", "j": "Science", "y": 2013, "type": "期刊论文", "lm": true, "vp": "342: 1242856", "doi": "10.1126/science.1242856", "work": "高能天体中微子的发现", "disc": "物理学", "field": "天体物理与中微子天文学"}, {"id": "PA041", "tz": "完整生物系统的结构与分子探查", "t": "Structural and Molecular Interrogation of Intact Biological Systems", "au": "K. Chung, K. Deisseroth", "j": "Nature", "y": 2013, "type": "期刊论文", "lm": true, "vp": "497: 332-337", "doi": "10.1038/nature12107", "work": "CLARITY透明脑成像技术", "disc": "生理学或医学", "field": "神经科学"}, {"id": "PA028", "tz": "三年冰立方数据中的高能天体物理中微子观测", "t": "Observation of High-Energy Astrophysical Neutrinos in Three Years of IceCube Data", "au": "IceCube Collaboration", "j": "Physical Review Letters", "y": 2014, "type": "期刊论文", "lm": false, "vp": "113: 101101", "doi": "10.1103/PhysRevLett.113.101101", "work": "高能天体中微子的发现", "disc": "物理学", "field": "天体物理与中微子天文学"}], "lag": [{"n": "亨利·B·卡甘", "py": 1972, "ny": 2026, "lag": 54, "cat": "化学"}, {"n": "硖合宪三", "py": 1995, "ny": 2026, "lag": 31, "cat": "化学"}, {"n": "格奥尔格·纳格尔", "py": 1995, "ny": 2026, "lag": 31, "cat": "生理学或医学"}, {"n": "马克斯·玻恩", "py": 1925, "ny": 1954, "lag": 29, "cat": "物理学"}, {"n": "马克斯·玻恩", "py": 1926, "ny": 1954, "lag": 28, "cat": "物理学"}, {"n": "马克斯·玻恩", "py": 1926, "ny": 1954, "lag": 28, "cat": "物理学"}, {"n": "汉斯·贝特", "py": 1939, "ny": 1967, "lag": 28, "cat": "物理学"}, {"n": "萨尔瓦多·卢里亚", "py": 1943, "ny": 1969, "lag": 26, "cat": "生理学或医学"}, {"n": "格奥尔格·纳格尔", "py": 2002, "ny": 2026, "lag": 24, "cat": "生理学或医学"}, {"n": "彼得·德拜", "py": 1912, "ny": 1936, "lag": 24, "cat": "化学"}, {"n": "格奥尔格·纳格尔", "py": 2003, "ny": 2026, "lag": 23, "cat": "生理学或医学"}, {"n": "奥格·玻尔", "py": 1953, "ny": 1975, "lag": 22, "cat": "物理学"}, {"n": "沃尔夫冈·泡利", "py": 1925, "ny": 1945, "lag": 20, "cat": "物理学"}, {"n": "玛丽亚·格佩特-梅耶", "py": 1948, "ny": 1963, "lag": 15, "cat": "物理学"}, {"n": "玛丽亚·格佩特-梅耶", "py": 1949, "ny": 1963, "lag": 14, "cat": "物理学"}, {"n": "玛丽·居里", "py": 1898, "ny": 1911, "lag": 13, "cat": "化学"}, {"n": "弗朗西斯·哈尔岑", "py": 2013, "ny": 2026, "lag": 13, "cat": "物理学"}, {"n": "恩里科·费米", "py": 1926, "ny": 1938, "lag": 12, "cat": "物理学"}, {"n": "弗朗西斯·哈尔岑", "py": 2014, "ny": 2026, "lag": 12, "cat": "物理学"}, {"n": "乔治·佩吉特·汤姆孙", "py": 1927, "ny": 1937, "lag": 10, "cat": "物理学"}, {"n": "尼尔斯·玻尔", "py": 1913, "ny": 1922, "lag": 9, "cat": "物理学"}, {"n": "詹姆斯·沃森", "py": 1953, "ny": 1962, "lag": 9, "cat": "生理学或医学"}, {"n": "莫里斯·威尔金斯", "py": 1953, "ny": 1962, "lag": 9, "cat": "生理学或医学"}, {"n": "约瑟夫·约翰·汤姆孙", "py": 1897, "ny": 1906, "lag": 9, "cat": "物理学"}, {"n": "维尔纳·海森堡", "py": 1925, "ny": 1932, "lag": 7, "cat": "物理学"}, {"n": "保罗·狄拉克", "py": 1928, "ny": 1933, "lag": 5, "cat": "物理学"}, {"n": "保罗·狄拉克", "py": 1928, "ny": 1933, "lag": 5, "cat": "物理学"}, {"n": "维尔纳·海森堡", "py": 1927, "ny": 1932, "lag": 5, "cat": "物理学"}, {"n": "约翰·肯德鲁", "py": 1958, "ny": 1962, "lag": 4, "cat": "化学"}, {"n": "恩里科·费米", "py": 1934, "ny": 1938, "lag": 4, "cat": "物理学"}, {"n": "杨振宁", "py": 1954, "ny": 1957, "lag": 3, "cat": "物理学"}, {"n": "詹姆斯·查德威克", "py": 1932, "ny": 1935, "lag": 3, "cat": "物理学"}, {"n": "詹姆斯·查德威克", "py": 1932, "ny": 1935, "lag": 3, "cat": "物理学"}, {"n": "威廉·劳伦斯·布拉格", "py": 1913, "ny": 1915, "lag": 2, "cat": "物理学"}, {"n": "马克斯·佩鲁茨", "py": 1960, "ny": 1962, "lag": 2, "cat": "化学"}, {"n": "李政道", "py": 1956, "ny": 1957, "lag": 1, "cat": "物理学"}, {"n": "弗雷德里克·约里奥-居里", "py": 1934, "ny": 1935, "lag": 1, "cat": "化学"}, {"n": "欧内斯特·卢瑟福", "py": 1911, "ny": 1908, "lag": -3, "cat": "化学"}, {"n": "恩里科·费米", "py": 1942, "ny": 1938, "lag": -4, "cat": "物理学"}], "journals": [{"j": "Nature", "c": 13, "lm": 11}, {"j": "Zeitschrift für Physik", "c": 7, "lm": 6}, {"j": "Physical Review", "c": 6, "lm": 5}, {"j": "Journal of the American Chemical Society", "c": 4, "lm": 1}, {"j": "Proceedings of the Royal Society A", "c": 4, "lm": 2}, {"j": "Philosophical Magazine", "c": 3, "lm": 3}, {"j": "Annalen der Physik", "c": 3, "lm": 2}, {"j": "Comptes Rendus de l'Académie des Sciences", "c": 2, "lm": 2}, {"j": "Science", "c": 2, "lm": 2}, {"j": "技术报告", "c": 1, "lm": 1}, {"j": "Chemistry Letters", "c": 1, "lm": 0}, {"j": "Genetics", "c": 1, "lm": 1}, {"j": "Physikalische Zeitschrift", "c": 1, "lm": 0}, {"j": "Proceedings of the Cambridge Philosophical Society", "c": 1, "lm": 1}, {"j": "Cambridge University Press", "c": 1, "lm": 1}, {"j": "Nature New Biology", "c": 1, "lm": 1}, {"j": "Matematisk-fysiske Meddelelser (Dan. Vid. Selsk.)", "c": 1, "lm": 1}, {"j": "PNAS", "c": 1, "lm": 1}, {"j": "FEBS Letters", "c": 1, "lm": 1}, {"j": "Nature Neuroscience", "c": 1, "lm": 1}, {"j": "Angewandte Chemie International Edition", "c": 1, "lm": 0}, {"j": "机密技术报告", "c": 1, "lm": 1}, {"j": "Physical Review Letters", "c": 1, "lm": 0}], "graph": {"nodes": [{"id": "P009", "name": "杨振宁", "cat": "物理学"}, {"id": "P010", "name": "李政道", "cat": "物理学"}, {"id": "P002", "name": "维尔纳·海森堡", "cat": "物理学"}, {"id": "P033", "name": "马克斯·玻恩", "cat": "物理学"}, {"id": "P023", "name": "格奥尔格·纳格尔", "cat": "生理学或医学"}, {"id": "P030", "name": "恩斯特·班贝格", "cat": "其他学者"}, {"id": "P021", "name": "卡尔·戴塞罗思", "cat": "生理学或医学"}, {"id": "P026", "name": "爱德华·博伊登", "cat": "其他学者"}, {"id": "P014", "name": "詹姆斯·沃森", "cat": "生理学或医学"}, {"id": "P015", "name": "弗朗西斯·克里克", "cat": "生理学或医学"}, {"id": "P019", "name": "伊雷娜·约里奥-居里", "cat": "化学"}, {"id": "P044", "name": "弗雷德里克·约里奥-居里", "cat": "化学"}], "edges": [{"source": "P009", "target": "P010", "paper": "弱相互作用中宇称守恒问题"}, {"source": "P002", "target": "P033", "paper": "量子力学 II"}, {"source": "P023", "target": "P030", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P023", "target": "P030", "paper": "卵母细胞中细菌视紫红质的功能表达实现光驱动质子转运"}, {"source": "P021", "target": "P023", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P021", "target": "P026", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P021", "target": "P030", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P014", "target": "P015", "paper": "核酸的分子结构——脱氧核糖核酸的一种结构"}, {"source": "P023", "target": "P026", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P026", "target": "P030", "paper": "毫秒级、基因靶向的神经活动光学控制"}, {"source": "P019", "target": "P044", "paper": "一种新型放射性"}]}};
-const PAL = {"物理学":"#2563eb","化学":"#0f9d76","生理学或医学":"#e0602a","其他":"#94a3b8","其他学者":"#94a3b8"};
-const CATPAL = {"物理学":"#2563eb","化学":"#0f9d76","生理学或医学":"#e0602a","其他学者":"#94a3b8"};
+<!-- AI 增强面板：可选，不依赖 -->
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head" id="aiHead">
+    <div class="dot off" id="aiDot"></div>
+    <h3>🔍 AI 论文洞察</h3>
+    <span id="aiState" style="font-size:11px;color:#94a3b8;">未配置</span>
+    <span id="aiFold" style="color:#94a3b8;font-size:12px;">▾</span>
+  </div>
+  <div id="aiMain">
+    <div class="ai-body empty" id="aiBody">本页所有图表与筛选均基于浏览器内 DuckDB 实时查询，<b>未配置 AI 也完整可用</b>。配置 LLM 后可让模型解读本页数据。</div>
+    <div class="ai-actions">
+      <button class="ai-btn gold" id="aiSumBtn">✨ 综述本页</button>
+      <button class="ai-btn" id="aiChainBtn">🔗 解读影响链</button>
+      <button class="ai-btn" id="aiClearBtn">✕ 清空</button>
+    </div>
+    <div class="ai-note">AI 仅在点击按钮时读取本页聚合统计与影响链摘录，用于生成叙事；不改变任何数据。</div>
+  </div>
+</div>
 
-// KPIs
-const KL=[["papers","论文/著作"],["lm","其中里程碑"],["jr","期刊/出版方"],["doi","含DOI"],["lag","平均时滞(年)"],["co","合著边"]];
-document.getElementById("kpis").innerHTML = KL.map(([k,lb])=>
-  `<div class="kpi"><div class="num">${DATA.kpi[k]}</div><div class="lb">${lb}</div></div>`).join("");
+<script type="module">
+import * as db from '../js/db.js';
+import * as ai from '../js/ai.js';
 
-// 时间轴
-const discs=[...new Set(DATA.papers.map(p=>p.disc))];
-const tl=echarts.init(document.getElementById("timeline"));
+/* ---------- 学科配色 ---------- */
+const PAL = { '物理学':'#2563eb','化学':'#0f9d76','生理学或医学':'#e0602a','生物学':'#8b5cf6','经济学':'#b8860b','其他':'#94a3b8' };
+const ITYPE = { '范式拓展':'#d97706','继承发展':'#2563eb','方法应用':'#0f9d76','相互印证':'#8b5cf6','理论反驳':'#dc2626' };
+const disC = d => PAL[d] || PAL['其他'];
+const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- 初始化 ---------- */
+await db.initDB(m => { document.getElementById('loadbar').textContent = '⏳ ' + m; });
+document.getElementById('loadbar').style.display = 'none';
+document.getElementById('main').style.display = '';
+
+/* ---------- 并行取数 ---------- */
+const [kpi, papers, pairs, colab, lineage, journals, lagrows] = await Promise.all([
+  db.query(`SELECT count(*) AS papers, count_if(is_landmark='是') AS lm,
+                   count(DISTINCT journal) AS jr,
+                   count_if(doi IS NOT NULL AND doi <> '') AS doi_n,
+                   min(year) AS ymin, max(year) AS ymax FROM papers`),
+  db.query(`SELECT p.paper_id, p.title, p.title_zh, p.authors_display, p.journal, p.year,
+                   p.volume_pages, p.doi, p.paper_type, p.is_landmark, p.note,
+                   COALESCE(w.name_zh,'') AS work_zh, COALESCE(f.name_zh,'') AS field_zh,
+                   COALESCE(f.discipline,'') AS disc
+            FROM papers p LEFT JOIN works w ON p.work_id = w.work_id
+            LEFT JOIN fields f ON p.field_id = f.field_id ORDER BY p.year`),
+  db.query(`WITH pdisc AS (
+              SELECT p.person_id, p.name_zh, p.name_en, p.is_nobel_laureate, p.nobel_category, p.nobel_year,
+                     COALESCE(f.discipline,'') AS disc
+              FROM persons p LEFT JOIN fields f ON p.primary_field_id = f.field_id),
+            raw AS (
+              SELECT a.person_id AS pa, b.person_id AS pb, count(*) AS w
+              FROM paper_author a JOIN paper_author b
+                ON a.paper_id = b.paper_id AND a.person_id < b.person_id
+              GROUP BY 1,2
+              UNION ALL
+              SELECT person_a_id, person_b_id, 1 FROM collaboration)
+            SELECT g.pa, g.pb, g.weight,
+              COALESCE(x.name_zh, x.name_en, CAST(g.pa AS VARCHAR)) AS na, x.name_en AS ea, x.is_nobel_laureate AS lm_a, x.nobel_category AS cat_a,
+              x.nobel_year AS ny_a, x.disc AS disc_a,
+              COALESCE(y.name_zh, y.name_en, CAST(g.pb AS VARCHAR)) AS nb, y.name_en AS eb, y.is_nobel_laureate AS lm_b, y.nobel_category AS cat_b,
+              y.nobel_year AS ny_b, y.disc AS disc_b
+            FROM (SELECT pa, pb, sum(w) AS weight FROM raw GROUP BY 1,2) g
+            JOIN pdisc x ON x.person_id = g.pa
+            JOIN pdisc y ON y.person_id = g.pb
+            ORDER BY g.weight DESC`),
+  db.query(`SELECT person_a_id AS a, person_b_id AS b, year, topic, publication FROM collaboration`),
+  db.query(`SELECT l.relation_id, l.student_paper_id AS sid, l.advisor_paper_id AS aid,
+                   l.influence_type AS itype, l.description AS descr,
+                   ps.title_zh AS s_tz, ps.year AS s_year, ps.is_landmark AS s_lm, COALESCE(fs.discipline,'') AS s_disc,
+                   pd.title_zh AS a_tz, pd.year AS a_year, pd.is_landmark AS a_lm, COALESCE(fd.discipline,'') AS a_disc
+            FROM paper_lineage l
+            JOIN papers ps ON ps.paper_id = l.student_paper_id
+            JOIN papers pd ON pd.paper_id = l.advisor_paper_id
+            LEFT JOIN fields fs ON fs.field_id = ps.field_id
+            LEFT JOIN fields fd ON fd.field_id = pd.field_id`),
+  db.query(`SELECT journal AS j, count(*) AS c, count_if(is_landmark='是') AS lm
+            FROM papers GROUP BY 1 ORDER BY c DESC`),
+  db.query(`SELECT DISTINCT pr.person_id, COALESCE(pr.name_zh, pr.name_en, '未知') AS n, pr.nobel_category AS cat, pr.nobel_year AS ny,
+                   pp.paper_id, pp.title_zh AS tz, pp.year AS py
+            FROM paper_author pa
+            JOIN papers pp ON pp.paper_id = pa.paper_id
+            JOIN persons pr ON pr.person_id = pa.person_id
+            WHERE pr.is_nobel_laureate = '是' AND pr.nobel_year > 0`),
+]);
+
+const K = kpi.rows[0];
+const PAPERS = papers.rows;
+const LINEAGE = lineage.rows;
+const colabTopic = new Map();
+for (const r of colab.rows) colabTopic.set(r.a + '|' + r.b, (r.topic || '') + (r.publication ? `（${r.publication}）` : ''));
+
+/* ---------- KPI ---------- */
+const lagAll = lagrows.rows.map(r => ({ ...r, lag: r.ny - r.py }));
+const lagAvg = lagAll.length ? (lagAll.reduce((s, r) => s + r.lag, 0) / lagAll.length) : 0;
+const kpis = [
+  ['papers', '论文/著作'], ['lm', '其中里程碑'], ['jr', '期刊/出版方'], ['doi_n', '含 DOI'],
+  ['pairs', '合著关系对'], ['lineage', '影响链边'], ['lag', '平均获奖时滞(年)'],
+  ['span', `年份跨度`],
+];
+document.getElementById('kpis').innerHTML = kpis.map(([k, lb]) => {
+  const v = k === 'pairs' ? pairs.rows.length : k === 'lineage' ? LINEAGE.length
+    : k === 'lag' ? lagAvg.toFixed(1) : k === 'span' ? `${K.ymin}–${K.ymax}` : K[k];
+  return `<div class="kpi"><div class="num">${v}</div><div class="lb">${lb}</div></div>`;
+}).join('');
+
+/* ---------- 时间线 ---------- */
+const discs = [...new Set(PAPERS.map(p => p.disc).filter(Boolean))];
+const tl = echarts.init(document.getElementById('timeline'));
 tl.setOption({
-  title:{text:"论文发表时间线",left:12,top:8,textStyle:{fontSize:15}},
-  tooltip:{formatter:p=>`<b>${p.data.tz}</b><br>${p.data.au}<br>${p.data.j} (${p.data.y})`+(p.data.vp?`<br>${p.data.vp}`:"")+(p.data.doi?`<br>DOI: ${p.data.doi}`:"")+(p.data.work?`<br>对应工作：${p.data.work}`:"")},
-  grid:{left:96,right:26,top:56,bottom:44},
-  xAxis:{type:"value",min:1884,max:2028,name:"年份",axisLabel:{fontSize:11}},
-  yAxis:{type:"category",data:discs,axisLabel:{fontSize:11}},
-  series:[{type:"scatter",data:DATA.papers.map(p=>({value:[p.y,discs.indexOf(p.disc)],tz:p.tz,au:p.au,j:p.j,y:p.y,vp:p.vp,doi:p.doi,work:p.work,
-      symbolSize:p.lm?15:8,itemStyle:{color:PAL[p.disc]||"#94a3b8",opacity:p.lm?1:.55,borderColor:"#fff",borderWidth:p.lm?1:0}}))}]
+  title: { text: '论文发表时间线', left: 12, top: 8, textStyle: { fontSize: 15 } },
+  tooltip: { formatter: p => { const d = p.data; return `<b>${esc(d.tz)}</b><br>${esc(d.au)}<br>${esc(d.j)} (${d.y})`
+    + (d.vp ? `<br>${esc(d.vp)}` : '') + (d.doi ? `<br>DOI: ${esc(d.doi)}` : '')
+    + (d.work ? `<br>对应工作：${esc(d.work)}` : ''); } },
+  grid: { left: 96, right: 26, top: 44, bottom: 40 },
+  xAxis: { type: 'value', min: Math.floor(K.ymin / 10) * 10, max: K.ymax + 2, name: '年份', axisLabel: { fontSize: 11 } },
+  yAxis: { type: 'category', data: discs, axisLabel: { fontSize: 11 } },
+  series: [{ type: 'scatter', data: PAPERS.map(p => ({ value: [p.year, discs.indexOf(p.disc)],
+      tz: p.title_zh, au: p.authors_display, j: p.journal, y: p.year, vp: p.volume_pages, doi: p.doi, work: p.work_zh,
+      symbolSize: p.is_landmark === '是' ? 14 : 8,
+      itemStyle: { color: disC(p.disc), opacity: p.is_landmark === '是' ? 1 : .5, borderColor: '#fff', borderWidth: p.is_landmark === '是' ? 1 : 0 } })) }],
 });
 
-// 合著网络
-const g=echarts.init(document.getElementById("graph"));
-g.setOption({
-  title:{text:"论文合著网络",left:12,top:8,textStyle:{fontSize:15}},
-  tooltip:{},
-  legend:[{top:10,right:12,data:["物理学","化学","生理学或医学","其他学者"],textStyle:{fontSize:11}}],
-  series:[{type:"graph",layout:"force",roam:true,draggable:true,
-    categories:[{name:"物理学"},{name:"化学"},{name:"生理学或医学"},{name:"其他学者"}],
-    data:DATA.graph.nodes.map(n=>({id:n.id,name:n.name,category:["物理学","化学","生理学或医学","其他学者"].indexOf(n.cat),
-      symbolSize:26,itemStyle:{color:CATPAL[n.cat]||"#94a3b8",borderColor:"#fff",borderWidth:1.5},
-      label:{show:true,fontSize:10,formatter:n.name}})),
-    links:DATA.graph.edges.map(e=>({source:e.source,target:e.target,tooltip:e.paper})),
-    force:{repulsion:420,edgeLength:120,gravity:0.09},
-    lineStyle:{color:"#cbd5e1",width:1.6,curveness:0.05},
-    label:{position:"bottom",color:"#334155"}}]
-});
-
-// 期刊分布
-const jr=echarts.init(document.getElementById("journals"));
-const jrdata=[...DATA.journals].sort((a,b)=>a.c-b.c);
-jr.setOption({
-  title:{text:"期刊/出版方分布",left:12,top:8,textStyle:{fontSize:15}},
-  tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
-  legend:{top:10,right:12,textStyle:{fontSize:11}},
-  grid:{left:230,right:30,top:52,bottom:34},
-  xAxis:{type:"value"}, yAxis:{type:"category",data:jrdata.map(x=>x.j),axisLabel:{fontSize:10.5}},
-  series:[
-    {name:"论文数",type:"bar",stack:"a",data:jrdata.map(x=>x.c),itemStyle:{color:"#c7d7fb"}},
-    {name:"里程碑",type:"bar",stack:"a",data:jrdata.map(x=>x.lm),itemStyle:{color:"#2563eb"}}]
-});
-
-// 时滞
-const lg=echarts.init(document.getElementById("lag"));
-const lgdata=[...DATA.lag].reverse();
-lg.setOption({
-  title:{text:"论文发表→获诺奖 时滞（年）",left:12,top:8,textStyle:{fontSize:15}},
-  tooltip:{trigger:"axis",formatter:p=>{const d=lgdata[p[0].dataIndex];return `<b>${d.n}</b><br>${d.py} 年论文 → ${d.ny} 年（${d.cat}奖）<br>时滞 ${d.lag} 年`;}},
-  grid:{left:150,right:40,top:44,bottom:34},
-  xAxis:{type:"value"},
-  yAxis:{type:"category",data:lgdata.map(d=>d.n+" ⏱"+d.lag),axisLabel:{fontSize:10.5}},
-  series:[{type:"bar",data:lgdata.map(d=>({value:d.lag,itemStyle:{color:PAL[d.cat]||"#94a3b8"}})),label:{show:true,position:"right",fontSize:10}}]
-});
-
-// 表格
-const tb=document.querySelector("#tbl tbody");
-const qEl=document.getElementById("q"), dEl=document.getElementById("disc"), lmEl=document.getElementById("lmonly");
-function render(){
-  const q=qEl.value.trim().toLowerCase(), d=dEl.value, lm=lmEl.checked;
-  const rows=DATA.papers.filter(p=>(!lm||p.lm)&&(!d||p.disc===d)&&
-    (!q||(p.tz+p.t+p.au+p.j).toLowerCase().includes(q)));
-  rows.sort((a,b)=>b.y-a.y);
-  tb.innerHTML=rows.map(p=>{
-    const cls=p.disc==="物理学"?"t-phy":p.disc==="化学"?"t-chem":p.disc==="生理学或医学"?"t-med":"t-oth";
-    const doi=p.doi?`<br><span style="color:#94a3b8;font-size:11px;">DOI: ${p.doi}</span>`:"";
-    return `<tr><td>${p.y}</td><td><b>${p.tz}</b><div style="color:#94a3b8;font-size:11px;">${p.t}</div>${doi}</td>
-      <td>${p.au}</td><td>${p.j}</td><td>${p.vp||"—"}</td>
-      <td><span class="tag ${cls}">${p.field}</span></td>
-      <td>${p.lm?"★":""}</td></tr>`;
-  }).join("");
-  document.getElementById("cnt").textContent=`共 ${rows.length} 条`;
+/* ---------- 合著网络 ---------- */
+function nodeCat(laureate, cat, disc) {
+  if (laureate === '是' && cat) return cat;
+  if (disc && PAL[disc]) return disc;
+  return '其他学者';
 }
-qEl.oninput=render; dEl.onchange=render; lmEl.onchange=render; render();
-window.addEventListener("resize",()=>{tl.resize();g.resize();jr.resize();lg.resize();});
+// pid → { name, en, catName, laureate, cat, ny }
+const personOf = new Map();
+for (const r of pairs.rows) {
+  if (!personOf.has(r.pa)) personOf.set(r.pa, { name: r.na || r.ea, en: r.ea || '', catName: nodeCat(r.lm_a, r.cat_a, r.disc_a), laureate: r.lm_a, cat: r.cat_a, ny: r.ny_a });
+  if (!personOf.has(r.pb)) personOf.set(r.pb, { name: r.nb || r.eb, en: r.eb || '', catName: nodeCat(r.lm_b, r.cat_b, r.disc_b), laureate: r.lm_b, cat: r.cat_b, ny: r.ny_b });
+}
+const edgesRaw = pairs.rows.map(r => ({ source: r.pa, target: r.pb, w: r.weight }));
+const cats = [...new Set([...personOf.values()].map(p => p.catName))];
+const nodes = [...personOf.entries()].map(([id, p]) => ({
+  id, name: p.name, category: cats.indexOf(p.catName),
+  symbolSize: p.laureate === '是' ? 26 : 18,
+  itemStyle: { color: disC(p.catName), borderColor: '#fff', borderWidth: 1.5 },
+  label: { show: true, fontSize: 9.5 },
+}));
+const g = echarts.init(document.getElementById('graph'));
+g.setOption({
+  title: { text: '论文合著网络（同篇署名 + 合作表）', left: 12, top: 8, textStyle: { fontSize: 15 } },
+  tooltip: { formatter: p => {
+    if (p.dataType === 'edge') {
+      const e = p.data;
+      const topic = colabTopic.get([e.source, e.target].sort().join('|')) || '';
+      return `${personOf.get(e.source)?.name || e.source} × ${personOf.get(e.target)?.name || e.target}<br>合著 ${e.w} 篇`
+        + (topic ? `<br>${esc(topic)}` : '');
+    }
+    const q = personOf.get(p.data.id); if (!q) return p.name;
+    return `<b>${esc(q.name)}</b> <span style="color:#94a3b8">${esc(q.en)}</span><br>` +
+      (q.laureate === '是' ? `${esc(q.cat || '')}诺奖${q.ny ? ' · ' + q.ny : ''}` : '合作者 / 未获奖学者');
+  } },
+  legend: { top: 10, right: 12, textStyle: { fontSize: 11 }, data: cats },
+  series: [{
+    type: 'graph', layout: 'force', roam: true, draggable: true,
+    categories: cats.map(c => ({ name: c })),
+    data: nodes,
+    links: edgesRaw.map(e => ({ ...e, lineStyle: { width: Math.min(1 + e.w * .6, 4) } })),
+    force: { repulsion: 420, edgeLength: [70, 150], gravity: 0.09 },
+    lineStyle: { color: '#cbd5e1', curveness: 0.06 },
+    label: { position: 'bottom', color: '#334155' },
+  }],
+});
+
+/* ---------- 论文影响链 ---------- */
+const deg = new Map();
+for (const l of LINEAGE) {
+  deg.set(l.aid, (deg.get(l.aid) || 0) + 1);
+  deg.set(l.sid, (deg.get(l.sid) || 0) + 1);
+}
+let lnFilter = new Set(Object.keys(ITYPE));
+const ln = echarts.init(document.getElementById('lineage'));
+function lineageData() {
+  const es = LINEAGE.filter(l => lnFilter.has(l.itype));
+  const ids = [...new Set(es.flatMap(l => [l.sid, l.aid]))];
+  const byId = new Map(PAPERS.map(p => [p.paper_id, p]));
+  return {
+    nodes: ids.map(id => {
+      const p = byId.get(id) || {};
+      const label = (p.title_zh || p.title || id);
+      return { id, name: label.length > 14 ? label.slice(0, 13) + '…' : label,
+        symbolSize: Math.min(10 + (deg.get(id) || 0) * 3.4, 30),
+        itemStyle: { color: disC(p.disc), borderColor: p.is_landmark === '是' ? '#f59e0b' : '#fff', borderWidth: p.is_landmark === '是' ? 2 : 1 },
+        label: { show: true, fontSize: 9.5, color: '#334155' },
+        full: p };
+    }),
+    links: es.map(l => ({ source: l.sid, target: l.aid, l,
+      lineStyle: { color: ITYPE[l.itype] || '#94a3b8', width: 1.8, curveness: 0.08, opacity: .85 } })),
+  };
+}
+function renderLineage() {
+  const d = lineageData();
+  ln.setOption({
+    title: { text: `影响方向：学生论文 → 师门论文（共 ${LINEAGE.length} 条，当前显示 ${d.links.length} 条）`,
+             left: 12, top: 8, textStyle: { fontSize: 13.5, fontWeight: 600 } },
+    tooltip: { formatter: p => {
+      if (p.dataType === 'edge') { const l = p.data.l;
+        return `<b style="color:${ITYPE[l.itype]}">${esc(l.itype)}</b><br>${esc(l.s_tz)} (${l.s_year})<br>← 承自<br>${esc(l.a_tz)} (${l.a_year})`
+          + (l.descr ? `<br><span style="color:#64748b">${esc(l.descr)}</span>` : ''); }
+      const f = p.data.full || {};
+      return `<b>${esc(f.title_zh || f.title || '')}</b><br>${esc(f.authors_display || '')} · ${f.year || ''}<br>${esc(f.journal || '')}`;
+    } },
+    series: [{ type: 'graph', layout: 'force', roam: true, draggable: true,
+      data: d.nodes, links: d.links,
+      edgeSymbol: ['none', 'arrow'], edgeSymbolSize: 8,
+      force: { repulsion: 700, edgeLength: [90, 170], gravity: 0.06, friction: .2 },
+      lineStyle: { opacity: .85 }, emphasis: { focus: 'adjacency', lineStyle: { width: 3 } } }],
+  }, { notMerge: true });
+}
+renderLineage();
+// 类型筛选 chips
+document.getElementById('lchips').innerHTML = Object.entries(ITYPE).map(([k, c]) =>
+  `<span class="lchip" data-t="${k}"><i style="background:${c}"></i>${k}</span>`).join('');
+document.querySelectorAll('.lchip').forEach(ch => ch.addEventListener('click', () => {
+  const t = ch.dataset.t;
+  if (lnFilter.has(t) && lnFilter.size > 1) { lnFilter.delete(t); ch.classList.add('off'); }
+  else { lnFilter.add(t); ch.classList.remove('off'); }
+  renderLineage();
+}));
+
+/* ---------- 期刊分布 ---------- */
+const jrdata = [...journals.rows].slice(0, 14).reverse();
+const jr = echarts.init(document.getElementById('journals'));
+jr.setOption({
+  title: { text: `期刊/出版方分布（Top ${jrdata.length}）`, left: 12, top: 8, textStyle: { fontSize: 15 } },
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  legend: { top: 10, right: 12, textStyle: { fontSize: 11 } },
+  grid: { left: 250, right: 34, top: 48, bottom: 30 },
+  xAxis: { type: 'value' }, yAxis: { type: 'category', data: jrdata.map(x => x.j), axisLabel: { fontSize: 10.5 } },
+  series: [
+    { name: '论文数', type: 'bar', stack: 'a', data: jrdata.map(x => x.c), itemStyle: { color: '#c7d7fb' } },
+    { name: '里程碑', type: 'bar', stack: 'a', data: jrdata.map(x => x.lm), itemStyle: { color: '#2563eb' } }],
+});
+
+/* ---------- 获奖时滞 ---------- */
+const lgdata = [...lagAll].sort((a, b) => a.lag - b.lag).slice(-20);
+const lg = echarts.init(document.getElementById('lag'));
+lg.setOption({
+  title: { text: `论文发表 → 获诺奖 时滞（Top ${lgdata.length}，均值 ${lagAvg.toFixed(1)} 年）`, left: 12, top: 8, textStyle: { fontSize: 14 } },
+  tooltip: { trigger: 'axis', formatter: p => { const d = lgdata[p[0].dataIndex];
+    return `<b>${esc(d.n)}</b><br>${esc(d.tz)}<br>${d.py} 年论文 → ${d.ny} 年（${esc(d.cat)}奖）<br>时滞 ${d.lag} 年`; } },
+  grid: { left: 150, right: 44, top: 44, bottom: 30 },
+  xAxis: { type: 'value', axisLabel: { fontSize: 10.5 } },
+  yAxis: { type: 'category', data: lgdata.map(d => `${d.n} ⏱${d.lag}`), axisLabel: { fontSize: 10.5 } },
+  series: [{ type: 'bar', data: lgdata.map(d => ({ value: d.lag, itemStyle: { color: disC(d.cat) } })),
+    label: { show: true, position: 'right', fontSize: 10 } }],
+});
+
+/* ---------- 明细表（含详情抽屉） ---------- */
+const tb = document.querySelector('#tbl tbody');
+const qEl = document.getElementById('q'), dEl = document.getElementById('disc'), lmEl = document.getElementById('lmonly');
+const discOpts = [...new Set(PAPERS.map(p => p.disc).filter(Boolean))];
+dEl.innerHTML = '<option value="">全部门类</option>' + discOpts.map(d => `<option>${d}</option>`).join('');
+function tagCls(d) { return { '物理学':'t-phy','化学':'t-chem','生理学或医学':'t-med','生物学':'t-bio','经济学':'t-econ' }[d] || 't-oth'; }
+let selId = null;
+function renderTable() {
+  const q = qEl.value.trim().toLowerCase(), d = dEl.value, lm = lmEl.checked;
+  const rows = PAPERS.filter(p => (!lm || p.is_landmark === '是') && (!d || p.disc === d) &&
+    (!q || (p.title_zh + p.title + p.authors_display + p.journal).toLowerCase().includes(q)));
+  rows.sort((a, b) => b.year - a.year);
+  tb.innerHTML = rows.map(p => {
+    const doi = p.doi ? `<br><span style="color:#94a3b8;font-size:11px;">DOI: ${esc(p.doi)}</span>` : '';
+    return `<tr data-id="${p.paper_id}" class="${p.paper_id === selId ? 'sel' : ''}"><td>${p.year}</td>
+      <td><b>${esc(p.title_zh)}</b><div style="color:#94a3b8;font-size:11px;">${esc(p.title)}</div>${doi}</td>
+      <td>${esc(p.authors_display)}</td><td>${esc(p.journal)}</td><td>${esc(p.volume_pages) || '—'}</td>
+      <td><span class="tag ${tagCls(p.disc)}">${esc(p.field_zh)}</span></td>
+      <td>${p.is_landmark === '是' ? '★' : ''}</td></tr>`;
+  }).join('');
+  document.getElementById('cnt').textContent = `共 ${rows.length} 条`;
+  tb.querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => showDetail(tr.dataset.id)));
+}
+function showDetail(id) {
+  selId = id;
+  const p = PAPERS.find(x => x.paper_id === id); if (!p) return;
+  const up = LINEAGE.filter(l => l.sid === id), down = LINEAGE.filter(l => l.aid === id);
+  const ityTag = t => `<span class="ity" style="background:${ITYPE[t]}22;color:${ITYPE[t]}">${t}</span>`;
+  document.getElementById('detail').innerHTML = `
+    <h4>${esc(p.title_zh)} <span style="color:#94a3b8;font-weight:400;font-size:11.5px;">${esc(p.title)} (${p.year})</span></h4>
+    <div class="sec">${esc(p.authors_display)} · ${esc(p.journal)} ${esc(p.volume_pages || '')}
+      ${p.doi ? ` · DOI: ${esc(p.doi)}` : ''} · ${esc(p.paper_type)} ${p.is_landmark === '是' ? '★里程碑' : ''}</div>
+    ${p.work_zh ? `<div class="sec">对应代表性工作：<b>${esc(p.work_zh)}</b>　研究方向：${esc(p.field_zh)}</div>` : ''}
+    ${p.note ? `<div class="sec" style="color:#475569;">备注：${esc(p.note)}</div>` : ''}
+    ${up.length ? `<div class="sec"><b style="color:${ITYPE['继承发展']}">承自师门（${up.length}）</b><br>` +
+      up.map(l => `<div class="li">← ${ityTag(l.itype)} ${esc(l.a_tz)} (${l.a_year})${l.descr ? ` — ${esc(l.descr)}` : ''}</div>`).join('') + '</div>' : ''}
+    ${down.length ? `<div class="sec"><b>影响下游（${down.length}）</b><br>` +
+      down.map(l => `<div class="li">→ ${ityTag(l.itype)} ${esc(l.s_tz)} (${l.s_year})${l.descr ? ` — ${esc(l.descr)}` : ''}</div>`).join('') + '</div>' : ''}
+    ${!up.length && !down.length ? '<div class="sec" style="color:#94a3b8;">影响链中暂无与该文直接相连的传承记录。</div>' : ''}`;
+  document.getElementById('detail').style.display = 'block';
+  renderTable();
+  document.getElementById('detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+qEl.oninput = renderTable; dEl.onchange = renderTable; lmEl.onchange = renderTable; renderTable();
+
+window.addEventListener('resize', () => { tl.resize(); g.resize(); ln.resize(); jr.resize(); lg.resize(); });
+
+/* ============================================================
+   AI 增强（可选）——不配置 LLM 时完全隐藏影响
+   ============================================================ */
+const aiDot = document.getElementById('aiDot'), aiState = document.getElementById('aiState'),
+      aiBody = document.getElementById('aiBody'), aiMain = document.getElementById('aiMain'),
+      aiSumBtn = document.getElementById('aiSumBtn'), aiChainBtn = document.getElementById('aiChainBtn');
+function refreshAI() {
+  const on = ai.hasLLM();
+  aiDot.classList.toggle('off', !on);
+  aiState.textContent = on ? '已连接' : '未配置';
+  aiSumBtn.disabled = !on; aiChainBtn.disabled = !on;
+}
+refreshAI();
+document.getElementById('aiHead').addEventListener('click', () => {
+  const hidden = aiMain.style.display === 'none';
+  aiMain.style.display = hidden ? '' : 'none';
+  document.getElementById('aiFold').textContent = hidden ? '▾' : '▸';
+});
+document.getElementById('aiClearBtn').addEventListener('click', () => {
+  aiBody.className = 'ai-body empty';
+  aiBody.innerHTML = '已清空。点击上方按钮让 AI 解读本页数据。';
+});
+
+function statsContext() {
+  const byDisc = {};
+  PAPERS.forEach(p => { if (p.disc) byDisc[p.disc] = (byDisc[p.disc] || 0) + 1; });
+  const topJ = journals.rows.slice(0, 4).map(j => `${j.j}(${j.c}篇)`).join('、');
+  const ityCnt = {}; LINEAGE.forEach(l => ityCnt[l.itype] = (ityCnt[l.itype] || 0) + 1);
+  const outDeg = {}; LINEAGE.forEach(l => outDeg[l.aid] = (outDeg[l.aid] || 0) + 1);
+  const byId = new Map(PAPERS.map(p => [p.paper_id, p]));
+  const topCited = Object.entries(outDeg).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([id, n]) => `${byId.get(id)?.title_zh || id}(下游${n}篇)`).join('、');
+  const worstLag = [...lagAll].sort((a, b) => b.lag - a.lag)[0];
+  return [
+    `论文/著作 ${K.papers} 篇（里程碑 ${K.lm}），时间跨度 ${K.ymin}–${K.ymax}，期刊/出版方 ${K.jr} 家，${K.doi_n} 篇含 DOI`,
+    `学科分布：${Object.entries(byDisc).map(([k, v]) => `${k} ${v}`).join('、')}`,
+    `发文最多期刊：${topJ}`,
+    `合著关系对 ${pairs.rows.length}（含合作表补边）`,
+    `影响链 ${LINEAGE.length} 条：${Object.entries(ityCnt).map(([k, v]) => `${k} ${v}`).join('、')}`,
+    `影响链中被下游引用最多：${topCited}`,
+    `论文→诺奖平均时滞 ${lagAvg.toFixed(1)} 年；最长：${worstLag ? `${worstLag.n}（${worstLag.py}→${worstLag.ny}，${worstLag.lag} 年）` : '—'}`,
+  ].join('\n');
+}
+const SYS_SUM = `你是科学史分析师。基于给定的诺奖论文本体统计，写 160-240 字中文综述：先概括规模与结构，再给 1-2 条跨学科洞察（如范式传承、时滞规律）。
+规则：只用给定数字，不编造；输出纯文本段落，不要 markdown 标题。`;
+const SYS_CHAIN = `你是科学史分析师。给定若干"学生论文承自师门论文"的影响链记录，挑选最有代表性的 2-3 条，讲清范式如何跨代传承演化。
+要求 160-240 字中文，只使用给定记录中的论文与事实，不编造；输出纯文本，不要 markdown 标题。`;
+
+async function runAI(btn, sys, user) {
+  if (!ai.hasLLM()) { refreshAI();
+    aiBody.className = 'ai-body';
+    aiBody.innerHTML = '<div class="error">⚠ 尚未配置 LLM。前往首页「设置」填写 baseUrl / apiKey / model 后再来——在此之前，本页所有功能照常可用。</div>';
+    return; }
+  btn.disabled = true;
+  aiBody.className = 'ai-body';
+  aiBody.innerHTML = '<span style="color:#94a3b8">🧠 正在分析…</span>';
+  try { aiBody.textContent = await ai.ask(sys, user, { temperature: 0.6, timeoutMs: 45000 }); }
+  catch (e) { aiBody.className = 'ai-body'; aiBody.innerHTML = `<div class="error">⚠ ${esc(ai.friendlyError(e))}</div>`; }
+  finally { refreshAI(); }
+}
+aiSumBtn.addEventListener('click', () => runAI(aiSumBtn, SYS_SUM, '本页统计：\n' + statsContext()));
+aiChainBtn.addEventListener('click', () => {
+  const sample = [...LINEAGE].sort(() => Math.random() - .5).slice(0, 14)
+    .map(l => `[${l.itype}] ${l.s_tz}(${l.s_year}) ← ${l.a_tz}(${l.a_year})${l.descr ? '：' + l.descr : ''}`).join('\n');
+  runAI(aiChainBtn, SYS_CHAIN, '影响链记录（随机摘录）：\n' + sample);
+});
 </script>
 </body>
 </html>

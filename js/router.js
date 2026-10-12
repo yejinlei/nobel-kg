@@ -77,6 +77,75 @@ export async function route(text) {
   const school = matchVocabulary(t, SCHOOLS, 'name_cn');
   const field = matchVocabulary(t, FIELDS, 'name_zh');
 
+  // -1. 和平奖 / 文学奖 / 获奖组织（必须优先于「诺奖得主名录」，
+  //     因为「和平奖得主」等词中含「得主」会被规则 0 抢走）
+  if (has('和平奖','诺贝尔和平奖','peace')) {
+    const yearMatch2 = t.match(/(19\d{2}|20\d{2})\s*年/);
+    const args = {};
+    if (yearMatch2) args.year = Number(yearMatch2[1]);
+    // 政治人物中文→英文（本体主表 name_en 是英文，中文原名匹配不到）
+    const POL_EN = {
+      '特朗普':'Trump','川普':'Trump',
+      '奥巴马':'Obama',
+      '卡特总统':'Carter','卡特':'Carter',
+      '曼德拉':'Mandela','纳尔逊·曼德拉':'Mandela',
+      '戈尔巴乔夫':'Gorbachev',
+      '昂山素季':'Suu Kyi',
+      '拉宾':'Rabin','撒切尔':'Thatcher','铁托':'Tito',' Begin':'Begin',
+      '卡塔·杜':'Kuta','马丁·路德·金':'Martin Luther King','马丁路德金':'Martin Luther King','金博士':'King',
+      '希拉里':'Hillary',
+    };
+    let kw = '';
+    for (const [zh, en] of Object.entries(POL_EN)) {
+      if (t.includes(zh)) { kw = en; break; }
+    }
+    if (!kw && persons.length) kw = nameOf(persons[0]);
+    if (!kw) {
+      // 尝试抓英文人名（Obama/Trump/Carter 等）
+      const en = t.match(/\b[A-Z][a-z]{2,15}\b/g);
+      if (en && en.length) {
+        const stopWords = new Set(['The','This','That','What','Which','When','Where','Who','How','Why','Does','Will','Would','Could','Should','Have','Has','Had','Are','Is','Be','Been','Not','About','Most','Recent','All']);
+        const keep = en.filter(w => !stopWords.has(w));
+        if (keep.length) kw = keep[0];
+      }
+    }
+    // 抓组织类关键词（联合国/红十字/UN 等），这些是关键词不是意图
+    if (!kw) {
+      const kwMatch = t.match(/(联合国|红十字会|红十字|红新月|难民|教科文|世卫|UNHCR|UNRWA|UNESCO|ICRC|ICJM|Nobel|Nobel Foundation)/i);
+      if (kwMatch) kw = kwMatch[1];
+    }
+    if (kw) args.keyword = kw;
+    // 只有明确"机构/组织"意图才置 orgOnly，不要因关键词触发
+    if (has('机构','组织') && !kw.match(/^(Trump|Obama|Carter|Mandela|Gorbachev|Suu Kyi|Rabin|Begin|Thatcher|Tito|King|Hillary)/i)) {
+      args.orgOnly = true;
+    }
+    return { tool: '和平奖得主', args, reason: '关键词：和平奖' };
+  }
+
+  if (has('文学奖','诺贝尔文学奖','文学','writer','writers','文学家','小说家','poet')) {
+    const yearMatch2 = t.match(/(19\d{2}|20\d{2})\s*年/);
+    const args = {};
+    if (yearMatch2) args.year = Number(yearMatch2[1]);
+    if (persons.length) args.keyword = nameOf(persons[0]);
+    else {
+      const en = t.match(/\b[A-Z][a-z]{2,20}\b/g);
+      if (en && en.length) {
+        const stopWords = new Set(['The','This','That','What','Which','When','Where','Who','How','Why','Does','Will','Would','Could','Should','Have','Has','Had','Are','Is','Be','Been','Not','About','Most','Recent','All']);
+        const keep = en.filter(w => !stopWords.has(w));
+        if (keep.length) args.keyword = keep[0];
+      }
+    }
+    return { tool: '文学奖得主', args, reason: '关键词：文学奖' };
+  }
+
+  if (has('获奖组织','获奖机构','诺贝尔奖机构','peace org','peace orgs')
+      || (has('联合国','红十字','un','unhcr','红新月') && has('机构','组织','获奖','得主','和平'))) {
+    const args = {};
+    const kw = t.match(/(联合国|红十字|红新月|UNHCR|UNRWA|UNESCO|WHO|ICRC|Nobel)/i);
+    if (kw) args.keyword = kw[0];
+    return { tool: '和平奖组织', args, reason: '关键词：获奖组织/机构' };
+  }
+
   // 0. 诺奖得主/年份/名录（最高优先级：识别年份+诺奖类问题）
   const yearMatch = t.match(/(19\d{2}|20\d{2})\s*年/);
   if (has('诺奖','诺贝尔奖','获奖','得主','历年') || yearMatch) {
@@ -175,6 +244,9 @@ export const HELP_TEXT = `我是诺奖师承知识本体助手。当前**未配�
 - **人才流动**：\`人才流动\`
 - **合作网络**：\`合作网络\`
 - **研究范式**：\`研究范式\`
+- **和平奖**：\`和平奖得主\`、\`谁得过和平奖\`、\`2009 年和平奖\`、\`奥巴马的和平奖\`、\`联合国和平奖\`
+- **文学奖**：\`文学奖得主\`、\`诺贝尔文学奖 女性\`、\`2015 文学奖\`
+- **获奖组织**：\`和平奖机构\`、\`红十字和平奖\`、\`联合国获奖\`
 - **订正记录**：\`数据订正记录\`
 
 > 想用自然语言任意提问、并让 Agent 自动编排多步查询，请在右上角 **⚙️ 设置** 中填入兼容 OpenAI 的大模型接口（Key 只保存在你的浏览器本地）。`;

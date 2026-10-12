@@ -2,11 +2,11 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>诺奖师承关系图谱</title>
+<title>诺奖师承关系图谱 · 时间轴</title>
 <script src="../lib/vendors/d3.v7.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#e2e8f0;font-family:'Helvetica Neue',-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;overflow:hidden;}
+body{background:radial-gradient(ellipse at 50% 20%,#101736 0%,#05070f 70%);color:#e2e8f0;font-family:'Helvetica Neue',-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;overflow:hidden;}
 .header{position:fixed;top:0;left:0;right:0;padding:16px 28px;background:rgba(15,23,42,.85);backdrop-filter:blur(12px);z-index:100;border-bottom:1px solid rgba(148,163,184,.2);display:flex;justify-content:space-between;align-items:center;}
 .title{font-size:20px;font-weight:600;background:linear-gradient(90deg,#60a5fa,#c084fc,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .subtitle{font-size:12px;color:#94a3b8;margin-top:2px;}
@@ -14,34 +14,76 @@ body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#e2e8f0;fo
 .stat{text-align:center;}
 .stat-num{font-size:20px;font-weight:700;color:#60a5fa;}
 .stat-label{color:#94a3b8;margin-top:2px;}
-.controls{position:fixed;top:80px;left:20px;z-index:90;background:rgba(30,41,59,.9);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.2);border-radius:12px;padding:16px;width:220px;}
-.controls h3{font-size:13px;color:#94a3b8;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;}
-.ctrl-item{margin-bottom:10px;font-size:12px;}
-.ctrl-item label{display:flex;align-items:center;gap:6px;cursor:pointer;color:#cbd5e1;}
+.controls{position:fixed;top:80px;left:16px;z-index:90;background:rgba(30,41,59,.9);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.2);border-radius:12px;padding:14px;width:210px;font-size:12px;color:#cbd5e1;}
+.controls h3{font-size:12.5px;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;}
+.ctrl-item{margin-bottom:8px;}
+.ctrl-item label{display:flex;align-items:center;gap:6px;cursor:pointer;}
 .ctrl-item input{accent-color:#60a5fa;}
-button.reset{margin-top:10px;width:100%;padding:8px;border:1px solid #475569;background:#334155;color:#e2e8f0;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s;}
+.controls select{width:100%;padding:5px;background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:6px;font-size:12px;}
+button.reset{margin-top:8px;width:100%;padding:7px;border:1px solid #475569;background:#334155;color:#e2e8f0;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s;}
 button.reset:hover{background:#475569;}
-.legend{position:fixed;top:80px;right:20px;z-index:90;background:rgba(30,41,59,.9);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.2);border-radius:12px;padding:16px;width:200px;}
-.legend h3{font-size:13px;color:#94a3b8;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;}
-.legend-item{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px;color:#cbd5e1;}
-.legend-dot{width:12px;height:12px;border-radius:50%;}
-.legend-line{width:24px;height:2px;margin:0 2px;}
-.tooltip{position:fixed;background:rgba(15,23,42,.96);border:1px solid #60a5fa;border-radius:8px;padding:14px;max-width:360px;font-size:12px;pointer-events:none;z-index:200;box-shadow:0 8px 32px rgba(96,165,250,.2);display:none;}
-.tooltip h4{font-size:14px;color:#60a5fa;margin-bottom:4px;}
-.tooltip .meta{color:#94a3b8;font-size:11px;margin-bottom:8px;}
-.tooltip .section{margin-top:8px;}
-.tooltip .section-title{color:#c084fc;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
-.tooltip .paper{padding:4px 8px;background:rgba(96,165,250,.1);border-left:2px solid #60a5fa;margin:4px 0;border-radius:0 4px 4px 0;}
-.tooltip .paper-year{color:#fbbf24;font-weight:600;margin-right:6px;}
-#graph{position:fixed;top:70px;left:0;right:0;bottom:0;}
+.legend{position:fixed;top:80px;right:16px;z-index:90;background:rgba(30,41,59,.9);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.2);border-radius:12px;padding:12px 14px;width:190px;font-size:11.5px;color:#cbd5e1;}
+.legend h3{font-size:12px;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;}
+.legend-item{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+.legend-dot{width:11px;height:11px;border-radius:50%;flex:none;}
+.tooltip{position:fixed;background:rgba(15,23,42,.97);border:1px solid #60a5fa;border-radius:8px;padding:12px 14px;max-width:380px;font-size:12px;pointer-events:none;z-index:200;box-shadow:0 8px 32px rgba(96,165,250,.25);display:none;}
+.tooltip h4{font-size:14px;color:#60a5fa;margin-bottom:2px;}
+.tooltip .en{color:#8b93b8;font-size:11px;margin-left:6px;font-style:italic;}
+.tooltip .meta{color:#94a3b8;font-size:11px;margin-bottom:6px;}
+.tooltip .section{margin-top:8px;padding-top:6px;border-top:1px dashed rgba(96,165,250,.25);}
+.tooltip .section-title{color:#c084fc;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.tooltip .paper{padding:4px 8px;background:rgba(96,165,250,.1);border-left:2px solid #60a5fa;margin:3px 0;border-radius:0 4px 4px 0;font-size:11.5px;line-height:1.5;}
+.tooltip .paper-year{color:#fbbf24;font-weight:600;margin-right:4px;}
+.tooltip .paper-desc{color:#94a3b8;font-size:10.5px;line-height:1.5;margin-top:1px;}
+.tooltip .inh-line{padding:3px 0;border-bottom:1px dashed rgba(192,132,252,.2);}
+.tooltip .inh-type{font-size:10px;padding:1px 6px;border-radius:8px;margin-right:4px;}
+#graph{position:fixed;top:68px;left:0;right:0;bottom:90px;}
 .node circle{cursor:pointer;stroke:#fff;stroke-width:2px;transition:all .2s;}
 .node:hover circle{stroke:#fbbf24;stroke-width:3px;filter:drop-shadow(0 0 8px #fbbf24);}
 .node text{font-size:10px;fill:#e2e8f0;text-anchor:middle;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.8);}
 .link{stroke-opacity:.5;fill:none;}
 .link.paper{stroke-dasharray:4 2;}
 .link.active{stroke:#fbbf24 !important;stroke-opacity:1 !important;stroke-width:2.5px !important;}
-.node.dim{opacity:.15;}
+.node.dim{opacity:.12;}
 .link.dim{opacity:.05;}
+
+/* 时间轴 scrubber */
+.timeline{position:fixed;bottom:0;left:0;right:0;height:82px;z-index:90;background:linear-gradient(180deg,rgba(15,23,42,0),rgba(15,23,42,.92) 30%,rgba(10,15,31,.98));border-top:1px solid rgba(129,140,248,.25);padding:10px 28px 12px;}
+.tl-head{display:flex;align-items:center;gap:14px;margin-bottom:4px;font-size:12px;}
+.tl-title{color:#c7d2fe;font-weight:600;letter-spacing:.5px;}
+.tl-range{color:#fbbf24;font-weight:700;font-variant-numeric:tabular-nums;}
+.tl-hint{color:#8b93b8;margin-left:auto;}
+.tl-btn{background:rgba(47,95,208,.3);border:1px solid rgba(129,140,248,.4);color:#e0e7ff;font-size:11px;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit;}
+.tl-btn:hover{background:rgba(47,95,208,.55);}
+.tl-btn.on{background:linear-gradient(135deg,#fbbf24,#f97316);color:#0f172a;border-color:transparent;font-weight:700;}
+#slider{display:block;width:100%;height:52px;overflow:visible;}
+.tl-brush{fill:rgba(96,165,250,.15);stroke:#60a5fa;stroke-width:1;rx:2;}
+.tl-brush-handle{fill:#fbbf24;stroke:#0f172a;stroke-width:1;}
+.tl-axis text{fill:#8b93b8;font-size:10px;}
+.tl-axis line,.tl-axis path{stroke:#334155;}
+
+/* AI 面板 */
+.ai-panel{position:fixed;top:80px;right:220px;z-index:80;width:340px;max-width:calc(100vw - 480px);background:linear-gradient(160deg,rgba(20,26,58,.94),rgba(15,20,44,.96));border:1px solid rgba(129,140,248,.35);border-radius:12px;padding:12px 14px;color:#e2e8f0;box-shadow:0 12px 40px rgba(0,0,0,.5);backdrop-filter:blur(8px);font-size:12px;display:none;}
+.ai-panel.on{display:block;}
+.ai-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.ai-head h3{margin:0;font-size:12.5px;color:#fbbf24;letter-spacing:.5px;}
+.ai-dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399;animation:pulse 1.6s infinite;}
+.ai-dot.off{background:#64748b;box-shadow:none;animation:none;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.ai-state{font-size:10.5px;color:#64748b;margin-left:auto;}
+.ai-body{max-height:220px;overflow-y:auto;font-size:11.5px;line-height:1.65;color:#cbd5f5;padding:4px 0;}
+.ai-body.empty{color:#8b93b8;text-align:center;padding:12px 0;font-size:11px;}
+.ai-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.ai-btn{background:rgba(47,95,208,.35);border:1px solid rgba(129,140,248,.4);color:#e0e7ff;font-size:11px;padding:5px 9px;border-radius:7px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.ai-btn:hover{background:rgba(47,95,208,.6);}
+.ai-btn:disabled{opacity:.4;cursor:not-allowed;}
+.ai-btn.gold{background:linear-gradient(135deg,#fbbf24,#f97316);color:#0f172a;border-color:transparent;font-weight:700;}
+.ai-btn.gold:disabled{background:#334155;color:#64748b;}
+.ai-toggle{position:fixed;top:16px;right:16px;z-index:95;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#c7d2fe;padding:5px 12px;border-radius:999px;cursor:pointer;font-size:12px;font-family:inherit;}
+.ai-toggle:hover{background:rgba(255,255,255,.16);}
+.error{color:#f87171;font-size:11px;padding:4px 0;line-height:1.5;}
+.back-link{position:fixed;top:16px;left:16px;z-index:96;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#c7d2fe;padding:4px 10px;border-radius:999px;text-decoration:none;font-size:11.5px;}
+.back-link:hover{background:rgba(255,255,255,.16);}
 </style>
 </head>
 <body>
@@ -83,6 +125,7 @@ button.reset:hover{background:#475569;}
   <div class="legend-item"><div class="legend-dot" style="background:#4285f4"></div>物理学</div>
   <div class="legend-item"><div class="legend-dot" style="background:#ea4335"></div>化学</div>
   <div class="legend-item"><div class="legend-dot" style="background:#34a853"></div>生理/医学</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#b8860b"></div>经济学</div>
   <div class="legend-item"><div class="legend-dot" style="background:#9e9e9e"></div>非诺奖导师</div>
   <h3 style="margin-top:10px;">关系</h3>
   <div class="legend-item"><svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#64748b" stroke-width="2"/></svg>师承（博士/博后）</div>
@@ -91,8 +134,140 @@ button.reset:hover{background:#475569;}
 <div class="tooltip" id="tip"></div>
 <svg id="graph"></svg>
 
-<script>
-const DATA = {"people": [{"id": "P001", "name": "尼尔斯·玻尔", "name_en": "Niels Bohr", "birth": "1885", "death": "1962.0", "nationality": "丹麦", "nobel_year": "1922.0", "nobel_category": "物理学", "gender": "M", "note": "哥本哈根学派创立者；其子奥格·玻尔亦获诺奖", "papers": [{"id": "W009", "title": "论原子与分子的构造（玻尔原子模型三部曲）", "year": 1913, "venue": "Philosophical Magazine", "citations": ">1万", "contrib": "提出定态轨道与跃迁概念，建立氢原子玻尔模型，解释氢原子光谱，获1922年诺贝尔物理学奖。"}], "school": "哥本哈根学派"}, {"id": "P002", "name": "维尔纳·海森堡", "name_en": "Werner Heisenberg", "birth": "1901", "death": "1976.0", "nationality": "德国", "nobel_year": "1932.0", "nobel_category": "物理学", "gender": "M", "note": "索末菲学生；不确定性原理提出者", "papers": [{"id": "W006", "title": "关于运动学与力学关系的量子论重新解释（矩阵力学创立）", "year": 1925, "venue": "Zeitschrift für Physik", "citations": ">1万", "contrib": "创立矩阵力学，量子力学的首个严格数学表述，以此获1932年诺贝尔物理学奖。"}, {"id": "W007", "title": "论量子论运动学与力学的直观内容（不确定性原理）", "year": 1927, "venue": "Zeitschrift für Physik", "citations": ">1万", "contrib": "提出不确定性原理，确立位置与动量等共轭量不能同时被精确测定的根本界限。"}], "school": "慕尼黑学派"}, {"id": "P003", "name": "沃尔夫冈·泡利", "name_en": "Wolfgang Pauli", "birth": "1900", "death": "1958.0", "nationality": "奥地利", "nobel_year": "1945.0", "nobel_category": "物理学", "gender": "M", "note": "索末菲学生；不相容原理提出者", "papers": [{"id": "W008", "title": "论原子中电子壳层闭合与光谱复杂结构的关系（泡利不相容原理）", "year": 1925, "venue": "Zeitschrift für Physik", "citations": ">5000", "contrib": "提出泡利不相容原理，解释元素周期表电子壳层结构，获1945年诺贝尔物理学奖。"}], "school": "慕尼黑学派"}, {"id": "P004", "name": "汉斯·贝特", "name_en": "Hans Bethe", "birth": "1906", "death": "2005.0", "nationality": "德国/美国", "nobel_year": "1967.0", "nobel_category": "物理学", "gender": "M", "note": "索末菲学生；恒星核合成理论", "papers": [{"id": "W015", "title": "恒星中的能量产生", "year": 1939, "venue": "Physical Review", "citations": ">5000", "contrib": "提出恒星中质子-质子链与碳氮氧（CNO）循环两种氢聚变机制，解释恒星能量来源，获1967年诺贝尔物理学奖。"}], "school": "慕尼黑学派"}, {"id": "P005", "name": "彼得·德拜", "name_en": "Peter Debye", "birth": "1884", "death": "1966.0", "nationality": "荷兰/美国", "nobel_year": "1936.0", "nobel_category": "化学", "gender": "M", "note": "索末菲学生；德拜模型", "papers": [{"id": "W011", "title": "论比热理论（德拜模型）", "year": 1912, "venue": "Annalen der Physik", "citations": ">5000", "contrib": "提出固体低温比热的德拜模型，引入德拜温度，与爱因斯坦模型一同开创固体量子论。"}, {"id": "W012", "title": "极性分子（偶极矩与化学键）", "year": 1929, "venue": "S. Hirzel, Leipzig", "citations": ">5000", "contrib": "创立分子偶极矩测量方法并系统应用于分子结构研究，获1936年诺贝尔化学奖。"}], "school": "慕尼黑学派"}, {"id": "P006", "name": "保罗·狄拉克", "name_en": "Paul Dirac", "birth": "1902", "death": "1984.0", "nationality": "英国", "nobel_year": "1933.0", "nobel_category": "物理学", "gender": "M", "note": "福勒学生；狄拉克方程", "papers": [], "school": ""}, {"id": "P007", "name": "玛丽亚·格佩特-梅耶", "name_en": "Maria Goeppert-Mayer", "birth": "1906", "death": "1972.0", "nationality": "德国/美国", "nobel_year": "1963.0", "nobel_category": "物理学", "gender": "F", "note": "玻恩学生；第二位获物理奖的女性", "papers": [], "school": ""}, {"id": "P008", "name": "罗伯特·奥本海默", "name_en": "Robert Oppenheimer", "birth": "1904", "death": "1967.0", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "玻恩学生；无诺奖；曼哈顿计划科学总监", "papers": [], "school": "哥廷根学派"}, {"id": "P009", "name": "杨振宁", "name_en": "Chen-Ning Yang", "birth": "1922", "death": "", "nationality": "中国/美国", "nobel_year": "1957.0", "nobel_category": "物理学", "gender": "M", "note": "泰勒学生；杨-米尔斯规范场论", "papers": [{"id": "W017", "title": "同位旋守恒与同位旋规范不变性（杨-米尔斯理论）", "year": 1954, "venue": "Physical Review", "citations": ">10万", "contrib": "与米尔斯提出非阿贝尔规范场论，成为粒子物理标准模型的数学基石。"}, {"id": "W018", "title": "弱相互作用中宇称守恒问题", "year": 1956, "venue": "Physical Review", "citations": ">1万", "contrib": "与李政道提出弱相互作用中宇称不守恒假说，获1957年诺贝尔物理学奖。"}], "school": ""}, {"id": "P010", "name": "李政道", "name_en": "Tsung-Dao Lee", "birth": "1926", "death": "", "nationality": "中国/美国", "nobel_year": "1957.0", "nobel_category": "物理学", "gender": "M", "note": "费米学生；与杨振宁共获诺奖", "papers": [], "school": "罗马费米学派"}, {"id": "P011", "name": "威廉·劳伦斯·布拉格", "name_en": "William Lawrence Bragg", "birth": "1890", "death": "1971.0", "nationality": "英国", "nobel_year": "1915.0", "nobel_category": "物理学", "gender": "M", "note": "J.J.汤姆孙学生；与父W.H.布拉格共获诺奖，时年25岁", "papers": [{"id": "W021", "title": "晶体对X射线的反射（布拉格定律）", "year": 1913, "venue": "Proceedings of the Royal Society A", "citations": ">1万", "contrib": "提出布拉格定律 nλ=2d sinθ，奠定X射线晶体学定量基础，与父亲共获1915年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P012", "name": "乔治·佩吉特·汤姆孙", "name_en": "George Paget Thomson", "birth": "1892", "death": "1975.0", "nationality": "英国", "nobel_year": "1937.0", "nobel_category": "物理学", "gender": "M", "note": "J.J.汤姆孙之子与学生；电子衍射实验", "papers": [{"id": "W022", "title": "薄膜对阴极射线的衍射（电子衍射）", "year": 1927, "venue": "Proceedings of the Royal Society A", "citations": ">5000", "contrib": "用晶体薄膜观察到电子衍射图样，实验证实德布罗意物质波，获1937年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P013", "name": "欧内斯特·卢瑟福", "name_en": "Ernest Rutherford", "birth": "1871", "death": "1937.0", "nationality": "新西兰/英国", "nobel_year": "1908.0", "nobel_category": "化学", "gender": "M", "note": "J.J.汤姆孙学生；原子核物理学之父", "papers": [{"id": "W020", "title": "物质对α和β粒子的散射与原子结构（原子核的发现）", "year": 1911, "venue": "Philosophical Magazine", "citations": ">1万", "contrib": "基于α粒子大角度散射实验提出核式原子模型，开创原子核物理学，获1908年诺贝尔化学奖。"}], "school": "卡文迪许学派"}, {"id": "P014", "name": "詹姆斯·沃森", "name_en": "James Watson", "birth": "1928", "death": "", "nationality": "美国", "nobel_year": "1962.0", "nobel_category": "生理学或医学", "gender": "M", "note": "卢里亚学生；DNA双螺旋", "papers": [], "school": "LMB分子生物学派"}, {"id": "P015", "name": "弗朗西斯·克里克", "name_en": "Francis Crick", "birth": "1916", "death": "2004.0", "nationality": "英国", "nobel_year": "1962.0", "nobel_category": "生理学或医学", "gender": "M", "note": "佩鲁茨学生；DNA双螺旋", "papers": [{"id": "W029", "title": "核酸的分子结构：脱氧核糖核酸的结构（DNA双螺旋）", "year": 1953, "venue": "Nature", "citations": ">10万", "contrib": "与沃森提出DNA双螺旋结构模型，揭示遗传物质的分子复制机制，获1962年诺贝尔生理学或医学奖。"}], "school": "LMB分子生物学派"}, {"id": "P016", "name": "马克斯·佩鲁茨", "name_en": "Max Perutz", "birth": "1914", "death": "2002.0", "nationality": "奥地利/英国", "nobel_year": "1962.0", "nobel_category": "化学", "gender": "M", "note": "贝尔纳学生；剑桥LMB创始人", "papers": [{"id": "W027", "title": "血红蛋白的三维傅里叶合成结构", "year": 1960, "venue": "Nature", "citations": ">5000", "contrib": "利用同晶置换法解析血红蛋白5.5埃分辨率三维结构，开创蛋白质晶体学，获1962年诺贝尔化学奖。"}], "school": "LMB分子生物学派"}, {"id": "P017", "name": "约翰·肯德鲁", "name_en": "John Kendrew", "birth": "1917", "death": "1997.0", "nationality": "英国", "nobel_year": "1962.0", "nobel_category": "化学", "gender": "M", "note": "佩鲁茨学生；首个解析蛋白质结构者", "papers": [{"id": "W028", "title": "由X射线分析得到的肌红蛋白分子三维模型", "year": 1958, "venue": "Nature", "citations": ">5000", "contrib": "首次以6埃分辨率解析肌红蛋白三维结构，是世界上第一个被测定结构的蛋白质，获1962年诺贝尔化学奖。"}], "school": "LMB分子生物学派"}, {"id": "P018", "name": "奥格·玻尔", "name_en": "Aage Bohr", "birth": "1922", "death": "2009.0", "nationality": "丹麦", "nobel_year": "1975.0", "nobel_category": "物理学", "gender": "M", "note": "尼尔斯·玻尔之子与学生", "papers": [{"id": "W024", "title": "原子核的集体运动模型", "year": 1953, "venue": "Matematisk-fysiske Meddelelser / Physical Review", "citations": ">5000", "contrib": "与莫特尔森、雷恩沃特提出原子核集体运动模型，统一描述核的单粒子运动与集体转动振动，获1975年诺贝尔物理学奖。"}], "school": "哥本哈根学派"}, {"id": "P019", "name": "伊雷娜·约里奥-居里", "name_en": "Irène Joliot-Curie", "birth": "1897", "death": "1956.0", "nationality": "法国", "nobel_year": "1935.0", "nobel_category": "化学", "gender": "F", "note": "玛丽·居里之女与学生", "papers": [{"id": "W026", "title": "一种新型放射性（人工放射性）", "year": 1934, "venue": "Comptes Rendus de l'Académie des Sciences", "citations": ">5000", "contrib": "夫妇二人用α粒子轰击铝首次人工合成放射性同位素30P，开创人工放射性，共获1935年诺贝尔化学奖。"}], "school": "居里学派"}, {"id": "P020", "name": "弗朗西斯·哈尔岑", "name_en": "Francis Halzen", "birth": "1944", "death": "", "nationality": "比利时/美国", "nobel_year": "2026.0", "nobel_category": "物理学", "gender": "M", "note": "2026新增；塞鲁鲁斯学生；冰立方首席科学家", "papers": [{"id": "W044", "title": "冰立方探测器上高能地外中微子的证据", "year": 2013, "venue": "Science", "citations": ">5000", "contrib": "作为冰立方首席科学家主导探测到28个TeV–PeV能量级高能天体中微子，开启中微子天文学，获2026年诺贝尔物理学奖。"}, {"id": "W045", "title": "冰立方中微子天文台：仪器与在线系统", "year": 2017, "venue": "Journal of Instrumentation", "citations": ">1000", "contrib": "系统描述南极1立方公里冰体中微子探测器冰立方的设计、建造与运行，奠定TeV中微子天文学装置基础。"}], "school": ""}, {"id": "P021", "name": "卡尔·戴塞罗思", "name_en": "Karl Deisseroth", "birth": "1971", "death": "", "nationality": "美国", "nobel_year": "2026.0", "nobel_category": "生理学或医学", "gender": "M", "note": "2026新增；钱永佑实验室", "papers": [{"id": "W037", "title": "毫秒级、基因靶向的神经活动光学控制（光遗传学）", "year": 2005, "venue": "Nature Neuroscience", "citations": ">1万", "contrib": "与Boyden、Zhang等将ChR2首次在哺乳动物神经元中表达，实现毫秒精度光控神经活动，获2026年诺贝尔生理学或医学奖。"}, {"id": "W038", "title": "完整生物系统的结构与分子成像（CLARITY组织透明技术）", "year": 2013, "venue": "Nature", "citations": ">5000", "contrib": "提出CLARITY水凝胶-脂质清除技术使完整脑组织透明化，实现大尺度三维神经环路成像。"}], "school": "光遗传学派"}, {"id": "P022", "name": "彼得·黑格曼", "name_en": "Peter Hegemann", "birth": "1954", "death": "", "nationality": "德国", "nobel_year": "2026.0", "nobel_category": "生理学或医学", "gender": "M", "note": "2026新增；奥斯特黑尔特学生；通道视紫红质", "papers": [{"id": "W034", "title": "通道视紫红质1：绿藻中的光门控质子通道（ChR1/ChR2）", "year": 2002, "venue": "Science", "citations": ">5000", "contrib": "与Nagel等从衣藻克隆光门控阳离子通道ChR1/ChR2，提供光遗传学核心工具，获2026年诺贝尔生理学或医学奖。"}], "school": "光遗传学派"}, {"id": "P023", "name": "格奥尔格·纳格尔", "name_en": "Georg Nagel", "birth": "1953", "death": "", "nationality": "德国", "nobel_year": "2026.0", "nobel_category": "生理学或医学", "gender": "M", "note": "2026新增；班贝格学生/长期合作者", "papers": [], "school": "光遗传学派"}, {"id": "P024", "name": "亨利·B·卡甘", "name_en": "Henri B. Kagan", "birth": "1930", "death": "", "nationality": "法国", "nobel_year": "2026.0", "nobel_category": "化学", "gender": "M", "note": "2026新增；让·雅克学生；不对称催化非线性效应", "papers": [{"id": "W039", "title": "手性配合物不对称催化：合成中的非线性效应（Kagan非线性效应/MLn模型）", "year": 1986, "venue": "Journal of the American Chemical Society / Nouveau Journal de Chimie", "citations": ">5000", "contrib": "发现不对称催化中产物对映体过量与催化剂手性纯度之间的非线性关系（Kagan非线性效应），获2026年诺贝尔化学奖。"}], "school": ""}, {"id": "P025", "name": "硖合宪三", "name_en": "Kenso Soai", "birth": "1950", "death": "", "nationality": "日本", "nobel_year": "2026.0", "nobel_category": "化学", "gender": "M", "note": "2026新增；博士导师待补；Soai反应发现者", "papers": [{"id": "W040", "title": "不对称自催化与手性分子对映体过量放大（Soai反应）", "year": 1995, "venue": "Nature", "citations": ">5000", "contrib": "发现Soai反应——产物自身作为不对称催化剂、手性微小偏差被指数级放大的自催化体系，获2026年诺贝尔化学奖。"}], "school": ""}, {"id": "P026", "name": "爱德华·博伊登", "name_en": "Edward Boyden", "birth": "1979", "death": "", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "无诺奖；钱永佑实验室；光遗传学奠基人之一", "papers": [], "school": "光遗传学派"}, {"id": "P027", "name": "弗朗斯·塞鲁鲁斯", "name_en": "Frans Cerulus", "birth": "1931", "death": "2015.0", "nationality": "比利时", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "鲁汶大学理论物理学家；哈尔岑博士导师", "papers": [{"id": "W046", "title": "介子-核子散射与色散关系（塞鲁鲁斯理论物理研究）", "year": 1960, "venue": "Il Nuovo Cimento / Physical Review", "citations": "约>500", "contrib": "在色散关系与强子散射理论领域做出重要贡献，长期任教于鲁汶大学，是哈尔岑博士阶段研究导师。"}], "school": ""}, {"id": "P028", "name": "钱永佑", "name_en": "Richard W. Tsien", "birth": "1945", "death": "", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "斯坦福大学神经生物学家、钙离子通道与突触传递专家；钱永健之兄、钱学森堂侄；无诺奖。原名单英文名误写为Yuh Nung Jan（詹裕农，UCSF，另一人），已更正", "papers": [{"id": "W036", "title": "脊椎动物神经元中的多种钙通道（N型/R型钙通道与突触传递）", "year": 1980, "venue": "Journal of Physiology / Biophysical Journal", "citations": ">1万", "contrib": "系统鉴定神经元中不同类型电压门控钙通道及其在神经递质释放中的核心作用，奠定现代神经电生理学基础。"}], "school": ""}, {"id": "P029", "name": "迪特尔·奥斯特黑尔特", "name_en": "Dieter Oesterhelt", "birth": "1940", "death": "2022.0", "nationality": "德国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "发现细菌视紫红质；2021拉斯克奖；2022年去世未及诺奖", "papers": [{"id": "W033", "title": "盐嗜盐菌紫膜中的视紫红质样蛋白（细菌视紫红质）", "year": 1971, "venue": "Nature New Biology", "citations": ">5000", "contrib": "与Stoeckenius发现细菌视紫红质，揭示光驱动质子泵机制，开创微生物光遗传学蛋白研究。"}], "school": ""}, {"id": "P030", "name": "恩斯特·班贝格", "name_en": "Ernst Bamberg", "birth": "1940", "death": "", "nationality": "德国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "马普生物物理研究所；光遗传学先驱；无诺奖", "papers": [{"id": "W035", "title": "动物细胞中表达微生物视紫红质的光驱动离子泵/通道（电生理学验证）", "year": 1995, "venue": "Proceedings of the National Academy of Sciences USA / Biophysical Journal", "citations": ">1000", "contrib": "Nagel与Bamberg合作证明细菌视紫红质可在动物细胞异源表达并产生光控跨膜电流，为光遗传学提供原理可行性。"}], "school": "光遗传学派"}, {"id": "P031", "name": "让·雅克", "name_en": "Jean Jacques", "birth": "1916", "death": "2004.0", "nationality": "法国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "法国立体化学家；卡甘博士导师", "papers": [{"id": "W047", "title": "双官能团有机化合物立体化学与不对称合成（让·雅克立体化学研究）", "year": 1955, "venue": "Bulletin de la Société Chimique de France / Collège de France publications", "citations": "约>500", "contrib": "系统研究手性双官能团化合物构型与反应选择性，培养亨利·卡甘等手性合成学者，奠定法国立体化学学派基础。"}], "school": ""}, {"id": "P032", "name": "阿诺德·索末菲", "name_en": "Arnold Sommerfeld", "birth": "1868", "death": "1951.0", "nationality": "德国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "慕尼黑学派领袖；培养出多名诺奖得主；本人未获诺奖", "papers": [{"id": "W004", "title": "光谱线的量子论", "year": 1916, "venue": "Annalen der Physik", "citations": ">5000", "contrib": "将玻尔圆轨道推广为椭圆轨道，引入精细结构常数α，解释氢原子光谱精细结构。"}, {"id": "W005", "title": "原子结构与光谱线", "year": 1919, "venue": "Vieweg", "citations": ">1万", "contrib": "系统总结旧量子论，成为20世纪20年代量子力学诞生前最具影响力的教科书与研究纲领。"}], "school": "慕尼黑学派"}, {"id": "P033", "name": "马克斯·玻恩", "name_en": "Max Born", "birth": "1882", "death": "1970.0", "nationality": "德国/英国", "nobel_year": "1954.0", "nobel_category": "物理学", "gender": "M", "note": "哥廷根学派领袖；学生含梅耶、奥本海默", "papers": [{"id": "W010", "title": "论碰撞过程的量子力学（波函数统计解释）", "year": 1926, "venue": "Zeitschrift für Physik", "citations": ">1万", "contrib": "提出波函数的概率统计解释，为量子力学哥本哈根诠释奠基，获1954年诺贝尔物理学奖。"}], "school": "哥廷根学派"}, {"id": "P034", "name": "拉尔夫·福勒", "name_en": "Ralph Fowler", "birth": "1889", "death": "1944.0", "nationality": "英国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "剑桥理论物理学家；狄拉克博士导师；卢瑟福女婿", "papers": [], "school": ""}, {"id": "P035", "name": "爱德华·泰勒", "name_en": "Edward Teller", "birth": "1908", "death": "2003.0", "nationality": "匈牙利/美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "氢弹之父；杨振宁博士导师；无诺奖", "papers": [{"id": "W016", "title": "热核反应机制与Teller-Ulam构型", "year": 1951, "venue": "Los Alamos Scientific Laboratory Report", "citations": "约>1000", "contrib": "与乌拉姆提出辐射内爆氢弹构型（Teller-Ulam设计），确立可行的热核武器原理。"}], "school": ""}, {"id": "P036", "name": "恩里科·费米", "name_en": "Enrico Fermi", "birth": "1901", "death": "1954.0", "nationality": "意大利/美国", "nobel_year": "1938.0", "nobel_category": "物理学", "gender": "M", "note": "李政道博士导师；芝加哥一号堆", "papers": [{"id": "W013", "title": "单原子理想气体的量子化（费米-狄拉克统计）", "year": 1926, "venue": "Rendiconti Lincei", "citations": ">1万", "contrib": "建立服从泡利不相容原理的全同粒子统计——费米-狄拉克统计，定义费米子系综。"}, {"id": "W014", "title": "β衰变中微子理论", "year": 1934, "venue": "Zeitschrift für Physik", "citations": ">5000", "contrib": "提出β衰变四费米子相互作用理论，引入中微子并奠定弱相互作用理论雏形。"}], "school": "罗马费米学派"}, {"id": "P037", "name": "约瑟夫·约翰·汤姆孙", "name_en": "J.J. Thomson", "birth": "1856", "death": "1940.0", "nationality": "英国", "nobel_year": "1906.0", "nobel_category": "物理学", "gender": "M", "note": "电子发现者；卡文迪许实验室主任；培养多名诺奖得主", "papers": [{"id": "W019", "title": "阴极射线（电子的发现）", "year": 1897, "venue": "Philosophical Magazine", "citations": ">5000", "contrib": "测定阴极射线粒子的荷质比，确认电子作为亚原子基本粒子的存在，获1906年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P038", "name": "萨尔瓦多·卢里亚", "name_en": "Salvador Luria", "birth": "1912", "death": "1991.0", "nationality": "意大利/美国", "nobel_year": "1969.0", "nobel_category": "生理学或医学", "gender": "M", "note": "沃森博士导师；噬菌体学派", "papers": [], "school": ""}, {"id": "P039", "name": "约翰·德斯蒙德·贝尔纳", "name_en": "J.D. Bernal", "birth": "1901", "death": "1971.0", "nationality": "英国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "X射线晶体学奠基人；佩鲁茨博士导师；无诺奖", "papers": [], "school": ""}, {"id": "P040", "name": "玛丽·居里", "name_en": "Marie Curie", "birth": "1867", "death": "1934.0", "nationality": "波兰/法国", "nobel_year": "1911.0", "nobel_category": "化学", "gender": "F", "note": "两获诺奖；伊雷娜之母与导师", "papers": [{"id": "W025", "title": "论沥青铀矿中一种强放射性新物质（镭与钋）", "year": 1898, "venue": "Comptes Rendus de l'Académie des Sciences", "citations": ">5000", "contrib": "与皮埃尔·居里从沥青铀矿中分离出钋和镭，开创放射性元素化学，玛丽分获1903物理奖与1911化学奖。"}], "school": "居里学派"}, {"id": "P041", "name": "克里斯蒂安·克里斯蒂安森", "name_en": "Christian Christiansen", "birth": "1843", "death": "1917.0", "nationality": "丹麦", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "哥本哈根大学物理学教授；玻尔大学阶段导师", "papers": [], "school": ""}, {"id": "P045", "name": "向山光昭", "name_en": "Teruaki Mukaiyama", "birth": "1927", "death": "2018.0", "nationality": "日本", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "东京大学有机化学家；硖合宪三博士导师；无诺奖", "papers": [{"id": "W041", "title": "向山羟醛反应及交叉偶联试剂（Mukaiyama试剂）", "year": 1974, "venue": "Journal of the American Chemical Society / Chemistry Letters", "citations": ">1万", "contrib": "系统发展Mukaiyama羟醛反应、Mukaiyama氧化及多种碳-碳成键试剂，深刻影响现代有机合成方法学。"}], "school": ""}, {"id": "P046", "name": "詹姆斯·查德威克", "name_en": "James Chadwick", "birth": "1891", "death": "1974.0", "nationality": "英国", "nobel_year": "1935.0", "nobel_category": "物理学", "gender": "M", "note": "卢瑟福学生；1932年发现中子，1935年获物理学奖", "papers": [{"id": "W023", "title": "中子的存在", "year": 1932, "venue": "Proceedings of the Royal Society A", "citations": ">5000", "contrib": "通过α粒子轰击铍的实验确认不带电的中子，解释原子核构成，获1935年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P047", "name": "莫里斯·威尔金斯", "name_en": "Maurice Wilkins", "birth": "1916", "death": "2004.0", "nationality": "新西兰/英国", "nobel_year": "1962.0", "nobel_category": "生理学或医学", "gender": "M", "note": "国王学院；DNA X射线衍射；1962年与沃森、克里克共享生理学或医学奖；原NP1962_MED中误用P041", "papers": [{"id": "W030", "title": "胸腺核苷酸钠盐的分子构型（DNA的X射线衍射B型/照片51）", "year": 1953, "venue": "Nature", "citations": ">5000", "contrib": "威尔金斯、富兰克林与戈斯林得到DNA B型X射线衍射图样（照片51）及螺旋参数，为双螺旋模型提供关键实验证据。"}], "school": ""}, {"id": "P049", "name": "伊西多·拉比", "name_en": "Isidor Isaac Rabi", "birth": "1898", "death": "1988.0", "nationality": "美国", "nobel_year": "1944.0", "nobel_category": "物理学", "gender": "M", "note": "哥伦比亚学派，索末菲博士后，1944物理诺奖", "papers": [], "school": "慕尼黑学派"}, {"id": "P050", "name": "莱纳斯·鲍林", "name_en": "Linus Pauling", "birth": "1901", "death": "1994.0", "nationality": "美国", "nobel_year": "1954.0", "nobel_category": "化学", "gender": "M", "note": "1954化学+1962和平，索末菲博士后", "papers": [], "school": "慕尼黑学派"}, {"id": "P051", "name": "埃米利奥·塞格雷", "name_en": "Emilio Segrè", "birth": "1905", "death": "1989.0", "nationality": "意大利/美国", "nobel_year": "1959.0", "nobel_category": "物理学", "gender": "M", "note": "费米学派，1959诺奖", "papers": [], "school": "罗马费米学派"}, {"id": "P052", "name": "朱利安·施温格", "name_en": "Julian Schwinger", "birth": "1918", "death": "1994.0", "nationality": "美国", "nobel_year": "1965.0", "nobel_category": "物理学", "gender": "M", "note": "1965与费曼朝永共获，拉比学生", "papers": [], "school": "哥大拉比学派"}, {"id": "P053", "name": "罗伯特·马伦卡", "name_en": "Robert Malenka", "birth": "1955", "death": "", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "斯坦福神经科学，Deisseroth博后导师", "papers": [], "school": ""}, {"id": "P055", "name": "阿兰·奥罗", "name_en": "Alain Horeau", "birth": "1921", "death": "2010.0", "nationality": "法国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "立体化学，Kagan博士后导师", "papers": [], "school": ""}, {"id": "P056", "name": "阿尔伯特·爱因斯坦", "name_en": "Albert Einstein", "birth": "1879", "death": "1955", "nationality": "德国/瑞士/美国", "nobel_year": "1921", "nobel_category": "物理学", "gender": "男", "note": "", "papers": [{"id": "W001", "title": "论动体的电动力学（狭义相对论）", "year": 1905, "venue": "Annalen der Physik", "citations": ">1万", "contrib": "提出狭义相对论，确立光速不变原理与相对性原理，统一时间与空间。"}, {"id": "W002", "title": "关于光的产生与转化的一个启发性观点（光量子假说）", "year": 1905, "venue": "Annalen der Physik", "citations": ">1万", "contrib": "提出光量子假说解释光电效应，为量子论奠基，获1921年诺贝尔物理学奖。"}, {"id": "W003", "title": "广义相对论基础", "year": 1916, "venue": "Annalen der Physik", "citations": ">1万", "contrib": "系统阐述广义相对论，以引力场方程描述时空弯曲与物质的相互作用。"}], "school": ""}, {"id": "P058", "name": "马克斯·德尔布吕克", "name_en": "Max Delbrück", "birth": "1906", "death": "1981", "nationality": "德国/美国", "nobel_year": "1969", "nobel_category": "生理学或医学", "gender": "男", "note": "", "papers": [{"id": "W031", "title": "细菌从病毒敏感到抗性的突变（卢里亚-德尔布吕克涨落实验）", "year": 1943, "venue": "Genetics", "citations": ">5000", "contrib": "与卢里亚通过涨落实验证明细菌抗性突变随机自发发生，开创噬菌体遗传学，获1969年诺贝尔生理学或医学奖。"}], "school": ""}, {"id": "P059", "name": "阿尔弗雷德·赫尔希", "name_en": "Alfred Hershey", "birth": "1908", "death": "1997", "nationality": "美国", "nobel_year": "1969", "nobel_category": "生理学或医学", "gender": "男", "note": "", "papers": [{"id": "W032", "title": "噬菌体生长中病毒蛋白与核酸的独立功能（赫尔希-蔡斯实验）", "year": 1952, "venue": "Journal of General Physiology", "citations": ">5000", "contrib": "与蔡斯用放射性同位素标记证明噬菌体DNA（而非蛋白）是遗传物质，与卢里亚、德尔布吕克共获1969年诺贝尔生理学或医学奖。"}], "school": ""}, {"id": "P060", "name": "弗朗索瓦·恩格勒特", "name_en": "François Englert", "birth": "1932", "death": "", "nationality": "比利时", "nobel_year": "2013", "nobel_category": "物理学", "gender": "男", "note": "", "papers": [{"id": "W042", "title": "对称性破缺与规范矢量介子质量（希格斯-恩格勒特机制）", "year": 1964, "venue": "Physical Review Letters", "citations": ">1万", "contrib": "与Robert Brout提出通过自发对称性破缺赋予规范玻色子质量的机制，与希格斯共获2013年诺贝尔物理学奖。"}], "school": ""}, {"id": "P061", "name": "彼得·希格斯", "name_en": "Peter Higgs", "birth": "1929", "death": "2024", "nationality": "英国", "nobel_year": "2013", "nobel_category": "物理学", "gender": "男", "note": "", "papers": [{"id": "W043", "title": "对称性破缺与规范玻色子质量（希格斯玻色子）", "year": 1964, "venue": "Physical Review Letters", "citations": ">1万", "contrib": "独立提出标量场（希格斯场）与希格斯玻色子机制，为粒子质量起源提供解释，获2013年诺贝尔物理学奖。"}], "school": ""}], "edges": [{"s": "P020", "a": "P027", "type": "研究/博士导师", "year": "1965", "verified": "待核实"}, {"s": "P021", "a": "P028", "type": "博士后导师", "year": "2004", "verified": "已验证"}, {"s": "P022", "a": "P029", "type": "博士后导师", "year": "1980", "verified": "已验证"}, {"s": "P023", "a": "P030", "type": "博士导师", "year": "1984", "verified": "已验证"}, {"s": "P024", "a": "P031", "type": "博士导师", "year": "1955", "verified": "已验证"}, {"s": "P025", "a": "P045", "type": "博士导师", "year": "1974", "verified": "已验证"}, {"s": "P026", "a": "P028", "type": "博士导师", "year": "2000", "verified": "已验证"}, {"s": "P013", "a": "P037", "type": "研究导师", "year": "1895", "verified": "已验证"}, {"s": "P001", "a": "P041", "type": "博士导师", "year": "1903", "verified": "已验证"}, {"s": "P002", "a": "P032", "type": "博士导师", "year": "1920", "verified": "已验证"}, {"s": "P003", "a": "P032", "type": "博士导师", "year": "1918", "verified": "已验证"}, {"s": "P004", "a": "P032", "type": "博士导师", "year": "1926", "verified": "已验证"}, {"s": "P005", "a": "P032", "type": "博士导师", "year": "1906", "verified": "已验证"}, {"s": "P006", "a": "P034", "type": "博士导师", "year": "1923", "verified": "已验证"}, {"s": "P007", "a": "P033", "type": "博士导师", "year": "1927", "verified": "已验证"}, {"s": "P008", "a": "P033", "type": "博士导师", "year": "1925", "verified": "已验证"}, {"s": "P009", "a": "P035", "type": "博士导师", "year": "1946", "verified": "已验证"}, {"s": "P010", "a": "P036", "type": "博士导师", "year": "1946", "verified": "待核实"}, {"s": "P011", "a": "P037", "type": "博士导师", "year": "1911", "verified": "已验证"}, {"s": "P012", "a": "P037", "type": "博士导师", "year": "1913", "verified": "待核实"}, {"s": "P014", "a": "P038", "type": "博士导师", "year": "1947", "verified": "已验证"}, {"s": "P015", "a": "P016", "type": "博士导师", "year": "1949", "verified": "已验证"}, {"s": "P016", "a": "P039", "type": "博士导师", "year": "1936", "verified": "已验证"}, {"s": "P017", "a": "P016", "type": "博士导师", "year": "1945", "verified": "已验证"}, {"s": "P018", "a": "P001", "type": "博士导师", "year": "1940", "verified": "待核实"}, {"s": "P019", "a": "P040", "type": "博士导师", "year": "1918", "verified": "待核实"}, {"s": "P001", "a": "P013", "type": "博士后导师", "year": "1912", "verified": "已验证"}, {"s": "P036", "a": "P033", "type": "研究指导", "year": "1923", "verified": "已验证"}, {"s": "P035", "a": "P002", "type": "博士导师", "year": "1929", "verified": "已验证"}, {"s": "P046", "a": "P013", "type": "博士导师", "year": "1911", "verified": "已验证"}, {"s": "P049", "a": "P032", "type": "博士后导师", "year": "1927", "verified": "已验证"}, {"s": "P050", "a": "P032", "type": "博士后导师", "year": "1926", "verified": "已验证"}, {"s": "P002", "a": "P001", "type": "研究导师", "year": "1924", "verified": "已验证"}, {"s": "P046", "a": "P013", "type": "研究导师", "year": "1913", "verified": "已核实"}, {"s": "P008", "a": "P033", "type": "博士导师", "year": "1926", "verified": "已核实"}, {"s": "P051", "a": "P036", "type": "博士导师", "year": "1928", "verified": "已核实"}, {"s": "P052", "a": "P049", "type": "博士导师", "year": "1939", "verified": "已核实"}, {"s": "P021", "a": "P053", "type": "博士后导师", "year": "2003", "verified": "已核实"}, {"s": "P023", "a": "P030", "type": "研究导师", "year": "1992", "verified": "已核实"}, {"s": "P024", "a": "P055", "type": "博士后导师", "year": "1960", "verified": "已核实"}, {"s": "P014", "a": "P016", "type": "研究导师", "year": "1951", "verified": "已核实"}, {"s": "P015", "a": "P016", "type": "博士导师", "year": "1949", "verified": "已核实"}], "paper_inh": [{"sp": "W004", "ap": "W009", "s": "P032", "a": "P001", "type": "范式拓展", "desc": "索末菲将玻尔圆轨道推广为椭圆轨道并引入相对论修正，精细结构理论直接拓展玻尔模型，为海森堡、泡利提供研究框架。"}, {"sp": "W006", "ap": "W004", "s": "P002", "a": "P032", "type": "继承发展", "desc": "海森堡矩阵力学论文直接建立在索末菲量子化条件与玻恩-约当可观测力学量框架上，将玻尔轨道模型改造为可观测的矩阵力学。"}, {"sp": "W008", "ap": "W004", "s": "P003", "a": "P032", "type": "继承发展", "desc": "泡利不相容原理在索末菲精细结构与玻尔壳层填充疑难基础上，提出新量子数以解释反常塞曼效应与周期表闭合壳层。"}, {"sp": "W006", "ap": "W010", "s": "P002", "a": "P033", "type": "方法应用", "desc": "海森堡-玻恩-约当矩阵力学共同完成对玻恩可观测力学量纲领的数学实现，玻恩的统计解释则进一步赋予矩阵元概率意义。"}, {"sp": "W013", "ap": "W010", "s": "P036", "a": "P033", "type": "方法应用", "desc": "费米1923年赴哥廷根在玻恩指导下研究，其费米-狄拉克统计沿用玻恩-约当量子统计框架，与玻色-爱因斯坦统计并列。"}, {"sp": "W011", "ap": "W004", "s": "P005", "a": "P032", "type": "继承发展", "desc": "德拜固体比热模型推广爱因斯坦单振子模型，引入声子连续谱与德拜温度，是索末菲量子论纲领在凝聚态中的早期成功。"}, {"sp": "W007", "ap": "W006", "s": "P002", "a": "P002", "type": "继承发展", "desc": "不确定性原理是海森堡在自身体系矩阵力学基础上给出对易关系物理诠释，与玻尔互补性原理共同构成哥本哈根诠释核心。"}, {"sp": "W014", "ap": "W013", "s": "P036", "a": "P036", "type": "范式拓展", "desc": "费米β衰变理论将费米子二次量子化场论方法从费米-狄拉克统计推广到弱相互作用，为李政道等弟子树立理论物理范式。"}, {"sp": "W016", "ap": "W007", "s": "P035", "a": "P002", "type": "方法应用", "desc": "泰勒在莱比锡随海森堡获博士学位，其氢弹Teller-Ulam构型与核物理/等离子体研究延续海森堡核反应与量子力学方法学。"}, {"sp": "W015", "ap": "W003", "s": "P004", "a": "P056", "type": "继承发展", "desc": "贝特CNO循环与质子-质子链理论将核反应物理与爱丁顿恒星模型结合，在费米芝加哥学派指导背景下解释恒星能量来源。"}, {"sp": "W018", "ap": "W014", "s": "P009", "a": "P036", "type": "理论反驳", "desc": "李政道-杨振宁宇称不守恒假说质疑费米β衰变理论中隐含的宇称守恒假设，由吴健雄实验证实，改写弱相互作用认识。"}, {"sp": "W017", "ap": "W016", "s": "P009", "a": "P035", "type": "范式拓展", "desc": "杨-米尔斯非阿贝尔规范场论将外尔U(1)电磁规范不变性推广到SU(2)同位旋，杨振宁在芝加哥受泰勒、费米场论熏陶下完成。"}, {"sp": "W020", "ap": "W019", "s": "P013", "a": "P037", "type": "继承发展", "desc": "卢瑟福α粒子散射实验在J.J.汤姆孙卡文迪许实验室期间开展，其核式模型取代汤姆孙葡萄干布丁模型，将原子物理引向核物理。"}, {"sp": "W021", "ap": "W019", "s": "P011", "a": "P037", "type": "方法应用", "desc": "小布拉格布拉格定律在J.J.汤姆孙卡文迪许实验室利用X射线衍射思想，将劳厄衍射条件几何化为简单的晶体结构分析公式。"}, {"sp": "W023", "ap": "W020", "s": "P046", "a": "P013", "type": "继承发展", "desc": "查德威克作为卢瑟福学生在卡文迪许实验室发现中子，验证卢瑟福关于原子核中中性复合粒子的长期预言。"}, {"sp": "W022", "ap": "W019", "s": "P012", "a": "P037", "type": "理论反驳", "desc": "G.P.汤姆孙电子衍射实验以波动图像证实德布罗意波，部分超越其父J.J.汤姆孙将电子视为纯粒子的经典观点。"}, {"sp": "W024", "ap": "W009", "s": "P018", "a": "P001", "type": "继承发展", "desc": "奥格·玻尔（尼尔斯·玻尔之子与学生）原子核集体模型将其父早期液滴模型与壳层模型统一，解释非球形核转动与振动谱。"}, {"sp": "W026", "ap": "W025", "s": "P019", "a": "P040", "type": "继承发展", "desc": "伊雷娜与弗雷德里克·约里奥-居里人工放射性研究直接延续玛丽·居里放射性元素分离与衰变研究路线，开启人工同位素时代。"}, {"sp": "W028", "ap": "W027", "s": "P017", "a": "P016", "type": "方法应用", "desc": "肯德鲁在佩鲁茨剑桥小组解析肌红蛋白结构，采用佩鲁茨发展的同晶置换法首次得到高分辨率蛋白质三维结构。"}, {"sp": "W029", "ap": "W027", "s": "P015", "a": "P016", "type": "方法应用", "desc": "克里克作为佩鲁茨博士学生，将佩鲁茨X射线晶体学方法与模型构建思想应用于DNA，与沃森共同完成双螺旋结构。"}, {"sp": "W030", "ap": "W021", "s": "P047", "a": "P011", "type": "方法应用", "desc": "威尔金斯DNA B型衍射工作与富兰克林的高分辨率照片51，沿用布拉格定律的X射线晶体分析方法，为双螺旋提供关键数据。"}, {"sp": "W031", "ap": "W009", "s": "P058", "a": "P001", "type": "范式拓展", "desc": "德尔布吕克作为玻尔学生将物理定量方法引入遗传学，与卢里亚涨落实验确立细菌/噬菌体遗传学，开创分子生物学学派。"}, {"sp": "W029", "ap": "W031", "s": "P015", "a": "P058", "type": "继承发展", "desc": "沃森作为卢里亚博士学生在噬菌体学派训练下进入DNA结构研究，将遗传信息问题与X射线结构方法结合，催生双螺旋。"}, {"sp": "W032", "ap": "W031", "s": "P059", "a": "P058", "type": "继承发展", "desc": "赫尔希-蔡斯实验在噬菌体小组内部完成，以放射性标记证实DNA为遗传物质，是卢里亚-德尔布吕克噬菌体遗传学纲领的关键判决性实验。"}, {"sp": "W034", "ap": "W033", "s": "P022", "a": "P029", "type": "继承发展", "desc": "黑格曼作为奥斯特黑尔特的博士生/博士后，在细菌视紫红质研究基础上从衣藻克隆通道视紫红质ChR1/ChR2，将光敏蛋白从泵拓展到通道。"}, {"sp": "W035", "ap": "W033", "s": "P030", "a": "P029", "type": "方法应用", "desc": "纳格尔与班贝格合作将细菌视紫红质异源表达于蛙卵并记录光电流，验证微生物视紫红质可在动物细胞实现光控跨膜电流。"}, {"sp": "W037", "ap": "W036", "s": "P021", "a": "P028", "type": "方法应用", "desc": "戴塞罗思与博伊登在钱永佑斯坦福实验室做博士后/博士生期间，结合钱永佑神经电生理学与通道视紫红质，发表2005年Nature Neuroscience光遗传学金石论文。"}, {"sp": "W037", "ap": "W034", "s": "P021", "a": "P022", "type": "方法应用", "desc": "戴塞罗思/博伊登2005年工作直接使用黑格曼-纳格尔团队克隆的ChR2基因，将光门控通道引入神经元实现毫秒光控。"}, {"sp": "W038", "ap": "W037", "s": "P021", "a": "P021", "type": "范式拓展", "desc": "CLARITY组织透明技术是戴塞罗思在光遗传学基础上，对全脑尺度结构与功能连接成像方法学的进一步拓展。"}, {"sp": "W039", "ap": "W047", "s": "P024", "a": "P031", "type": "继承发展", "desc": "卡甘在其导师让·雅克法国立体化学学派训练下提出不对称催化非线性效应（MLn模型），成为手性合成理论核心。"}, {"sp": "W040", "ap": "W041", "s": "P025", "a": "P045", "type": "方法应用", "desc": "硖合宪三在东京大学向山光昭指导下获得博士，其Soai不对称自催化反应运用向山有机合成方法学，将手性放大推向极端。"}, {"sp": "W040", "ap": "W039", "s": "P025", "a": "P024", "type": "继承发展", "desc": "Soai反应是卡甘非线性效应的极端实现：不对称自催化使初始微小对映体偏差指数级放大，从物理化学角度验证手性起源假说。"}, {"sp": "W044", "ap": "W046", "s": "P020", "a": "P027", "type": "继承发展", "desc": "哈尔岑作为塞鲁鲁斯在鲁汶大学理论粒子物理方向的学生，将强子/中微子物理专长延伸至高能天体物理，最终领导冰立方发现天体中微子。"}, {"sp": "W045", "ap": "W044", "s": "P020", "a": "P020", "type": "继承发展", "desc": "冰立方天文台仪器系统论文是对2013年天体中微子发现的工程化总结，奠定后续多信使天文学装置基础。"}, {"sp": "W043", "ap": "W042", "s": "P061", "a": "P060", "type": "继承发展", "desc": "希格斯与恩格勒特-布劳特于1964年独立互补提出BEH机制与希格斯玻色子预言，共同构成标准模型质量起源基石。"}], "field_color": {"物理学": "#4285f4", "化学": "#ea4335", "生理学或医学": "#34a853", "Peace": "#fbbc04", "文学": "#9c27b0", "经济学": "#ff6d00", "": "#9e9e9e"}, "stats": {"persons": 60, "edges": 42, "papers": 47, "paper_inh": 35}, "schools": ["LMB分子生物学派", "光遗传学派", "卡文迪许学派", "哥大拉比学派", "哥廷根学派", "哥本哈根学派", "居里学派", "慕尼黑学派", "罗马费米学派"], "cedges": [{"source": "P021", "target": "P026", "label": "合作", "rtype": "合作", "topic": "光遗传学ChR2神经元实验", "year": "2005", "pub": "Nat Neurosci 2005"}, {"source": "P022", "target": "P023", "label": "合作", "rtype": "合作", "topic": "ChR1通道视紫红质发现", "year": "2002", "pub": "Science 2002"}, {"source": "P022", "target": "P023", "label": "合作", "rtype": "合作", "topic": "ChR2光控阳离子通道", "year": "2003", "pub": "PNAS 2003"}, {"source": "P023", "target": "P030", "label": "合作", "rtype": "合作", "topic": "ChR2专利与电生理", "year": "2003", "pub": "EP2112510"}, {"source": "P014", "target": "P015", "label": "合作", "rtype": "合作", "topic": "DNA双螺旋结构", "year": "1953", "pub": "Nature 1953"}, {"source": "P001", "target": "P002", "label": "合作", "rtype": "合作", "topic": "哥本哈根诠释", "year": "1927", "pub": "合作研究"}, {"source": "P036", "target": "P051", "label": "合作", "rtype": "合作", "topic": "中子诱导放射性", "year": "1934", "pub": "罗马学派"}, {"source": "P009", "target": "P010", "label": "合作", "rtype": "合作", "topic": "宇称不守恒", "year": "1956", "pub": "Phys Rev 1956"}, {"source": "P013", "target": "P001", "label": "合作", "rtype": "合作", "topic": "原子结构模型", "year": "1912", "pub": "曼彻斯特"}, {"source": "P022", "target": "P030", "label": "合作", "rtype": "合作", "topic": "微生物视紫红质合作", "year": "2000", "pub": "合作研究"}], "schools_detail": [{"id": "S01", "name": "卡文迪许学派", "en": "Cavendish School", "founder": "约瑟夫·约翰·汤姆孙", "era": "1880", "inst": "电子→原子→核→分子生物的百年王朝", "inst_name": "", "color": "#2563eb", "members": [{"name": "约瑟夫·约翰·汤姆孙", "year": "1906.0", "cat": "物理学", "role": "founder"}, {"name": "欧内斯特·卢瑟福", "year": "1908.0", "cat": "化学", "role": "member"}, {"name": "威廉·劳伦斯·布拉格", "year": "1915.0", "cat": "物理学", "role": "member"}, {"name": "詹姆斯·查德威克", "year": "1935.0", "cat": "物理学", "role": "member"}, {"name": "乔治·佩吉特·汤姆孙", "year": "1937.0", "cat": "物理学", "role": "second_gen"}], "n_laureate": 5}, {"id": "S02", "name": "慕尼黑学派", "en": "Munich School", "founder": "阿诺德·索末菲", "era": "1906", "inst": "索末菲理论物理研究所，量子力学摇篮", "inst_name": "", "color": "#dc2626", "members": [{"name": "维尔纳·海森堡", "year": "1932.0", "cat": "物理学", "role": "student"}, {"name": "彼得·德拜", "year": "1936.0", "cat": "化学", "role": "student"}, {"name": "伊西多·拉比", "year": "1944.0", "cat": "物理学", "role": "postdoc"}, {"name": "沃尔夫冈·泡利", "year": "1945.0", "cat": "物理学", "role": "student"}, {"name": "莱纳斯·鲍林", "year": "1954.0", "cat": "化学", "role": "postdoc"}, {"name": "汉斯·贝特", "year": "1967.0", "cat": "物理学", "role": "student"}, {"name": "阿诺德·索末菲", "year": "", "cat": "", "role": "founder"}], "n_laureate": 6}, {"id": "S03", "name": "哥本哈根学派", "en": "Copenhagen School", "founder": "尼尔斯·玻尔", "era": "1921", "inst": "量子力学哥本哈根诠释", "inst_name": "", "color": "#059669", "members": [{"name": "尼尔斯·玻尔", "year": "1922.0", "cat": "物理学", "role": "founder"}, {"name": "奥格·玻尔", "year": "1975.0", "cat": "物理学", "role": "second_gen"}], "n_laureate": 2}, {"id": "S04", "name": "哥廷根学派", "en": "Göttingen School", "founder": "马克斯·玻恩", "era": "1921", "inst": "矩阵力学与量子力学数学基础", "inst_name": "", "color": "#7c3aed", "members": [{"name": "维尔纳·海森堡", "year": "1932.0", "cat": "物理学", "role": "member"}, {"name": "马克斯·玻恩", "year": "1954.0", "cat": "物理学", "role": "founder"}, {"name": "罗伯特·奥本海默", "year": "", "cat": "", "role": "student"}], "n_laureate": 2}, {"id": "S05", "name": "罗马费米学派", "en": "Rome Fermi School", "founder": "恩里科·费米", "era": "1927", "inst": "中子物理与β衰变理论", "inst_name": "", "color": "#ea580c", "members": [{"name": "恩里科·费米", "year": "1938.0", "cat": "物理学", "role": "founder"}, {"name": "李政道", "year": "1957.0", "cat": "物理学", "role": "student"}, {"name": "埃米利奥·塞格雷", "year": "1959.0", "cat": "物理学", "role": "student"}], "n_laureate": 3}, {"id": "S06", "name": "LMB分子生物学派", "en": "LMB Cambridge School", "founder": "马克斯·佩鲁茨", "era": "1947", "inst": "X射线晶体学→DNA→血红蛋白", "inst_name": "", "color": "#0891b2", "members": [{"name": "威廉·劳伦斯·布拉格", "year": "1915.0", "cat": "物理学", "role": "leader"}, {"name": "马克斯·佩鲁茨", "year": "1962.0", "cat": "化学", "role": "founder"}, {"name": "约翰·肯德鲁", "year": "1962.0", "cat": "化学", "role": "student"}, {"name": "詹姆斯·沃森", "year": "1962.0", "cat": "生理学或医学", "role": "visitor"}, {"name": "弗朗西斯·克里克", "year": "1962.0", "cat": "生理学或医学", "role": "student"}], "n_laureate": 5}, {"id": "S07", "name": "居里学派", "en": "Curie School", "founder": "玛丽·居里", "era": "1903", "inst": "放射性与放射化学", "inst_name": "", "color": "#db2777", "members": [{"name": "玛丽·居里", "year": "1911.0", "cat": "化学", "role": "founder"}, {"name": "伊雷娜·约里奥-居里", "year": "1935.0", "cat": "化学", "role": "second_gen"}, {"name": "弗雷德里克·约里奥-居里", "year": "1935.0", "cat": "化学", "role": "member"}], "n_laureate": 3}, {"id": "S08", "name": "光遗传学派", "en": "Optogenetics School", "founder": "彼得·黑格曼", "era": "2002", "inst": "通道视紫红质→光控神经元", "inst_name": "", "color": "#65a30d", "members": [{"name": "彼得·黑格曼", "year": "2026.0", "cat": "生理学或医学", "role": "founder"}, {"name": "格奥尔格·纳格尔", "year": "2026.0", "cat": "生理学或医学", "role": "cofounder"}, {"name": "卡尔·戴塞罗思", "year": "2026.0", "cat": "生理学或医学", "role": "translator"}, {"name": "恩斯特·班贝格", "year": "", "cat": "", "role": "cofounder"}, {"name": "爱德华·博伊登", "year": "", "cat": "", "role": "translator"}], "n_laureate": 3}, {"id": "S09", "name": "哥大拉比学派", "en": "Columbia Rabi School", "founder": "伊西多·拉比", "era": "1937", "inst": "磁共振与量子电动力学", "inst_name": "", "color": "#b45309", "members": [{"name": "伊西多·拉比", "year": "1944.0", "cat": "物理学", "role": "founder"}, {"name": "朱利安·施温格", "year": "1965.0", "cat": "物理学", "role": "student"}], "n_laureate": 2}], "paradigms": [{"name": "量子力学框架", "year": "1900", "founder": "Max_Planck", "desc": "从旧量子论到矩阵力学、波动力学"}, {"name": "量子电动力学", "year": "1927", "founder": "保罗·狄拉克", "desc": "电磁场量子化与重整化"}, {"name": "X射线晶体学", "year": "1912", "founder": "Max_von_Laue", "desc": "布拉格衍射→蛋白质结构"}, {"name": "光遗传学", "year": "2002", "founder": "彼得·黑格曼", "desc": "ChR2发现→神经调控"}, {"name": "不对称催化", "year": "1971", "founder": "亨利·B·卡甘", "desc": "手性配体→非线性效应→自催化"}, {"name": "中子/核物理", "year": "1911", "founder": "欧内斯特·卢瑟福", "desc": "原子核模型→中子发现→核反应"}, {"name": "中微子天文学", "year": "1988", "founder": "弗朗西斯·哈尔岑", "desc": "冰立方与高能中微子"}, {"name": "放射性研究", "year": "1898", "founder": "玛丽·居里", "desc": "放射性元素→人工放射性"}], "school_color": {"卡文迪许学派": "#2563eb", "慕尼黑学派": "#dc2626", "哥本哈根学派": "#059669", "哥廷根学派": "#7c3aed", "罗马费米学派": "#ea580c", "LMB分子生物学派": "#0891b2", "居里学派": "#db2777", "光遗传学派": "#65a30d", "哥大拉比学派": "#b45309"}};
+<div class="timeline">
+  <div class="tl-head">
+    <span class="tl-title">⏳ 时间轴</span>
+    <span class="tl-range" id="tlRange">全部时间（1840–2010）</span>
+    <button class="tl-btn" id="tlClear">全部时间</button>
+    <span class="tl-hint">拖动下方色带筛选师承关系发生的年代</span>
+  </div>
+  <svg id="slider"></svg>
+</div>
+
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head">
+    <div class="ai-dot off" id="aiDot"></div>
+    <h3>AI 师承叙事</h3>
+    <span class="ai-state" id="aiState">点击节点后生成</span>
+  </div>
+  <div class="ai-body empty" id="aiBody">选中任意一位学者，AI 将结合其师承脉络与代表作传承，生成 150–250 字的学术叙事。</div>
+  <div class="ai-actions">
+    <button class="ai-btn gold" id="aiAsk" disabled>生成师承叙事</button>
+    <button class="ai-btn" id="aiLineage" disabled>看论文传承脉络</button>
+    <button class="ai-btn" id="aiClear">清空</button>
+  </div>
+</div>
+
+<button class="ai-toggle" id="aiToggle">💬 AI</button>
+<a class="back-link" href="academic_ontology.html">← 学术本体</a>
+
+<script type="module">
+import * as db from '../js/db.js';
+import * as ai from '../js/ai.js';
+const DATA = {"people": [{"id": "P001", "name": "尼尔斯·玻尔", "name_en": "Niels Bohr", "birth": "1885", "death": "1962.0", "nationality": "丹麦", "nobel_year": "1922.0", "nobel_category": "物理学", "gender": "M", "note": "哥本哈根学派创立者；其子奥格·玻尔亦获诺奖", "papers": [{"id": "W009", "title": "论原子与分子的构造（玻尔原子模型三部曲）", "year": 1913, "venue": "Philosophical Magazine", "citations": ">1万", "contrib": "提出定态轨道与跃迁概念，建立氢原子玻尔模型，解释氢原子光谱，获1922年诺贝尔物理学奖。"}], "school": "哥本哈根学派"}, {"id": "P002", "name": "维尔纳·海森堡", "name_en": "Werner Heisenberg", "birth": "1901", "death": "1976.0", "nationality": "德国", "nobel_year": "1932.0", "nobel_category": "物理学", "gender": "M", "note": "索末菲学生；不确定性原理提出者", "papers": [{"id": "W006", "title": "关于运动学与力学关系的量子论重新解释（矩阵力学创立）", "year": 1925, "venue": "Zeitschrift für Physik", "citations": ">1万", "contrib": "创立矩阵力学，量子力学的首个严格数学表述，以此获1932年诺贝尔物理学奖。"}, {"id": "W007", "title": "论量子论运动学与力学的直观内容（不确定性原理）", "year": 1927, "venue": "Zeitschrift für Physik", "citations": ">1万", "contrib": "提出不确定性原理，确立位置与动量等共轭量不能同时被精确测定的根本界限。"}], "school": "慕尼黑学派"}, {"id": "P003", "name": "沃尔夫冈·泡利", "name_en": "Wolfgang Pauli", "birth": "1900", "death": "1958.0", "nationality": "奥地利", "nobel_year": "1945.0", "nobel_category": "物理学", "gender": "M", "note": "索末菲学生；不相容原理提出者", "papers": [{"id": "W008", "title": "论原子中电子壳层闭合与光谱复杂结构的关系（泡利不相容原理）", "year": 1925, "venue": "Zeitschrift für Physik", "citations": ">5000", "contrib": "提出泡利不相容原理，解释元素周期表电子壳层结构，获1945年诺贝尔物理学奖。"}], "school": "慕尼黑学派"}, {"id": "P004", "name": "汉斯·贝特", "name_en": "Hans Bethe", "birth": "1906", "death": "2005.0", "nationality": "德国/美国", "nobel_year": "1967.0", "nobel_category": "物理学", "gender": "M", "note": "索末菲学生；恒星核合成理论", "papers": [{"id": "W015", "title": "恒星中的能量产生", "year": 1939, "venue": "Physical Review", "citations": ">5000", "contrib": "提出恒星中质子-质子链与碳氮氧（CNO）循环两种氢聚变机制，解释恒星能量来源，获1967年诺贝尔物理学奖。"}], "school": "慕尼黑学派"}, {"id": "P005", "name": "彼得·德拜", "name_en": "Peter Debye", "birth": "1884", "death": "1966.0", "nationality": "荷兰/美国", "nobel_year": "1936.0", "nobel_category": "化学", "gender": "M", "note": "索末菲学生；德拜模型", "papers": [{"id": "W011", "title": "论比热理论（德拜模型）", "year": 1912, "venue": "Annalen der Physik", "citations": ">5000", "contrib": "提出固体低温比热的德拜模型，引入德拜温度，与爱因斯坦模型一同开创固体量子论。"}, {"id": "W012", "title": "极性分子（偶极矩与化学键）", "year": 1929, "venue": "S. Hirzel, Leipzig", "citations": ">5000", "contrib": "创立分子偶极矩测量方法并系统应用于分子结构研究，获1936年诺贝尔化学奖。"}], "school": "慕尼黑学派"}, {"id": "P006", "name": "保罗·狄拉克", "name_en": "Paul Dirac", "birth": "1902", "death": "1984.0", "nationality": "英国", "nobel_year": "1933.0", "nobel_category": "物理学", "gender": "M", "note": "福勒学生；狄拉克方程", "papers": [], "school": ""}, {"id": "P007", "name": "玛丽亚·格佩特-梅耶", "name_en": "Maria Goeppert-Mayer", "birth": "1906", "death": "1972.0", "nationality": "德国/美国", "nobel_year": "1963.0", "nobel_category": "物理学", "gender": "F", "note": "玻恩学生；第二位获物理奖的女性", "papers": [], "school": ""}, {"id": "P008", "name": "罗伯特·奥本海默", "name_en": "Robert Oppenheimer", "birth": "1904", "death": "1967.0", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "玻恩学生；无诺奖；曼哈顿计划科学总监", "papers": [], "school": "哥廷根学派"}, {"id": "P009", "name": "杨振宁", "name_en": "Chen-Ning Yang", "birth": "1922", "death": "", "nationality": "中国/美国", "nobel_year": "1957.0", "nobel_category": "物理学", "gender": "M", "note": "泰勒学生；杨-米尔斯规范场论", "papers": [{"id": "W017", "title": "同位旋守恒与同位旋规范不变性（杨-米尔斯理论）", "year": 1954, "venue": "Physical Review", "citations": ">10万", "contrib": "与米尔斯提出非阿贝尔规范场论，成为粒子物理标准模型的数学基石。"}, {"id": "W018", "title": "弱相互作用中宇称守恒问题", "year": 1956, "venue": "Physical Review", "citations": ">1万", "contrib": "与李政道提出弱相互作用中宇称不守恒假说，获1957年诺贝尔物理学奖。"}], "school": ""}, {"id": "P010", "name": "李政道", "name_en": "Tsung-Dao Lee", "birth": "1926", "death": "", "nationality": "中国/美国", "nobel_year": "1957.0", "nobel_category": "物理学", "gender": "M", "note": "费米学生；与杨振宁共获诺奖", "papers": [], "school": "罗马费米学派"}, {"id": "P011", "name": "威廉·劳伦斯·布拉格", "name_en": "William Lawrence Bragg", "birth": "1890", "death": "1971.0", "nationality": "英国", "nobel_year": "1915.0", "nobel_category": "物理学", "gender": "M", "note": "J.J.汤姆孙学生；与父W.H.布拉格共获诺奖，时年25岁", "papers": [{"id": "W021", "title": "晶体对X射线的反射（布拉格定律）", "year": 1913, "venue": "Proceedings of the Royal Society A", "citations": ">1万", "contrib": "提出布拉格定律 nλ=2d sinθ，奠定X射线晶体学定量基础，与父亲共获1915年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P012", "name": "乔治·佩吉特·汤姆孙", "name_en": "George Paget Thomson", "birth": "1892", "death": "1975.0", "nationality": "英国", "nobel_year": "1937.0", "nobel_category": "物理学", "gender": "M", "note": "J.J.汤姆孙之子与学生；电子衍射实验", "papers": [{"id": "W022", "title": "薄膜对阴极射线的衍射（电子衍射）", "year": 1927, "venue": "Proceedings of the Royal Society A", "citations": ">5000", "contrib": "用晶体薄膜观察到电子衍射图样，实验证实德布罗意物质波，获1937年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P013", "name": "欧内斯特·卢瑟福", "name_en": "Ernest Rutherford", "birth": "1871", "death": "1937.0", "nationality": "新西兰/英国", "nobel_year": "1908.0", "nobel_category": "化学", "gender": "M", "note": "J.J.汤姆孙学生；原子核物理学之父", "papers": [{"id": "W020", "title": "物质对α和β粒子的散射与原子结构（原子核的发现）", "year": 1911, "venue": "Philosophical Magazine", "citations": ">1万", "contrib": "基于α粒子大角度散射实验提出核式原子模型，开创原子核物理学，获1908年诺贝尔化学奖。"}], "school": "卡文迪许学派"}, {"id": "P014", "name": "詹姆斯·沃森", "name_en": "James Watson", "birth": "1928", "death": "", "nationality": "美国", "nobel_year": "1962.0", "nobel_category": "生理学或医学", "gender": "M", "note": "卢里亚学生；DNA双螺旋", "papers": [], "school": "LMB分子生物学派"}, {"id": "P015", "name": "弗朗西斯·克里克", "name_en": "Francis Crick", "birth": "1916", "death": "2004.0", "nationality": "英国", "nobel_year": "1962.0", "nobel_category": "生理学或医学", "gender": "M", "note": "佩鲁茨学生；DNA双螺旋", "papers": [{"id": "W029", "title": "核酸的分子结构：脱氧核糖核酸的结构（DNA双螺旋）", "year": 1953, "venue": "Nature", "citations": ">10万", "contrib": "与沃森提出DNA双螺旋结构模型，揭示遗传物质的分子复制机制，获1962年诺贝尔生理学或医学奖。"}], "school": "LMB分子生物学派"}, {"id": "P016", "name": "马克斯·佩鲁茨", "name_en": "Max Perutz", "birth": "1914", "death": "2002.0", "nationality": "奥地利/英国", "nobel_year": "1962.0", "nobel_category": "化学", "gender": "M", "note": "贝尔纳学生；剑桥LMB创始人", "papers": [{"id": "W027", "title": "血红蛋白的三维傅里叶合成结构", "year": 1960, "venue": "Nature", "citations": ">5000", "contrib": "利用同晶置换法解析血红蛋白5.5埃分辨率三维结构，开创蛋白质晶体学，获1962年诺贝尔化学奖。"}], "school": "LMB分子生物学派"}, {"id": "P017", "name": "约翰·肯德鲁", "name_en": "John Kendrew", "birth": "1917", "death": "1997.0", "nationality": "英国", "nobel_year": "1962.0", "nobel_category": "化学", "gender": "M", "note": "佩鲁茨学生；首个解析蛋白质结构者", "papers": [{"id": "W028", "title": "由X射线分析得到的肌红蛋白分子三维模型", "year": 1958, "venue": "Nature", "citations": ">5000", "contrib": "首次以6埃分辨率解析肌红蛋白三维结构，是世界上第一个被测定结构的蛋白质，获1962年诺贝尔化学奖。"}], "school": "LMB分子生物学派"}, {"id": "P018", "name": "奥格·玻尔", "name_en": "Aage Bohr", "birth": "1922", "death": "2009.0", "nationality": "丹麦", "nobel_year": "1975.0", "nobel_category": "物理学", "gender": "M", "note": "尼尔斯·玻尔之子与学生", "papers": [{"id": "W024", "title": "原子核的集体运动模型", "year": 1953, "venue": "Matematisk-fysiske Meddelelser / Physical Review", "citations": ">5000", "contrib": "与莫特尔森、雷恩沃特提出原子核集体运动模型，统一描述核的单粒子运动与集体转动振动，获1975年诺贝尔物理学奖。"}], "school": "哥本哈根学派"}, {"id": "P019", "name": "伊雷娜·约里奥-居里", "name_en": "Irène Joliot-Curie", "birth": "1897", "death": "1956.0", "nationality": "法国", "nobel_year": "1935.0", "nobel_category": "化学", "gender": "F", "note": "玛丽·居里之女与学生", "papers": [{"id": "W026", "title": "一种新型放射性（人工放射性）", "year": 1934, "venue": "Comptes Rendus de l'Académie des Sciences", "citations": ">5000", "contrib": "夫妇二人用α粒子轰击铝首次人工合成放射性同位素30P，开创人工放射性，共获1935年诺贝尔化学奖。"}], "school": "居里学派"}, {"id": "P020", "name": "弗朗西斯·哈尔岑", "name_en": "Francis Halzen", "birth": "1944", "death": "", "nationality": "比利时/美国", "nobel_year": "2026.0", "nobel_category": "物理学", "gender": "M", "note": "塞鲁鲁斯学生；冰立方首席科学家", "papers": [{"id": "W044", "title": "冰立方探测器上高能地外中微子的证据", "year": 2013, "venue": "Science", "citations": ">5000", "contrib": "作为冰立方首席科学家主导探测到28个TeV–PeV能量级高能天体中微子，开启中微子天文学，获2026年诺贝尔物理学奖。"}, {"id": "W045", "title": "冰立方中微子天文台：仪器与在线系统", "year": 2017, "venue": "Journal of Instrumentation", "citations": ">1000", "contrib": "系统描述南极1立方公里冰体中微子探测器冰立方的设计、建造与运行，奠定TeV中微子天文学装置基础。"}], "school": ""}, {"id": "P021", "name": "卡尔·戴塞罗思", "name_en": "Karl Deisseroth", "birth": "1971", "death": "", "nationality": "美国", "nobel_year": "2026.0", "nobel_category": "生理学或医学", "gender": "M", "note": "钱永佑实验室博士后；光遗传学奠基人", "papers": [{"id": "W037", "title": "毫秒级、基因靶向的神经活动光学控制（光遗传学）", "year": 2005, "venue": "Nature Neuroscience", "citations": ">1万", "contrib": "与Boyden、Zhang等将ChR2首次在哺乳动物神经元中表达，实现毫秒精度光控神经活动，获2026年诺贝尔生理学或医学奖。"}, {"id": "W038", "title": "完整生物系统的结构与分子成像（CLARITY组织透明技术）", "year": 2013, "venue": "Nature", "citations": ">5000", "contrib": "提出CLARITY水凝胶-脂质清除技术使完整脑组织透明化，实现大尺度三维神经环路成像。"}], "school": "光遗传学派"}, {"id": "P022", "name": "彼得·黑格曼", "name_en": "Peter Hegemann", "birth": "1954", "death": "", "nationality": "德国", "nobel_year": "2026.0", "nobel_category": "生理学或医学", "gender": "M", "note": "奥斯特黑尔特学生；通道视紫红质发现者", "papers": [{"id": "W034", "title": "通道视紫红质1：绿藻中的光门控质子通道（ChR1/ChR2）", "year": 2002, "venue": "Science", "citations": ">5000", "contrib": "与Nagel等从衣藻克隆光门控阳离子通道ChR1/ChR2，提供光遗传学核心工具，获2026年诺贝尔生理学或医学奖。"}], "school": "光遗传学派"}, {"id": "P023", "name": "格奥尔格·纳格尔", "name_en": "Georg Nagel", "birth": "1953", "death": "", "nationality": "德国", "nobel_year": "2026.0", "nobel_category": "生理学或医学", "gender": "M", "note": "班贝格学生/长期合作者", "papers": [], "school": "光遗传学派"}, {"id": "P024", "name": "亨利·B·卡甘", "name_en": "Henri B. Kagan", "birth": "1930", "death": "", "nationality": "法国", "nobel_year": "2026.0", "nobel_category": "化学", "gender": "M", "note": "让·雅克学生；不对称催化非线性效应", "papers": [{"id": "W039", "title": "手性配合物不对称催化：合成中的非线性效应（Kagan非线性效应/MLn模型）", "year": 1986, "venue": "Journal of the American Chemical Society / Nouveau Journal de Chimie", "citations": ">5000", "contrib": "发现不对称催化中产物对映体过量与催化剂手性纯度之间的非线性关系（Kagan非线性效应），获2026年诺贝尔化学奖。"}], "school": ""}, {"id": "P025", "name": "硖合宪三", "name_en": "Kenso Soai", "birth": "1950", "death": "", "nationality": "日本", "nobel_year": "2026.0", "nobel_category": "化学", "gender": "M", "note": "向山光昭学生；Soai反应发现者", "papers": [{"id": "W040", "title": "不对称自催化与手性分子对映体过量放大（Soai反应）", "year": 1995, "venue": "Nature", "citations": ">5000", "contrib": "发现Soai反应——产物自身作为不对称催化剂、手性微小偏差被指数级放大的自催化体系，获2026年诺贝尔化学奖。"}], "school": ""}, {"id": "P026", "name": "爱德华·博伊登", "name_en": "Edward Boyden", "birth": "1979", "death": "", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "无诺奖；钱永佑实验室；光遗传学奠基人之一", "papers": [], "school": "光遗传学派"}, {"id": "P027", "name": "弗朗斯·塞鲁鲁斯", "name_en": "Frans Cerulus", "birth": "1931", "death": "2015.0", "nationality": "比利时", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "鲁汶大学理论物理学家；哈尔岑博士导师", "papers": [{"id": "W046", "title": "介子-核子散射与色散关系（塞鲁鲁斯理论物理研究）", "year": 1960, "venue": "Il Nuovo Cimento / Physical Review", "citations": "约>500", "contrib": "在色散关系与强子散射理论领域做出重要贡献，长期任教于鲁汶大学，是哈尔岑博士阶段研究导师。"}], "school": ""}, {"id": "P028", "name": "钱永佑", "name_en": "Richard W. Tsien", "birth": "1945", "death": "", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "斯坦福大学神经生物学家、钙离子通道与突触传递专家；钱永健之兄、钱学森堂侄；无诺奖。原名单英文名误写为Yuh Nung Jan（詹裕农，UCSF，另一人），已更正", "papers": [{"id": "W036", "title": "脊椎动物神经元中的多种钙通道（N型/R型钙通道与突触传递）", "year": 1980, "venue": "Journal of Physiology / Biophysical Journal", "citations": ">1万", "contrib": "系统鉴定神经元中不同类型电压门控钙通道及其在神经递质释放中的核心作用，奠定现代神经电生理学基础。"}], "school": ""}, {"id": "P029", "name": "迪特尔·奥斯特黑尔特", "name_en": "Dieter Oesterhelt", "birth": "1940", "death": "2022.0", "nationality": "德国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "发现细菌视紫红质；2021拉斯克奖；2022年去世未及诺奖", "papers": [{"id": "W033", "title": "盐嗜盐菌紫膜中的视紫红质样蛋白（细菌视紫红质）", "year": 1971, "venue": "Nature New Biology", "citations": ">5000", "contrib": "与Stoeckenius发现细菌视紫红质，揭示光驱动质子泵机制，开创微生物光遗传学蛋白研究。"}], "school": ""}, {"id": "P030", "name": "恩斯特·班贝格", "name_en": "Ernst Bamberg", "birth": "1940", "death": "", "nationality": "德国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "马普生物物理研究所；光遗传学先驱；无诺奖", "papers": [{"id": "W035", "title": "动物细胞中表达微生物视紫红质的光驱动离子泵/通道（电生理学验证）", "year": 1995, "venue": "Proceedings of the National Academy of Sciences USA / Biophysical Journal", "citations": ">1000", "contrib": "Nagel与Bamberg合作证明细菌视紫红质可在动物细胞异源表达并产生光控跨膜电流，为光遗传学提供原理可行性。"}], "school": "光遗传学派"}, {"id": "P031", "name": "让·雅克", "name_en": "Jean Jacques", "birth": "1916", "death": "2004.0", "nationality": "法国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "法国立体化学家；卡甘博士导师", "papers": [{"id": "W047", "title": "双官能团有机化合物立体化学与不对称合成（让·雅克立体化学研究）", "year": 1955, "venue": "Bulletin de la Société Chimique de France / Collège de France publications", "citations": "约>500", "contrib": "系统研究手性双官能团化合物构型与反应选择性，培养亨利·卡甘等手性合成学者，奠定法国立体化学学派基础。"}], "school": ""}, {"id": "P032", "name": "阿诺德·索末菲", "name_en": "Arnold Sommerfeld", "birth": "1868", "death": "1951.0", "nationality": "德国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "慕尼黑学派领袖；培养出多名诺奖得主；本人未获诺奖", "papers": [{"id": "W004", "title": "光谱线的量子论", "year": 1916, "venue": "Annalen der Physik", "citations": ">5000", "contrib": "将玻尔圆轨道推广为椭圆轨道，引入精细结构常数α，解释氢原子光谱精细结构。"}, {"id": "W005", "title": "原子结构与光谱线", "year": 1919, "venue": "Vieweg", "citations": ">1万", "contrib": "系统总结旧量子论，成为20世纪20年代量子力学诞生前最具影响力的教科书与研究纲领。"}], "school": "慕尼黑学派"}, {"id": "P033", "name": "马克斯·玻恩", "name_en": "Max Born", "birth": "1882", "death": "1970.0", "nationality": "德国/英国", "nobel_year": "1954.0", "nobel_category": "物理学", "gender": "M", "note": "哥廷根学派领袖；学生含梅耶、奥本海默", "papers": [{"id": "W010", "title": "论碰撞过程的量子力学（波函数统计解释）", "year": 1926, "venue": "Zeitschrift für Physik", "citations": ">1万", "contrib": "提出波函数的概率统计解释，为量子力学哥本哈根诠释奠基，获1954年诺贝尔物理学奖。"}], "school": "哥廷根学派"}, {"id": "P034", "name": "拉尔夫·福勒", "name_en": "Ralph Fowler", "birth": "1889", "death": "1944.0", "nationality": "英国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "剑桥理论物理学家；狄拉克博士导师；卢瑟福女婿", "papers": [], "school": ""}, {"id": "P035", "name": "爱德华·泰勒", "name_en": "Edward Teller", "birth": "1908", "death": "2003.0", "nationality": "匈牙利/美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "氢弹之父；杨振宁博士导师；无诺奖", "papers": [{"id": "W016", "title": "热核反应机制与Teller-Ulam构型", "year": 1951, "venue": "Los Alamos Scientific Laboratory Report", "citations": "约>1000", "contrib": "与乌拉姆提出辐射内爆氢弹构型（Teller-Ulam设计），确立可行的热核武器原理。"}], "school": ""}, {"id": "P036", "name": "恩里科·费米", "name_en": "Enrico Fermi", "birth": "1901", "death": "1954.0", "nationality": "意大利/美国", "nobel_year": "1938.0", "nobel_category": "物理学", "gender": "M", "note": "李政道博士导师；芝加哥一号堆", "papers": [{"id": "W013", "title": "单原子理想气体的量子化（费米-狄拉克统计）", "year": 1926, "venue": "Rendiconti Lincei", "citations": ">1万", "contrib": "建立服从泡利不相容原理的全同粒子统计——费米-狄拉克统计，定义费米子系综。"}, {"id": "W014", "title": "β衰变中微子理论", "year": 1934, "venue": "Zeitschrift für Physik", "citations": ">5000", "contrib": "提出β衰变四费米子相互作用理论，引入中微子并奠定弱相互作用理论雏形。"}], "school": "罗马费米学派"}, {"id": "P037", "name": "约瑟夫·约翰·汤姆孙", "name_en": "J.J. Thomson", "birth": "1856", "death": "1940.0", "nationality": "英国", "nobel_year": "1906.0", "nobel_category": "物理学", "gender": "M", "note": "电子发现者；卡文迪许实验室主任；培养多名诺奖得主", "papers": [{"id": "W019", "title": "阴极射线（电子的发现）", "year": 1897, "venue": "Philosophical Magazine", "citations": ">5000", "contrib": "测定阴极射线粒子的荷质比，确认电子作为亚原子基本粒子的存在，获1906年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P038", "name": "萨尔瓦多·卢里亚", "name_en": "Salvador Luria", "birth": "1912", "death": "1991.0", "nationality": "意大利/美国", "nobel_year": "1969.0", "nobel_category": "生理学或医学", "gender": "M", "note": "沃森博士导师；噬菌体学派", "papers": [], "school": ""}, {"id": "P039", "name": "约翰·德斯蒙德·贝尔纳", "name_en": "J.D. Bernal", "birth": "1901", "death": "1971.0", "nationality": "英国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "X射线晶体学奠基人；佩鲁茨博士导师；无诺奖", "papers": [], "school": ""}, {"id": "P040", "name": "玛丽·居里", "name_en": "Marie Curie", "birth": "1867", "death": "1934.0", "nationality": "波兰/法国", "nobel_year": "1911.0", "nobel_category": "化学", "gender": "F", "note": "两获诺奖；伊雷娜之母与导师", "papers": [{"id": "W025", "title": "论沥青铀矿中一种强放射性新物质（镭与钋）", "year": 1898, "venue": "Comptes Rendus de l'Académie des Sciences", "citations": ">5000", "contrib": "与皮埃尔·居里从沥青铀矿中分离出钋和镭，开创放射性元素化学，玛丽分获1903物理奖与1911化学奖。"}], "school": "居里学派"}, {"id": "P041", "name": "克里斯蒂安·克里斯蒂安森", "name_en": "Christian Christiansen", "birth": "1843", "death": "1917.0", "nationality": "丹麦", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "哥本哈根大学物理学教授；玻尔大学阶段导师", "papers": [], "school": ""}, {"id": "P045", "name": "向山光昭", "name_en": "Teruaki Mukaiyama", "birth": "1927", "death": "2018.0", "nationality": "日本", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "东京大学有机化学家；硖合宪三博士导师；无诺奖", "papers": [{"id": "W041", "title": "向山羟醛反应及交叉偶联试剂（Mukaiyama试剂）", "year": 1974, "venue": "Journal of the American Chemical Society / Chemistry Letters", "citations": ">1万", "contrib": "系统发展Mukaiyama羟醛反应、Mukaiyama氧化及多种碳-碳成键试剂，深刻影响现代有机合成方法学。"}], "school": ""}, {"id": "P046", "name": "詹姆斯·查德威克", "name_en": "James Chadwick", "birth": "1891", "death": "1974.0", "nationality": "英国", "nobel_year": "1935.0", "nobel_category": "物理学", "gender": "M", "note": "卢瑟福学生；1932年发现中子，1935年获物理学奖", "papers": [{"id": "W023", "title": "中子的存在", "year": 1932, "venue": "Proceedings of the Royal Society A", "citations": ">5000", "contrib": "通过α粒子轰击铍的实验确认不带电的中子，解释原子核构成，获1935年诺贝尔物理学奖。"}], "school": "卡文迪许学派"}, {"id": "P047", "name": "莫里斯·威尔金斯", "name_en": "Maurice Wilkins", "birth": "1916", "death": "2004.0", "nationality": "新西兰/英国", "nobel_year": "1962.0", "nobel_category": "生理学或医学", "gender": "M", "note": "国王学院；DNA X射线衍射；1962年与沃森、克里克共享生理学或医学奖；原NP1962_MED中误用P041", "papers": [{"id": "W030", "title": "胸腺核苷酸钠盐的分子构型（DNA的X射线衍射B型/照片51）", "year": 1953, "venue": "Nature", "citations": ">5000", "contrib": "威尔金斯、富兰克林与戈斯林得到DNA B型X射线衍射图样（照片51）及螺旋参数，为双螺旋模型提供关键实验证据。"}], "school": ""}, {"id": "P049", "name": "伊西多·拉比", "name_en": "Isidor Isaac Rabi", "birth": "1898", "death": "1988.0", "nationality": "美国", "nobel_year": "1944.0", "nobel_category": "物理学", "gender": "M", "note": "哥伦比亚学派，索末菲博士后，1944物理诺奖", "papers": [], "school": "慕尼黑学派"}, {"id": "P050", "name": "莱纳斯·鲍林", "name_en": "Linus Pauling", "birth": "1901", "death": "1994.0", "nationality": "美国", "nobel_year": "1954.0", "nobel_category": "化学", "gender": "M", "note": "1954化学+1962和平，索末菲博士后", "papers": [], "school": "慕尼黑学派"}, {"id": "P051", "name": "埃米利奥·塞格雷", "name_en": "Emilio Segrè", "birth": "1905", "death": "1989.0", "nationality": "意大利/美国", "nobel_year": "1959.0", "nobel_category": "物理学", "gender": "M", "note": "费米学派，1959诺奖", "papers": [], "school": "罗马费米学派"}, {"id": "P052", "name": "朱利安·施温格", "name_en": "Julian Schwinger", "birth": "1918", "death": "1994.0", "nationality": "美国", "nobel_year": "1965.0", "nobel_category": "物理学", "gender": "M", "note": "1965与费曼朝永共获，拉比学生", "papers": [], "school": "哥大拉比学派"}, {"id": "P053", "name": "罗伯特·马伦卡", "name_en": "Robert Malenka", "birth": "1955", "death": "", "nationality": "美国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "斯坦福神经科学，Deisseroth博后导师", "papers": [], "school": ""}, {"id": "P055", "name": "阿兰·奥罗", "name_en": "Alain Horeau", "birth": "1921", "death": "2010.0", "nationality": "法国", "nobel_year": "", "nobel_category": "", "gender": "M", "note": "立体化学，Kagan博士后导师", "papers": [], "school": ""}, {"id": "P056", "name": "阿尔伯特·爱因斯坦", "name_en": "Albert Einstein", "birth": "1879", "death": "1955", "nationality": "德国/瑞士/美国", "nobel_year": "1921", "nobel_category": "物理学", "gender": "男", "note": "", "papers": [{"id": "W001", "title": "论动体的电动力学（狭义相对论）", "year": 1905, "venue": "Annalen der Physik", "citations": ">1万", "contrib": "提出狭义相对论，确立光速不变原理与相对性原理，统一时间与空间。"}, {"id": "W002", "title": "关于光的产生与转化的一个启发性观点（光量子假说）", "year": 1905, "venue": "Annalen der Physik", "citations": ">1万", "contrib": "提出光量子假说解释光电效应，为量子论奠基，获1921年诺贝尔物理学奖。"}, {"id": "W003", "title": "广义相对论基础", "year": 1916, "venue": "Annalen der Physik", "citations": ">1万", "contrib": "系统阐述广义相对论，以引力场方程描述时空弯曲与物质的相互作用。"}], "school": ""}, {"id": "P058", "name": "马克斯·德尔布吕克", "name_en": "Max Delbrück", "birth": "1906", "death": "1981", "nationality": "德国/美国", "nobel_year": "1969", "nobel_category": "生理学或医学", "gender": "男", "note": "", "papers": [{"id": "W031", "title": "细菌从病毒敏感到抗性的突变（卢里亚-德尔布吕克涨落实验）", "year": 1943, "venue": "Genetics", "citations": ">5000", "contrib": "与卢里亚通过涨落实验证明细菌抗性突变随机自发发生，开创噬菌体遗传学，获1969年诺贝尔生理学或医学奖。"}], "school": ""}, {"id": "P059", "name": "阿尔弗雷德·赫尔希", "name_en": "Alfred Hershey", "birth": "1908", "death": "1997", "nationality": "美国", "nobel_year": "1969", "nobel_category": "生理学或医学", "gender": "男", "note": "", "papers": [{"id": "W032", "title": "噬菌体生长中病毒蛋白与核酸的独立功能（赫尔希-蔡斯实验）", "year": 1952, "venue": "Journal of General Physiology", "citations": ">5000", "contrib": "与蔡斯用放射性同位素标记证明噬菌体DNA（而非蛋白）是遗传物质，与卢里亚、德尔布吕克共获1969年诺贝尔生理学或医学奖。"}], "school": ""}, {"id": "P060", "name": "弗朗索瓦·恩格勒特", "name_en": "François Englert", "birth": "1932", "death": "", "nationality": "比利时", "nobel_year": "2013", "nobel_category": "物理学", "gender": "男", "note": "", "papers": [{"id": "W042", "title": "对称性破缺与规范矢量介子质量（希格斯-恩格勒特机制）", "year": 1964, "venue": "Physical Review Letters", "citations": ">1万", "contrib": "与Robert Brout提出通过自发对称性破缺赋予规范玻色子质量的机制，与希格斯共获2013年诺贝尔物理学奖。"}], "school": ""}, {"id": "P061", "name": "彼得·希格斯", "name_en": "Peter Higgs", "birth": "1929", "death": "2024", "nationality": "英国", "nobel_year": "2013", "nobel_category": "物理学", "gender": "男", "note": "", "papers": [{"id": "W043", "title": "对称性破缺与规范玻色子质量（希格斯玻色子）", "year": 1964, "venue": "Physical Review Letters", "citations": ">1万", "contrib": "独立提出标量场（希格斯场）与希格斯玻色子机制，为粒子质量起源提供解释，获2013年诺贝尔物理学奖。"}], "school": ""}], "edges": [{"s": "P020", "a": "P027", "type": "研究/博士导师", "year": "1965", "verified": "待核实"}, {"s": "P021", "a": "P028", "type": "博士后导师", "year": "2004", "verified": "已验证"}, {"s": "P022", "a": "P029", "type": "博士后导师", "year": "1980", "verified": "已验证"}, {"s": "P023", "a": "P030", "type": "博士导师", "year": "1984", "verified": "已验证"}, {"s": "P024", "a": "P031", "type": "博士导师", "year": "1955", "verified": "已验证"}, {"s": "P025", "a": "P045", "type": "博士导师", "year": "1974", "verified": "已验证"}, {"s": "P026", "a": "P028", "type": "博士导师", "year": "2000", "verified": "已验证"}, {"s": "P013", "a": "P037", "type": "研究导师", "year": "1895", "verified": "已验证"}, {"s": "P001", "a": "P041", "type": "博士导师", "year": "1903", "verified": "已验证"}, {"s": "P002", "a": "P032", "type": "博士导师", "year": "1920", "verified": "已验证"}, {"s": "P003", "a": "P032", "type": "博士导师", "year": "1918", "verified": "已验证"}, {"s": "P004", "a": "P032", "type": "博士导师", "year": "1926", "verified": "已验证"}, {"s": "P005", "a": "P032", "type": "博士导师", "year": "1906", "verified": "已验证"}, {"s": "P006", "a": "P034", "type": "博士导师", "year": "1923", "verified": "已验证"}, {"s": "P007", "a": "P033", "type": "博士导师", "year": "1927", "verified": "已验证"}, {"s": "P008", "a": "P033", "type": "博士导师", "year": "1925", "verified": "已验证"}, {"s": "P009", "a": "P035", "type": "博士导师", "year": "1946", "verified": "已验证"}, {"s": "P010", "a": "P036", "type": "博士导师", "year": "1946", "verified": "待核实"}, {"s": "P011", "a": "P037", "type": "博士导师", "year": "1911", "verified": "已验证"}, {"s": "P012", "a": "P037", "type": "博士导师", "year": "1913", "verified": "待核实"}, {"s": "P014", "a": "P038", "type": "博士导师", "year": "1947", "verified": "已验证"}, {"s": "P015", "a": "P016", "type": "博士导师", "year": "1949", "verified": "已验证"}, {"s": "P016", "a": "P039", "type": "博士导师", "year": "1936", "verified": "已验证"}, {"s": "P017", "a": "P016", "type": "博士导师", "year": "1945", "verified": "已验证"}, {"s": "P018", "a": "P001", "type": "博士导师", "year": "1940", "verified": "待核实"}, {"s": "P019", "a": "P040", "type": "博士导师", "year": "1918", "verified": "待核实"}, {"s": "P001", "a": "P013", "type": "博士后导师", "year": "1912", "verified": "已验证"}, {"s": "P036", "a": "P033", "type": "研究指导", "year": "1923", "verified": "已验证"}, {"s": "P035", "a": "P002", "type": "博士导师", "year": "1929", "verified": "已验证"}, {"s": "P046", "a": "P013", "type": "博士导师", "year": "1911", "verified": "已验证"}, {"s": "P049", "a": "P032", "type": "博士后导师", "year": "1927", "verified": "已验证"}, {"s": "P050", "a": "P032", "type": "博士后导师", "year": "1926", "verified": "已验证"}, {"s": "P002", "a": "P001", "type": "研究导师", "year": "1924", "verified": "已验证"}, {"s": "P046", "a": "P013", "type": "研究导师", "year": "1913", "verified": "已核实"}, {"s": "P008", "a": "P033", "type": "博士导师", "year": "1926", "verified": "已核实"}, {"s": "P051", "a": "P036", "type": "博士导师", "year": "1928", "verified": "已核实"}, {"s": "P052", "a": "P049", "type": "博士导师", "year": "1939", "verified": "已核实"}, {"s": "P021", "a": "P053", "type": "博士后导师", "year": "2003", "verified": "已核实"}, {"s": "P023", "a": "P030", "type": "研究导师", "year": "1992", "verified": "已核实"}, {"s": "P024", "a": "P055", "type": "博士后导师", "year": "1960", "verified": "已核实"}, {"s": "P014", "a": "P016", "type": "研究导师", "year": "1951", "verified": "已核实"}, {"s": "P015", "a": "P016", "type": "博士导师", "year": "1949", "verified": "已核实"}], "paper_inh": [{"sp": "W004", "ap": "W009", "s": "P032", "a": "P001", "type": "范式拓展", "desc": "索末菲将玻尔圆轨道推广为椭圆轨道并引入相对论修正，精细结构理论直接拓展玻尔模型，为海森堡、泡利提供研究框架。"}, {"sp": "W006", "ap": "W004", "s": "P002", "a": "P032", "type": "继承发展", "desc": "海森堡矩阵力学论文直接建立在索末菲量子化条件与玻恩-约当可观测力学量框架上，将玻尔轨道模型改造为可观测的矩阵力学。"}, {"sp": "W008", "ap": "W004", "s": "P003", "a": "P032", "type": "继承发展", "desc": "泡利不相容原理在索末菲精细结构与玻尔壳层填充疑难基础上，提出新量子数以解释反常塞曼效应与周期表闭合壳层。"}, {"sp": "W006", "ap": "W010", "s": "P002", "a": "P033", "type": "方法应用", "desc": "海森堡-玻恩-约当矩阵力学共同完成对玻恩可观测力学量纲领的数学实现，玻恩的统计解释则进一步赋予矩阵元概率意义。"}, {"sp": "W013", "ap": "W010", "s": "P036", "a": "P033", "type": "方法应用", "desc": "费米1923年赴哥廷根在玻恩指导下研究，其费米-狄拉克统计沿用玻恩-约当量子统计框架，与玻色-爱因斯坦统计并列。"}, {"sp": "W011", "ap": "W004", "s": "P005", "a": "P032", "type": "继承发展", "desc": "德拜固体比热模型推广爱因斯坦单振子模型，引入声子连续谱与德拜温度，是索末菲量子论纲领在凝聚态中的早期成功。"}, {"sp": "W007", "ap": "W006", "s": "P002", "a": "P002", "type": "继承发展", "desc": "不确定性原理是海森堡在自身体系矩阵力学基础上给出对易关系物理诠释，与玻尔互补性原理共同构成哥本哈根诠释核心。"}, {"sp": "W014", "ap": "W013", "s": "P036", "a": "P036", "type": "范式拓展", "desc": "费米β衰变理论将费米子二次量子化场论方法从费米-狄拉克统计推广到弱相互作用，为李政道等弟子树立理论物理范式。"}, {"sp": "W016", "ap": "W007", "s": "P035", "a": "P002", "type": "方法应用", "desc": "泰勒在莱比锡随海森堡获博士学位，其氢弹Teller-Ulam构型与核物理/等离子体研究延续海森堡核反应与量子力学方法学。"}, {"sp": "W015", "ap": "W003", "s": "P004", "a": "P056", "type": "继承发展", "desc": "贝特CNO循环与质子-质子链理论将核反应物理与爱丁顿恒星模型结合，在费米芝加哥学派指导背景下解释恒星能量来源。"}, {"sp": "W018", "ap": "W014", "s": "P009", "a": "P036", "type": "理论反驳", "desc": "李政道-杨振宁宇称不守恒假说质疑费米β衰变理论中隐含的宇称守恒假设，由吴健雄实验证实，改写弱相互作用认识。"}, {"sp": "W017", "ap": "W016", "s": "P009", "a": "P035", "type": "范式拓展", "desc": "杨-米尔斯非阿贝尔规范场论将外尔U(1)电磁规范不变性推广到SU(2)同位旋，杨振宁在芝加哥受泰勒、费米场论熏陶下完成。"}, {"sp": "W020", "ap": "W019", "s": "P013", "a": "P037", "type": "继承发展", "desc": "卢瑟福α粒子散射实验在J.J.汤姆孙卡文迪许实验室期间开展，其核式模型取代汤姆孙葡萄干布丁模型，将原子物理引向核物理。"}, {"sp": "W021", "ap": "W019", "s": "P011", "a": "P037", "type": "方法应用", "desc": "小布拉格布拉格定律在J.J.汤姆孙卡文迪许实验室利用X射线衍射思想，将劳厄衍射条件几何化为简单的晶体结构分析公式。"}, {"sp": "W023", "ap": "W020", "s": "P046", "a": "P013", "type": "继承发展", "desc": "查德威克作为卢瑟福学生在卡文迪许实验室发现中子，验证卢瑟福关于原子核中中性复合粒子的长期预言。"}, {"sp": "W022", "ap": "W019", "s": "P012", "a": "P037", "type": "理论反驳", "desc": "G.P.汤姆孙电子衍射实验以波动图像证实德布罗意波，部分超越其父J.J.汤姆孙将电子视为纯粒子的经典观点。"}, {"sp": "W024", "ap": "W009", "s": "P018", "a": "P001", "type": "继承发展", "desc": "奥格·玻尔（尼尔斯·玻尔之子与学生）原子核集体模型将其父早期液滴模型与壳层模型统一，解释非球形核转动与振动谱。"}, {"sp": "W026", "ap": "W025", "s": "P019", "a": "P040", "type": "继承发展", "desc": "伊雷娜与弗雷德里克·约里奥-居里人工放射性研究直接延续玛丽·居里放射性元素分离与衰变研究路线，开启人工同位素时代。"}, {"sp": "W028", "ap": "W027", "s": "P017", "a": "P016", "type": "方法应用", "desc": "肯德鲁在佩鲁茨剑桥小组解析肌红蛋白结构，采用佩鲁茨发展的同晶置换法首次得到高分辨率蛋白质三维结构。"}, {"sp": "W029", "ap": "W027", "s": "P015", "a": "P016", "type": "方法应用", "desc": "克里克作为佩鲁茨博士学生，将佩鲁茨X射线晶体学方法与模型构建思想应用于DNA，与沃森共同完成双螺旋结构。"}, {"sp": "W030", "ap": "W021", "s": "P047", "a": "P011", "type": "方法应用", "desc": "威尔金斯DNA B型衍射工作与富兰克林的高分辨率照片51，沿用布拉格定律的X射线晶体分析方法，为双螺旋提供关键数据。"}, {"sp": "W031", "ap": "W009", "s": "P058", "a": "P001", "type": "范式拓展", "desc": "德尔布吕克作为玻尔学生将物理定量方法引入遗传学，与卢里亚涨落实验确立细菌/噬菌体遗传学，开创分子生物学学派。"}, {"sp": "W029", "ap": "W031", "s": "P015", "a": "P058", "type": "继承发展", "desc": "沃森作为卢里亚博士学生在噬菌体学派训练下进入DNA结构研究，将遗传信息问题与X射线结构方法结合，催生双螺旋。"}, {"sp": "W032", "ap": "W031", "s": "P059", "a": "P058", "type": "继承发展", "desc": "赫尔希-蔡斯实验在噬菌体小组内部完成，以放射性标记证实DNA为遗传物质，是卢里亚-德尔布吕克噬菌体遗传学纲领的关键判决性实验。"}, {"sp": "W034", "ap": "W033", "s": "P022", "a": "P029", "type": "继承发展", "desc": "黑格曼作为奥斯特黑尔特的博士生/博士后，在细菌视紫红质研究基础上从衣藻克隆通道视紫红质ChR1/ChR2，将光敏蛋白从泵拓展到通道。"}, {"sp": "W035", "ap": "W033", "s": "P030", "a": "P029", "type": "方法应用", "desc": "纳格尔与班贝格合作将细菌视紫红质异源表达于蛙卵并记录光电流，验证微生物视紫红质可在动物细胞实现光控跨膜电流。"}, {"sp": "W037", "ap": "W036", "s": "P021", "a": "P028", "type": "方法应用", "desc": "戴塞罗思与博伊登在钱永佑斯坦福实验室做博士后/博士生期间，结合钱永佑神经电生理学与通道视紫红质，发表2005年Nature Neuroscience光遗传学金石论文。"}, {"sp": "W037", "ap": "W034", "s": "P021", "a": "P022", "type": "方法应用", "desc": "戴塞罗思/博伊登2005年工作直接使用黑格曼-纳格尔团队克隆的ChR2基因，将光门控通道引入神经元实现毫秒光控。"}, {"sp": "W038", "ap": "W037", "s": "P021", "a": "P021", "type": "范式拓展", "desc": "CLARITY组织透明技术是戴塞罗思在光遗传学基础上，对全脑尺度结构与功能连接成像方法学的进一步拓展。"}, {"sp": "W039", "ap": "W047", "s": "P024", "a": "P031", "type": "继承发展", "desc": "卡甘在其导师让·雅克法国立体化学学派训练下提出不对称催化非线性效应（MLn模型），成为手性合成理论核心。"}, {"sp": "W040", "ap": "W041", "s": "P025", "a": "P045", "type": "方法应用", "desc": "硖合宪三在东京大学向山光昭指导下获得博士，其Soai不对称自催化反应运用向山有机合成方法学，将手性放大推向极端。"}, {"sp": "W040", "ap": "W039", "s": "P025", "a": "P024", "type": "继承发展", "desc": "Soai反应是卡甘非线性效应的极端实现：不对称自催化使初始微小对映体偏差指数级放大，从物理化学角度验证手性起源假说。"}, {"sp": "W044", "ap": "W046", "s": "P020", "a": "P027", "type": "继承发展", "desc": "哈尔岑作为塞鲁鲁斯在鲁汶大学理论粒子物理方向的学生，将强子/中微子物理专长延伸至高能天体物理，最终领导冰立方发现天体中微子。"}, {"sp": "W045", "ap": "W044", "s": "P020", "a": "P020", "type": "继承发展", "desc": "冰立方天文台仪器系统论文是对2013年天体中微子发现的工程化总结，奠定后续多信使天文学装置基础。"}, {"sp": "W043", "ap": "W042", "s": "P061", "a": "P060", "type": "继承发展", "desc": "希格斯与恩格勒特-布劳特于1964年独立互补提出BEH机制与希格斯玻色子预言，共同构成标准模型质量起源基石。"}], "field_color": {"物理学": "#4285f4", "化学": "#ea4335", "生理学或医学": "#34a853", "Peace": "#fbbc04", "文学": "#9c27b0", "经济学": "#b8860b", "": "#9e9e9e"}, "stats": {"persons": 60, "edges": 42, "papers": 47, "paper_inh": 35}, "schools": ["LMB分子生物学派", "光遗传学派", "卡文迪许学派", "哥大拉比学派", "哥廷根学派", "哥本哈根学派", "居里学派", "慕尼黑学派", "罗马费米学派"], "cedges": [{"source": "P021", "target": "P026", "label": "合作", "rtype": "合作", "topic": "光遗传学ChR2神经元实验", "year": "2005", "pub": "Nat Neurosci 2005"}, {"source": "P022", "target": "P023", "label": "合作", "rtype": "合作", "topic": "ChR1通道视紫红质发现", "year": "2002", "pub": "Science 2002"}, {"source": "P022", "target": "P023", "label": "合作", "rtype": "合作", "topic": "ChR2光控阳离子通道", "year": "2003", "pub": "PNAS 2003"}, {"source": "P023", "target": "P030", "label": "合作", "rtype": "合作", "topic": "ChR2专利与电生理", "year": "2003", "pub": "EP2112510"}, {"source": "P014", "target": "P015", "label": "合作", "rtype": "合作", "topic": "DNA双螺旋结构", "year": "1953", "pub": "Nature 1953"}, {"source": "P001", "target": "P002", "label": "合作", "rtype": "合作", "topic": "哥本哈根诠释", "year": "1927", "pub": "合作研究"}, {"source": "P036", "target": "P051", "label": "合作", "rtype": "合作", "topic": "中子诱导放射性", "year": "1934", "pub": "罗马学派"}, {"source": "P009", "target": "P010", "label": "合作", "rtype": "合作", "topic": "宇称不守恒", "year": "1956", "pub": "Phys Rev 1956"}, {"source": "P013", "target": "P001", "label": "合作", "rtype": "合作", "topic": "原子结构模型", "year": "1912", "pub": "曼彻斯特"}, {"source": "P022", "target": "P030", "label": "合作", "rtype": "合作", "topic": "微生物视紫红质合作", "year": "2000", "pub": "合作研究"}], "schools_detail": [{"id": "S01", "name": "卡文迪许学派", "en": "Cavendish School", "founder": "约瑟夫·约翰·汤姆孙", "era": "1880", "inst": "电子→原子→核→分子生物的百年王朝", "inst_name": "", "color": "#2563eb", "members": [{"name": "约瑟夫·约翰·汤姆孙", "year": "1906.0", "cat": "物理学", "role": "founder"}, {"name": "欧内斯特·卢瑟福", "year": "1908.0", "cat": "化学", "role": "member"}, {"name": "威廉·劳伦斯·布拉格", "year": "1915.0", "cat": "物理学", "role": "member"}, {"name": "詹姆斯·查德威克", "year": "1935.0", "cat": "物理学", "role": "member"}, {"name": "乔治·佩吉特·汤姆孙", "year": "1937.0", "cat": "物理学", "role": "second_gen"}], "n_laureate": 5}, {"id": "S02", "name": "慕尼黑学派", "en": "Munich School", "founder": "阿诺德·索末菲", "era": "1906", "inst": "索末菲理论物理研究所，量子力学摇篮", "inst_name": "", "color": "#dc2626", "members": [{"name": "维尔纳·海森堡", "year": "1932.0", "cat": "物理学", "role": "student"}, {"name": "彼得·德拜", "year": "1936.0", "cat": "化学", "role": "student"}, {"name": "伊西多·拉比", "year": "1944.0", "cat": "物理学", "role": "postdoc"}, {"name": "沃尔夫冈·泡利", "year": "1945.0", "cat": "物理学", "role": "student"}, {"name": "莱纳斯·鲍林", "year": "1954.0", "cat": "化学", "role": "postdoc"}, {"name": "汉斯·贝特", "year": "1967.0", "cat": "物理学", "role": "student"}, {"name": "阿诺德·索末菲", "year": "", "cat": "", "role": "founder"}], "n_laureate": 6}, {"id": "S03", "name": "哥本哈根学派", "en": "Copenhagen School", "founder": "尼尔斯·玻尔", "era": "1921", "inst": "量子力学哥本哈根诠释", "inst_name": "", "color": "#059669", "members": [{"name": "尼尔斯·玻尔", "year": "1922.0", "cat": "物理学", "role": "founder"}, {"name": "奥格·玻尔", "year": "1975.0", "cat": "物理学", "role": "second_gen"}], "n_laureate": 2}, {"id": "S04", "name": "哥廷根学派", "en": "Göttingen School", "founder": "马克斯·玻恩", "era": "1921", "inst": "矩阵力学与量子力学数学基础", "inst_name": "", "color": "#7c3aed", "members": [{"name": "维尔纳·海森堡", "year": "1932.0", "cat": "物理学", "role": "member"}, {"name": "马克斯·玻恩", "year": "1954.0", "cat": "物理学", "role": "founder"}, {"name": "罗伯特·奥本海默", "year": "", "cat": "", "role": "student"}], "n_laureate": 2}, {"id": "S05", "name": "罗马费米学派", "en": "Rome Fermi School", "founder": "恩里科·费米", "era": "1927", "inst": "中子物理与β衰变理论", "inst_name": "", "color": "#ea580c", "members": [{"name": "恩里科·费米", "year": "1938.0", "cat": "物理学", "role": "founder"}, {"name": "李政道", "year": "1957.0", "cat": "物理学", "role": "student"}, {"name": "埃米利奥·塞格雷", "year": "1959.0", "cat": "物理学", "role": "student"}], "n_laureate": 3}, {"id": "S06", "name": "LMB分子生物学派", "en": "LMB Cambridge School", "founder": "马克斯·佩鲁茨", "era": "1947", "inst": "X射线晶体学→DNA→血红蛋白", "inst_name": "", "color": "#0891b2", "members": [{"name": "威廉·劳伦斯·布拉格", "year": "1915.0", "cat": "物理学", "role": "leader"}, {"name": "马克斯·佩鲁茨", "year": "1962.0", "cat": "化学", "role": "founder"}, {"name": "约翰·肯德鲁", "year": "1962.0", "cat": "化学", "role": "student"}, {"name": "詹姆斯·沃森", "year": "1962.0", "cat": "生理学或医学", "role": "visitor"}, {"name": "弗朗西斯·克里克", "year": "1962.0", "cat": "生理学或医学", "role": "student"}], "n_laureate": 5}, {"id": "S07", "name": "居里学派", "en": "Curie School", "founder": "玛丽·居里", "era": "1903", "inst": "放射性与放射化学", "inst_name": "", "color": "#db2777", "members": [{"name": "玛丽·居里", "year": "1911.0", "cat": "化学", "role": "founder"}, {"name": "伊雷娜·约里奥-居里", "year": "1935.0", "cat": "化学", "role": "second_gen"}, {"name": "弗雷德里克·约里奥-居里", "year": "1935.0", "cat": "化学", "role": "member"}], "n_laureate": 3}, {"id": "S08", "name": "光遗传学派", "en": "Optogenetics School", "founder": "彼得·黑格曼", "era": "2002", "inst": "通道视紫红质→光控神经元", "inst_name": "", "color": "#65a30d", "members": [{"name": "彼得·黑格曼", "year": "2026.0", "cat": "生理学或医学", "role": "founder"}, {"name": "格奥尔格·纳格尔", "year": "2026.0", "cat": "生理学或医学", "role": "cofounder"}, {"name": "卡尔·戴塞罗思", "year": "2026.0", "cat": "生理学或医学", "role": "translator"}, {"name": "恩斯特·班贝格", "year": "", "cat": "", "role": "cofounder"}, {"name": "爱德华·博伊登", "year": "", "cat": "", "role": "translator"}], "n_laureate": 3}, {"id": "S09", "name": "哥大拉比学派", "en": "Columbia Rabi School", "founder": "伊西多·拉比", "era": "1937", "inst": "磁共振与量子电动力学", "inst_name": "", "color": "#b45309", "members": [{"name": "伊西多·拉比", "year": "1944.0", "cat": "物理学", "role": "founder"}, {"name": "朱利安·施温格", "year": "1965.0", "cat": "物理学", "role": "student"}], "n_laureate": 2}], "paradigms": [{"name": "量子力学框架", "year": "1900", "founder": "Max_Planck", "desc": "从旧量子论到矩阵力学、波动力学"}, {"name": "量子电动力学", "year": "1927", "founder": "保罗·狄拉克", "desc": "电磁场量子化与重整化"}, {"name": "X射线晶体学", "year": "1912", "founder": "Max_von_Laue", "desc": "布拉格衍射→蛋白质结构"}, {"name": "光遗传学", "year": "2002", "founder": "彼得·黑格曼", "desc": "ChR2发现→神经调控"}, {"name": "不对称催化", "year": "1971", "founder": "亨利·B·卡甘", "desc": "手性配体→非线性效应→自催化"}, {"name": "中子/核物理", "year": "1911", "founder": "欧内斯特·卢瑟福", "desc": "原子核模型→中子发现→核反应"}, {"name": "中微子天文学", "year": "1988", "founder": "弗朗西斯·哈尔岑", "desc": "冰立方与高能中微子"}, {"name": "放射性研究", "year": "1898", "founder": "玛丽·居里", "desc": "放射性元素→人工放射性"}], "school_color": {"卡文迪许学派": "#2563eb", "慕尼黑学派": "#dc2626", "哥本哈根学派": "#059669", "哥廷根学派": "#7c3aed", "罗马费米学派": "#ea580c", "LMB分子生物学派": "#0891b2", "居里学派": "#db2777", "光遗传学派": "#65a30d", "哥大拉比学派": "#b45309"}};
+// ===== 混合方案：DuckDB 动态加载补充 =====
+await db.initDB(()=>{});
+
+const staticIds = new Set(DATA.people.map(p=>p.id));
+
+// 1) 从 DuckDB 拉取 persons、wiki_summaries、mentorship、collaboration、person_school
+const personsDB = (await db.query('SELECT person_id, name_zh, name_en, nobel_year, nobel_category, birth_year, death_year, nationality FROM persons')).rows;
+const wikiDB = (await db.query('SELECT name_zh, name_en, desc_zh FROM wiki_summaries')).rows;
+const mentorDB = (await db.query('SELECT student_id, advisor_id, relation_type, start_year FROM mentorship')).rows;
+const collabDB = (await db.query('SELECT person_a_id, person_b_id, topic, publication FROM collaboration')).rows;
+const psDB = (await db.query('SELECT person_id, school_id, role FROM person_school')).rows;
+const schoolsDB = (await db.query('SELECT school_id, name_cn FROM schools')).rows;
+const schoolMap = Object.fromEntries(schoolsDB.map(s=>[s.school_id, s.name_cn]));
+const wikiMap = {};
+wikiDB.forEach(w=>{ if(w.name_zh) wikiMap[w.name_zh]=w; if(w.name_en) wikiMap[w.name_en]=w; });
+const personMap = {};
+personsDB.forEach(p=>{ personMap[p.person_id]=p; });
+
+// 2) 补充节点：DuckDB 里出现但静态没有的 person_id
+function enrichFromDB(pid){
+  if(staticIds.has(pid)) return;
+  const p = personMap[pid];
+  if(!p) return;
+  const wiki = wikiMap[p.name_zh] || wikiMap[p.name_en];
+  staticIds.add(pid);
+  DATA.people.push({
+    id: pid,
+    name: p.name_zh || p.name_en || pid,
+    name_en: p.name_en || '',
+    birth: p.birth_year ? String(p.birth_year) : '',
+    death: p.death_year ? String(p.death_year) : '',
+    nationality: p.nationality || '',
+    nobel_year: p.nobel_year ? String(p.nobel_year) : '',
+    nobel_category: p.nobel_category || '',
+    gender: '',
+    note: wiki ? wiki.desc_zh || '' : '',
+    papers: [],
+    school: ''
+  });
+}
+
+// 3) 合并 person_school → 给静态人补充 school
+psDB.forEach(ps=>{
+  const person = DATA.people.find(p=>p.id===ps.person_id);
+  if(person && !person.school){
+    const sn = schoolMap[ps.school_id];
+    if(sn) person.school = sn;
+  }
+});
+
+// 4) 合并 mentorship 边
+const mentorKey = (s,a)=> s+'_'+a;
+const existMentor = new Set(DATA.edges.map(e=>mentorKey(e.s,e.a)));
+let dbMentorAdded = 0;
+mentorDB.forEach(m=>{
+  const key = mentorKey(m.student_id, m.advisor_id);
+  if(existMentor.has(key)) return;
+  existMentor.add(key);
+  enrichFromDB(m.student_id);
+  enrichFromDB(m.advisor_id);
+  DATA.edges.push({
+    s: m.student_id,
+    a: m.advisor_id,
+    type: m.relation_type || '博士导师',
+    year: m.start_year ? String(m.start_year) : '',
+    verified: 'DB补充'
+  });
+  dbMentorAdded++;
+});
+
+// 5) 合并 collaboration 边
+const collabKey = (s,t)=> s+'_'+t;
+const existCollab = new Set(DATA.cedges.map(e=>collabKey(e.source,e.target)));
+let dbCollabAdded = 0;
+collabDB.forEach(c=>{
+  const key1 = collabKey(c.person_a_id, c.person_b_id);
+  const key2 = collabKey(c.person_b_id, c.person_a_id);
+  if(existCollab.has(key1)||existCollab.has(key2)) return;
+  existCollab.add(key1);
+  enrichFromDB(c.person_a_id);
+  enrichFromDB(c.person_b_id);
+  DATA.cedges.push({
+    source: c.person_a_id,
+    target: c.person_b_id,
+    label: '合作',
+    rtype: '合作',
+    topic: c.topic || '',
+    year: '',
+    pub: c.publication || ''
+  });
+  dbCollabAdded++;
+});
+
+// 6) 更新统计
+DATA.stats.persons = DATA.people.length;
+DATA.stats.edges = DATA.edges.length;
+DATA.stats.collab = DATA.cedges.length;
+// 统计新增的学派名称（补充到 schools 数组）
+DATA.people.forEach(p=>{
+  if(p.school && !DATA.schools.includes(p.school)) DATA.schools.push(p.school);
+});
+
+// 7) 填充统计显示
 document.getElementById("stP").textContent = DATA.people.length;
 document.getElementById("stE").textContent = DATA.edges.length;
 document.getElementById("stW").textContent = DATA.stats.papers;
@@ -185,7 +360,12 @@ sim.on("tick",()=>{
 
 // 交互
 const tip = document.getElementById("tip");
+const INH_TYPE_COLOR = {
+  "继承发展":"#34d399","方法应用":"#60a5fa","范式拓展":"#c084fc",
+  "理论反驳":"#f87171","相互印证":"#fbbf24"
+};
 function showTooltip(e,d){
+  const d_id = d.id;
   let html=`<h4>${d.name} <span style="color:#94a3b8;font-weight:400;font-size:12px">${d.name_en||''}</span></h4>
     <div class="meta">${d.birth||'?'}–${d.death||''} ｜ ${d.nationality||''}`;
   if(d.nobel_year&&d.nobel_year.trim()){
@@ -199,13 +379,31 @@ function showTooltip(e,d){
   if(d.papers&&d.papers.length){
     html+=`<div class="section"><div class="section-title">代表作（${d.papers.length}篇）</div>`;
     d.papers.slice(0,3).forEach(w=>{
-      html+=`<div class="paper"><span class="paper-year">[${w.year}]</span>${w.title}<br><span style="color:#94a3b8;font-size:10px">${w.contrib.slice(0,60)}${w.contrib.length>60?'…':''}</span></div>`;
+      const contrib = (w.contrib||'').slice(0,90)+(w.contrib&&w.contrib.length>90?'…':'');
+      html+=`<div class="paper"><span class="paper-year">[${w.year}]</span>${w.title}<br><span class="paper-desc">${contrib}</span></div>`;
     });
     html+=`</div>`;
   }
+  // 论文传承影响链（涉及该人作为 student 或 advisor 的所有 paper_inh）
+  const myInh = DATA.paper_inh.filter(l=>l.s===d_id||l.a===d_id);
+  if(myInh.length){
+    html+=`<div class="section"><div class="section-title">论文传承（${myInh.length}条影响链）</div>`;
+    myInh.slice(0,5).forEach(l=>{
+      const col = INH_TYPE_COLOR[l.type]||'#94a3b8';
+      const studentN = (nodes.find(n=>n.id===l.s)||{name:l.s}).name;
+      const advisorN = (nodes.find(n=>n.id===l.a)||{name:l.a}).name;
+      html+=`<div class="inh-line">
+        <span class="inh-type" style="background:${col}22;color:${col};border:1px solid ${col}66">${l.type}</span>
+        <div style="font-size:11px;color:#cbd5f5">${studentN} ← ${advisorN}</div>
+        <div class="paper-desc">${(l.desc||'').slice(0,80)}${(l.desc||'').length>80?'…':''}</div>
+      </div>`;
+    });
+    if(myInh.length>5) html+=`<div style="font-size:10.5px;color:#64748b;padding:2px 0">…还有 ${myInh.length-5} 条</div>`;
+    html+=`</div>`;
+  }
   // 师承学生
-  const students = edges.filter(e=>e.a===d.id).map(e=>nodes.find(n=>n.id===e.s)).filter(Boolean);
-  const advisors = edges.filter(e=>e.s===d.id).map(e=>nodes.find(n=>n.id===e.a)).filter(Boolean);
+  const students = edges.filter(e=>e.a===d_id).map(e=>nodes.find(n=>n.id===e.s)).filter(Boolean);
+  const advisors = edges.filter(e=>e.s===d_id).map(e=>nodes.find(n=>n.id===e.a)).filter(Boolean);
   if(advisors.length) html+=`<div class="section"><div class="section-title">导师</div><span>${advisors.map(a=>a.name).join('、')}</span></div>`;
   if(students.length) html+=`<div class="section"><div class="section-title">学生（${students.length}）</div><span>${students.slice(0,8).map(a=>a.name).join('、')}${students.length>8?'…':''}</span></div>`;
   tip.innerHTML=html;
@@ -236,12 +434,54 @@ function resetHighlight(){
   linkP.classed("dim",false).classed("active",false);
 }
 
-// 控件
+// 控件 —— 统一可见性函数，避免多个 onchange 互相覆盖
+function applyVisibility(){
+  const sv = schoolSel.value;
+  const nobelOnly = document.getElementById("showNobelOnly").checked;
+  const peopleOn = document.getElementById("showPeople").checked;
+
+  // 学派筛选：选中某学派时，保留「该学派成员 + 直接邻居（导师/学生）」，
+  // 并把非学派的邻居加 dim 类作为上下文；这样筛选后节点不会全部孤立。
+  let schoolNeighbours = null;
+  if(sv){
+    schoolNeighbours = new Set();
+    DATA.people.forEach(p=>{ if(p.school===sv) schoolNeighbours.add(p.id); });
+    edges.forEach(e=>{
+      const sid=e.source.id||e.source, tid=e.target.id||e.target;
+      if(schoolNeighbours.has(sid)) schoolNeighbours.add(tid);
+      if(schoolNeighbours.has(tid)) schoolNeighbours.add(sid);
+    });
+  }
+
+  node.style("display", d=>{
+    if(!peopleOn) return "none";
+    if(sv && !schoolNeighbours.has(d.id)) return "none";
+    if(nobelOnly && (!d.nobel_year||d.nobel_year.trim()==="")) return "none";
+    return null;
+  });
+  // 学派筛选模式：非该学派的节点做半透明处理（保留邻居作为上下文）
+  // 无学派筛选时不动 dim 类，避免和 highlightChain 的高亮状态冲突
+  if(sv) node.classed("dim", d=> d.school!==sv);
+
+  // 边跟着节点过滤
+  const visibleIds = new Set();
+  node.each(function(d){ if(d3.select(this).style("display")!=="none") visibleIds.add(d.id); });
+  const edgeVis = l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none";
+  linkM.style("display", edgeVis);
+  linkP.style("display", edgeVis);
+  linkC.style("display", edgeVis);
+}
+
+// 图层类控件
 document.getElementById("showEdge").onchange=e=>linkM.style("display",e.target.checked?null:"none");
 document.getElementById("showPaper").onchange=e=>linkP.style("display",e.target.checked?null:"none");
 document.getElementById("showCollab").onchange=e=>linkC.style("display",e.target.checked?null:"none");
-document.getElementById("showPeople").onchange=e=>node.style("display",e.target.checked?null:"none");
-document.getElementById("sizeBy").onchange=()=>node.select("circle").transition().attr("r",d=>document.getElementById("sizeBy").checked?d.r:10);
+
+// 节点大小
+document.getElementById("sizeBy").onchange=()=>{
+  node.select("circle").transition().attr("r",d=>document.getElementById("sizeBy").checked?d.r:10);
+  node.select("text").transition().attr("dy",d=>(document.getElementById("sizeBy").checked?d.r:10)+12);
+};
 
 // 学派筛选下拉
 const schoolSel = document.getElementById("schoolFilter");
@@ -251,7 +491,7 @@ DATA.schools.forEach(s=>{
   schoolSel.appendChild(o);
 });
 
-// 着色模式 + 学派筛选
+// 着色模式
 function getNodeColor(d){
   const mode = document.getElementById("colorMode").value;
   if(mode==="school"){
@@ -264,21 +504,6 @@ function getNodeColor(d){
 function applyColorMode(){
   node.select("circle").transition().duration(300).attr("fill",d=>getNodeColor(d));
   updateLegend();
-}
-
-function applySchoolFilter(){
-  const sv = schoolSel.value;
-  node.style("display", d=>{
-    if(sv && d.school!==sv) return "none";
-    if(document.getElementById("showNobelOnly").checked && (!d.nobel_year||!d.nobel_year.trim())) return "none";
-    return null;
-  });
-  // 边也跟着过滤
-  const visibleIds = new Set();
-  node.each(d=>{ if(d3.select(this).style("display")!=="none") visibleIds.add(d.id); });
-  linkM.style("display", l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none");
-  linkP.style("display", l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none");
-  linkC.style("display", l=>visibleIds.has(l.source.id||l.source)&&visibleIds.has(l.target.id||l.target)?null:"none");
 }
 
 function updateLegend(){
@@ -297,6 +522,7 @@ function updateLegend(){
       '<div class="legend-item"><div class="legend-dot" style="background:#4285f4"></div>物理学</div>' +
       '<div class="legend-item"><div class="legend-dot" style="background:#ea4335"></div>化学</div>' +
       '<div class="legend-item"><div class="legend-dot" style="background:#34a853"></div>生理/医学</div>' +
+      '<div class="legend-item"><div class="legend-dot" style="background:#b8860b"></div>经济学</div>' +
       '<div class="legend-item"><div class="legend-dot" style="background:#9e9e9e"></div>非诺奖导师</div>' +
       '<h3 style="margin-top:10px;">关系</h3>' +
       '<div class="legend-item"><svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#64748b" stroke-width="2"/></svg>师承（博士/博后）</div>' +
@@ -306,8 +532,9 @@ function updateLegend(){
 }
 
 document.getElementById("colorMode").onchange = applyColorMode;
-schoolSel.onchange = applySchoolFilter;
-document.getElementById("showNobelOnly").onchange = applySchoolFilter;
+document.getElementById("showPeople").onchange = applyVisibility;
+document.getElementById("showNobelOnly").onchange = applyVisibility;
+schoolSel.onchange = applyVisibility;
 
 // 高亮也覆盖合作边
 const _origHighlight = highlightChain;
@@ -326,6 +553,184 @@ resetHighlight = function(){
   _origReset();
   linkC.classed("dim",false).classed("active",false);
 };
+
+// ===== 时间轴 scrubber：按师承关系发生年份筛选 =====
+// 关键：mentorship 表只有约 40 条边带 start_year，其余用学生出生年份做近似锚点
+(function buildTimeline(){
+  const MIN_YEAR=1840, MAX_YEAR=2010, BIN=10;
+  const nBins = Math.ceil((MAX_YEAR-MIN_YEAR)/BIN);
+  const bins = new Array(nBins).fill(0);
+  const edgeAnchor = new Map(); // edge 索引 -> 年
+  DATA.edges.forEach((e,i)=>{
+    let y = e.year ? parseInt(e.year,10) : NaN;
+    if(!y || y<MIN_YEAR || y>MAX_YEAR){
+      const s = DATA.people.find(p=>p.id===e.s);
+      if(s){ const b=parseInt(s.birth,10); if(!isNaN(b)) y=b+10; }
+    }
+    if(!y || y<MIN_YEAR || y>MAX_YEAR) return;
+    edgeAnchor.set(i,y);
+    const bi = Math.floor((y-MIN_YEAR)/BIN);
+    if(bi>=0 && bi<nBins) bins[bi]++;
+  });
+  const svgW = window.innerWidth, svgH = 52, padL=28, padR=14, padT=4, padB=16;
+  const iw = svgW - padL - padR, ih = svgH - padT - padB;
+  const maxB = Math.max(1, ...bins);
+  const x = d3.scaleLinear().domain([MIN_YEAR,MAX_YEAR]).range([padL, padL+iw]);
+  const svgS = d3.select("#slider").attr("width",svgW).attr("height",svgH);
+  // x 轴
+  svgS.append("g").attr("class","tl-axis").attr("transform",`translate(0,${padT+ih+2})`)
+    .call(d3.axisBottom(x).tickFormat(d=>d).tickValues(d3.range(MIN_YEAR,MAX_YEAR+1,20)));
+  // 柱
+  const bw = iw/nBins;
+  svgS.append("g").selectAll("rect.bar").data(bins).join("rect")
+    .attr("class","tl-bar")
+    .attr("x",(d,i)=>padL+i*bw).attr("width",bw-1)
+    .attr("y",d=>padT+ih - Math.max(1,d/maxB*ih))
+    .attr("height",d=>Math.max(1,d/maxB*ih))
+    .attr("fill","url(#tlGrad)").attr("opacity",.55);
+  // 渐变
+  const defs = svgS.append("defs");
+  const lg = defs.append("linearGradient").attr("id","tlGrad").attr("x1",0).attr("x2",0).attr("y1",1).attr("y2",0);
+  lg.append("stop").attr("offset","0%").attr("stop-color","#4f46e5").attr("stop-opacity",.5);
+  lg.append("stop").attr("offset","100%").attr("stop-color","#fbbf24").attr("stop-opacity",.9);
+  // brush
+  let currentRange = [MIN_YEAR, MAX_YEAR];
+  const brush = d3.brushX()
+    .extent([[padL,padT],[padL+iw,padT+ih]])
+    .on("brush end", function(ev){
+      if(!ev.selection) return;
+      const [a,b] = ev.selection;
+      currentRange = [Math.round(x.invert(a)), Math.round(x.invert(b))];
+      updateTlLabel();
+      applyTimeFilter();
+    });
+  const brushG = svgS.append("g").attr("class","brush").call(brush);
+  brushG.selectAll(".selection").attr("class","selection tl-brush");
+  brushG.selectAll(".handle").attr("class","handle tl-brush-handle");
+  // 显示无年份边数量
+  const noYearCount = DATA.edges.length - edgeAnchor.size;
+  if(noYearCount>0) svgS.append("text")
+    .attr("x", padL).attr("y", padT+ih+30)
+    .attr("fill","#64748b").attr("font-size",10)
+    .text(`（虚线为按学生出生年近似定位的 ${noYearCount} 条边）`);
+  function updateTlLabel(){
+    const el = document.getElementById("tlRange");
+    if(currentRange[0]===MIN_YEAR && currentRange[1]===MAX_YEAR){
+      el.textContent = `全部时间（${MIN_YEAR}–${MAX_YEAR}）`;
+      document.getElementById("tlClear").classList.remove("on");
+    } else {
+      el.textContent = `${currentRange[0]} – ${currentRange[1]}`;
+      document.getElementById("tlClear").classList.add("on");
+    }
+  }
+  window.applyTimeFilter = function(){
+    const [a,b] = currentRange;
+    const full = (a===MIN_YEAR && b===MAX_YEAR);
+    linkM.style("opacity", (d,i)=>{
+      const y = edgeAnchor.get(i);
+      if(!y) return full ? 0.5 : 0.08;
+      return (y>=a && y<=b) ? 0.85 : 0.08;
+    });
+    // 时间范围内活跃的节点集合
+    const activeIds = new Set();
+    DATA.edges.forEach((e,i)=>{
+      const y = edgeAnchor.get(i);
+      if(!y || (y<a || y>b)) return;
+      activeIds.add(e.s); activeIds.add(e.a);
+    });
+    if(!full) node.style("opacity", d=> activeIds.has(d.id) ? 1 : 0.25);
+    else node.style("opacity", 1);
+  };
+  document.getElementById("tlClear").onclick = ()=>{
+    currentRange = [MIN_YEAR, MAX_YEAR];
+    brushG.call(brush.move, [x(MIN_YEAR), x(MAX_YEAR)]);
+    updateTlLabel();
+    applyTimeFilter();
+  };
+})();
+
+// ===== AI 面板 =====
+(function initAI(){
+  const panel = document.getElementById("aiPanel");
+  const toggle = document.getElementById("aiToggle");
+  const dot = document.getElementById("aiDot");
+  const state = document.getElementById("aiState");
+  const body = document.getElementById("aiBody");
+  const askBtn = document.getElementById("aiAsk");
+  const linBtn = document.getElementById("aiLineage");
+  const clrBtn = document.getElementById("aiClear");
+  let currentPick = null, asking = false;
+  function refresh(){
+    const ok = ai.hasLLM && ai.hasLLM();
+    dot.classList.toggle("off", !ok);
+    state.textContent = ok ? (currentPick? `目标：${currentPick.name}` : "点击节点后生成") : "LLM 未配置 · 离线模式";
+    askBtn.disabled = !ok || !currentPick || asking;
+    linBtn.disabled = !currentPick || asking;
+  }
+  refresh();
+  toggle.onclick = ()=>{ panel.classList.toggle("on"); };
+  clrBtn.onclick = ()=>{ body.className="ai-body empty"; body.textContent="选中任意一位学者，AI 将结合其师承脉络与代表作传承，生成 150–250 字的学术叙事。"; currentPick=null; refresh(); };
+  function pick(d){
+    currentPick = d; body.className="ai-body"; body.textContent=""; askBtn.disabled = !ai.hasLLM() || asking; linBtn.disabled = asking;
+    refresh();
+  }
+  // 挂载到 node click
+  node.on("click", (e,d)=>{
+    highlightChain(d);
+    pick(d);
+    panel.classList.add("on");
+  });
+  function collectContext(d){
+    const advisors = DATA.edges.filter(e=>e.s===d.id).map(e=>({name:(nodes.find(n=>n.id===e.a)||{name:e.a}).name, type:e.type, year:e.year}));
+    const students = DATA.edges.filter(e=>e.a===d.id).map(e=>({name:(nodes.find(n=>n.id===e.s)||{name:e.s}).name, type:e.type, year:e.year}));
+    const incoming = DATA.paper_inh.filter(l=>l.a===d.id).map(l=>({from:(nodes.find(n=>n.id===l.s)||{name:l.s}).name, type:l.type, desc:l.desc}));
+    const outgoing = DATA.paper_inh.filter(l=>l.s===d.id).map(l=>({to:(nodes.find(n=>n.id===l.a)||{name:l.a}).name, type:l.type, desc:l.desc}));
+    const papers = (d.papers||[]).map(p=>({year:p.year, title:p.title, contrib:(p.contrib||'').slice(0,120)}));
+    return {name:d.name, name_en:d.name_en, birth:d.birth, death:d.death, nationality:d.nationality, nobel_year:d.nobel_year, nobel_category:d.nobel_category, school:d.school, note:d.note||'', papers, advisors, students, incoming, outgoing};
+  }
+  const SYSTEM = "你是学术史叙事助手。基于给定的 JSON 上下文，用中文写一段 150–250 字的师承叙事：这位学者的学术背景、导师影响、代表作的思想脉络、在知识传承中的角色与对后世的影响。语言凝练有文采，避免罗列、避免编造上下文外的信息。";
+  linBtn.onclick = async ()=>{
+    if(!currentPick) return;
+    const ctx = collectContext(currentPick);
+    body.className="ai-body";
+    let html = `<div style="color:#fbbf24;font-weight:600;margin-bottom:6px">📜 ${ctx.name} 的知识传承脉络</div>`;
+    if(ctx.advisors.length){
+      html += `<div style="margin-bottom:6px"><span style="color:#c084fc">↑ 师承</span>：${ctx.advisors.map(a=>`${a.name}${a.year?('('+a.year+')'):''}`).join('、')}</div>`;
+    }
+    if(ctx.students.length){
+      html += `<div style="margin-bottom:6px"><span style="color:#60a5fa">↓ 学生</span>：${ctx.students.slice(0,6).map(s=>`${s.name}${s.year?('('+s.year+')'):''}`).join('、')}${ctx.students.length>6?' …':''}</div>`;
+    }
+    if(ctx.papers.length){
+      html += `<div style="margin-bottom:6px"><span style="color:#fbbf24">📄 代表作</span>：${ctx.papers.map(p=>`${p.year}《${p.title}》`).join('<br>&nbsp;&nbsp;&nbsp;&nbsp;')}</div>`;
+    }
+    if(ctx.incoming.length){
+      html += `<div style="margin-bottom:6px"><span style="color:#34d399">◂ 上游影响</span><br>`;
+      ctx.incoming.forEach(i=>{ html+=`<div style="padding-left:10px;font-size:11px;color:#94a3b8;margin:2px 0">← ${i.from}：${(i.desc||'').slice(0,80)}…</div>`; });
+      html += `</div>`;
+    }
+    if(ctx.outgoing.length){
+      html += `<div><span style="color:#f87171">▸ 下游影响</span><br>`;
+      ctx.outgoing.forEach(o=>{ html+=`<div style="padding-left:10px;font-size:11px;color:#94a3b8;margin:2px 0">→ ${o.to}：${(o.desc||'').slice(0,80)}…</div>`; });
+      html += `</div>`;
+    }
+    body.innerHTML = html;
+  };
+  askBtn.onclick = async ()=>{
+    if(!currentPick || !ai.hasLLM()) return;
+    asking = true; refresh();
+    body.className="ai-body"; body.textContent = "AI 正在生成师承叙事…";
+    try{
+      const ctx = collectContext(currentPick);
+      const user = JSON.stringify(ctx);
+      const reply = await ai.ask(SYSTEM, user, {temperature:0.75, timeoutMs:60000});
+      body.innerHTML = `<div style="white-space:pre-wrap;line-height:1.75">${reply}</div>`;
+    }catch(err){
+      body.innerHTML = `<div class="error">${ai.friendlyError ? ai.friendlyError(err) : (err.message||String(err))}</div>`;
+    }finally{
+      asking=false; refresh();
+    }
+  };
+})();
 </script>
 </body>
 </html>

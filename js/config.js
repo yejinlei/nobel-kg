@@ -12,6 +12,20 @@ export const DEFAULTS = {
   model: 'openai/gpt-4o-mini',
   temperature: 0.2,
   tavilyKey: '',
+  searchEngines: {
+    // 主力：Tavily（需 Key，官方支持 CORS，国内可用）
+    tavily: { enabled: true,  timeout: 8000, baseUrl: 'https://api.tavily.com/search' },
+    // 通用搜索：Mojeek（CORS *，可能 403，值得试）
+    mojeek: { enabled: true,  timeout: 6000, baseUrl: 'https://www.mojeek.com/search' },
+    // 自建 SearxNG（用户填 URL 启用；公共实例国内不可达）
+    searxng:{ enabled: false, timeout: 6000, baseUrl: '' },
+    // Bing HTML 兜底（无 CORS 头，浏览器 fetch 大概率失败，默认关）
+    bing:   { enabled: false, timeout: 6000, baseUrl: 'https://cn.bing.com/search' },
+    // DuckDuckGo HTML 兜底（国内被墙，默认关）
+    ddg:    { enabled: false, timeout: 6000, baseUrl: 'https://html.duckduckgo.com/html/' },
+    // 维基 + Wikidata（跨域友好，结构化，默认开）
+    wiki:   { enabled: true,  timeout: 6000 },
+  },
 };
 
 /** 常用服务商预设，方便访问者一键填充 */
@@ -66,13 +80,26 @@ export function loadConfig() {
   } catch (e) {
     console.warn('[config] 读取本地配置失败，使用默认值', e);
   }
-  cached = { ...DEFAULTS, ...stored };
+  // 深合并 searchEngines，避免用户升级后丢失新增引擎
+  const merged = { ...DEFAULTS, ...stored };
+  merged.searchEngines = { ...DEFAULTS.searchEngines, ...(stored.searchEngines || {}) };
+  for (const k of Object.keys(merged.searchEngines)) {
+    merged.searchEngines[k] = { ...DEFAULTS.searchEngines[k], ...(stored.searchEngines || {})[k] || {} };
+  }
+  cached = merged;
   return cached;
 }
 
 /** 写入配置（仅本地） */
 export function saveConfig(patch) {
-  const next = { ...loadConfig(), ...patch };
+  const prev = loadConfig();
+  const next = { ...prev, ...patch };
+  if (patch.searchEngines) {
+    next.searchEngines = { ...prev.searchEngines, ...patch.searchEngines };
+    for (const k of Object.keys(patch.searchEngines)) {
+      next.searchEngines[k] = { ...(next.searchEngines[k] || DEFAULTS.searchEngines[k]), ...patch.searchEngines[k] };
+    }
+  }
   cached = next;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -99,21 +126,34 @@ export function hasLLM(cfg) {
   return Boolean(c.baseUrl && c.apiKey && c.model);
 }
 
+/** 是否有至少一个可用的联网检索引擎 */
+export function anySearchEngineEnabled(cfg) {
+  const c = cfg || loadConfig();
+  const se = c.searchEngines || DEFAULTS.searchEngines;
+  if (se.tavily && se.tavily.enabled && c.tavilyKey) return true;
+  if (se.mojeek && se.mojeek.enabled) return true;
+  if (se.searxng && se.searxng.enabled && se.searxng.baseUrl) return true;
+  if (se.bing && se.bing.enabled) return true;
+  if (se.ddg && se.ddg.enabled) return true;
+  if (se.wiki && se.wiki.enabled) return true;
+  return false;
+}
+
 /** 是否已配置联网检索 —— 决定能否启用深度研究
  *  说明：深度研究统一走 webLookup。
- *  - 配了 Tavily Key → 使用 Tavily；
- *  - 未配 Tavily Key → 自动退到维基百科 / Wikidata（零 Key 跨域可用）。
- *  所以只要有 LLM，deepresearch 就有内容可补充；配 Tavily 会让检索更全面。
+ *  - 配了 Tavily Key → Tavily 主用；
+ *  - 未配 Tavily Key → 分层兜底：Mojeek → SearxNG → Bing → 维基 → DuckDuckGo。
+ *  所以只要有 LLM 且启用过任一搜索引擎，deepresearch 就有内容可补充。
  */
 export function hasWebSearch(cfg) {
   const c = cfg || loadConfig();
-  return hasLLM(c); // 有 LLM 就可用（维基兜底），配 Tavily 更全面
+  return hasLLM(c) && anySearchEngineEnabled(c);
 }
 
 /** 是否配置了 Tavily（用来决定提示文案） */
 export function hasTavily(cfg) {
   const c = cfg || loadConfig();
-  return Boolean(c.tavilyKey);
+  return Boolean(c.tavilyKey && (c.searchEngines || {}).tavily && c.searchEngines.tavily.enabled);
 }
 
 /** 归一化 baseUrl，兼容用户填 https://xxx/v1 或 https://xxx/v1/ 或漏写 /v1 */

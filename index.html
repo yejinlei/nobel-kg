@@ -28,11 +28,17 @@
       <a class="nav-link" href="viz/论文层与合著网络.html" target="_blank" rel="noopener">📈 论文层与合著网络</a>
       <a class="nav-link" href="viz/文学奖作品与传承图谱.html" target="_blank" rel="noopener">📖 文学奖图谱</a>
       <a class="nav-link" href="viz/和平奖领域与组织图谱.html" target="_blank" rel="noopener">☮️ 和平奖图谱</a>
+      <a class="nav-link" href="viz/物理学学派传承图谱.html" target="_blank" rel="noopener">⚛️ 物理学派传承</a>
+      <a class="nav-link" href="viz/化学反应范式图谱.html" target="_blank" rel="noopener">⚗️ 化学反应范式</a>
+      <a class="nav-link" href="viz/生理学医学疾病疗法图谱.html" target="_blank" rel="noopener">🩺 医学疾病疗法</a>
+      <a class="nav-link" href="viz/经济学思想学派图谱.html" target="_blank" rel="noopener">🏛️ 经济学思想学派</a>
       <a class="nav-link" href="viz/诺奖年谱.html" target="_blank" rel="noopener">📅 诺奖年谱</a>
       <div class="nav-title">趣味探索</div>
       <a class="nav-link" href="viz/学术星座图.html" target="_blank" rel="noopener">✨ 学术星座图</a>
       <a class="nav-link" href="viz/师承六度挑战.html" target="_blank" rel="noopener">🎯 师承六度挑战</a>
-      <a class="nav-link" href="viz/诺奖时光机.html" target="_blank" rel="noopener">⏳ 诺奖时光机</a>
+      <a class="nav-link" href="viz/诺奖之缘.html" target="_blank" rel="noopener">🤝 诺奖之缘</a>
+      <a class="nav-link" href="viz/你猜他是谁.html" target="_blank" rel="noopener">🕸️ 你猜他是谁</a>
+      <a class="nav-link" href="viz/诺奖迁徙图.html" target="_blank" rel="noopener">🌐 诺奖迁徙图</a>
       <div class="nav-title">项目</div>
       <a class="nav-link" href="https://github.com/yejinlei/nobel-kg" target="_blank" rel="noopener">⭐ GitHub 仓库</a>
     </nav>
@@ -63,8 +69,8 @@
             <input type="text" id="modelName" placeholder="openai/gpt-4o-mini">
           </div>
           <div class="form-group">
-            <label>Tavily Key（可选，联网检索）</label>
-            <input type="password" id="tavilyKey" placeholder="tvly-...；留空用维基百科兜底">
+            <label>Tavily Key（可选，联网检索主力）</label>
+            <input type="password" id="tavilyKey" placeholder="tvly-...；留空则按下方引擎分层兜底">
           </div>
           <div class="form-group">
             <button class="btn btn-secondary btn-small" id="testConnection">测试连接</button>
@@ -75,6 +81,18 @@
             <button id="saveSettings" class="btn btn-primary btn-small">保存设置</button>
           </div>
           <p class="settings-note">Key 仅保存在浏览器 localStorage，不上传任何服务器。未配置时使用本地规则引擎。</p>
+        </div>
+      </details>
+
+      <details class="settings-details" id="enginesDetails">
+        <summary>🔍 搜索引擎分层配置</summary>
+        <div class="settings-body">
+          <p class="settings-note" style="margin:0 0 10px 0;">按顺序尝试，每个引擎独立超时，失败静默跳到下一个。跨域（CORS）受限的引擎在国内直连大概率失败，仅在你自建了代理或有 VPN 时才有意义。</p>
+          <div id="enginesWrap" class="engines-wrap"></div>
+          <p class="settings-note">顺序：<strong>Tavily → Mojeek → SearxNG → Bing → 维基 → DuckDuckGo</strong>。<br>
+            · 默认启用：<strong>Tavily（需 Key）/ Mojeek / 维基</strong>，零 Key 兜底也够用。<br>
+            · SearxNG：仅自建实例可用（公共实例国内不可达）。<br>
+            · Bing / DuckDuckGo：浏览器 CORS 通常失败，除非走代理。</p>
         </div>
       </details>
     </div>

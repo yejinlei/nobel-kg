@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你猜他是谁 · 诺奖得主识人</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#1a2350 0%,#0f172a 40%,#0a0f1f 100%);color:#e2e8f0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+header{padding:14px 22px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:14px;position:sticky;top:0;background:#0f172a;z-index:10}
+header h1{font-size:18px;margin:0;font-weight:600}
+header .sub{font-size:12px;color:#64748b;margin-left:auto}
+.back-link{color:#94a3b8;text-decoration:none;font-size:13px}
+.back-link:hover{color:#e2e8f0}
+main{max-width:960px;margin:0 auto;padding:26px 22px 80px}
+.hero{text-align:center;padding:18px 0 22px}
+.hero .badge{display:inline-block;background:linear-gradient(135deg,#fbbf24,#f97316);color:#0f172a;font-weight:700;font-size:12px;padding:5px 14px;border-radius:999px;letter-spacing:2px;margin-bottom:12px}
+.hero h2{font-size:32px;margin:0 0 8px 0;font-weight:700;background:linear-gradient(135deg,#fbbf24,#f87171,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{font-size:13px;color:#94a3b8;margin:0}
+.score-strip{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:14px 0}
+.score{background:#131a30;border:1px solid #2b3455;border-radius:10px;padding:8px 14px;font-size:12px;color:#94a3b8;min-width:74px;text-align:center}
+.score b{display:block;color:#fbbf24;font-size:20px;font-weight:700;line-height:1.2;margin-top:2px}
+.score .lbl{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px}
+.card{background:linear-gradient(160deg,#131a30,#182046);border:1px solid #2b3455;border-radius:14px;padding:24px;margin:16px 0;box-shadow:0 8px 32px rgba(0,0,0,.35)}
+.q-badge{display:inline-block;background:#2f5fd0;color:#fff;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;margin-bottom:16px}
+.clues{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.clue{background:rgba(15,23,42,.55);border:1px solid #2b3455;border-radius:10px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;transition:border-color .15s}
+.clue:hover{border-color:#4b5b8a}
+.clue-ic{font-size:22px;flex-shrink:0;line-height:1}
+.clue-body{flex:1;min-width:0}
+.clue-lbl{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+.clue-val{font-size:14px;color:#e2e8f0;line-height:1.4;font-weight:500}
+.clue-val.hint{font-size:12px;color:#94a3b8;font-weight:400}
+.reveal-mask{filter:blur(6px);transition:filter .5s;cursor:pointer;user-select:none}
+.reveal-mask.on{filter:blur(0)}
+input.guess{width:100%;background:#0a0f1f;border:1.5px solid #2b3455;color:#fbbf24;font-size:20px;padding:14px 16px;border-radius:10px;font-weight:600;outline:none;transition:border-color .15s;font-family:inherit}
+input.guess:focus{border-color:#fbbf24}
+input.guess::placeholder{color:#475569;font-weight:400}
+.btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn{background:#2f5fd0;border:1px solid #2f5fd0;color:#fff;font-size:13px;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:600;transition:all .15s;font-family:inherit}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(47,95,208,.4)}
+.btn.primary{background:linear-gradient(135deg,#fbbf24,#f97316);border-color:#f97316;color:#0f172a}
+.btn.ghost{background:transparent;border-color:#334155;color:#cbd5e1}
+.btn.small{font-size:12px;padding:8px 14px}
+.result{padding:16px;border-radius:10px;margin-top:14px;font-size:14px;line-height:1.6;display:none}
+.result.right{display:block;background:rgba(52,211,153,.08);border:1px solid #34d399;color:#34d399}
+.result.wrong{display:block;background:rgba(248,113,113,.08);border:1px solid #f87171;color:#f87171}
+.answer{text-align:center;padding:24px 0;margin:16px 0}
+.answer .lbl{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+.answer .name{font-size:34px;font-weight:800;background:linear-gradient(135deg,#fbbf24,#f87171);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:6px}
+.answer .en{font-size:15px;color:#94a3b8;font-style:italic;margin-bottom:12px}
+.answer .desc{font-size:13px;color:#cbd5e1;line-height:1.7;max-width:640px;margin:0 auto;text-align:left;background:rgba(15,23,42,.4);border-left:3px solid #fbbf24;padding:12px 16px;border-radius:6px}
+.answer a{color:#93c5fd;text-decoration:none;border-bottom:1px dashed #334155;font-size:12px}
+.mode-badge{display:inline-block;background:#1e293b;color:#94a3b8;font-size:11px;padding:3px 8px;border-radius:4px;margin-left:8px}
+.stats-strip{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.stat-chip{background:#131a30;border:1px solid #1e293b;border-radius:10px;padding:10px 16px;font-size:12px;color:#94a3b8}
+.stat-chip b{color:#fbbf24;font-size:15px;font-weight:700;margin:0 3px}
+#logList{margin-top:22px}
+.log-title{font-size:13px;color:#94a3b8;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #2b3455}
+.log-item{background:#131a30;border:1px solid #1e293b;border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.log-item .icon{font-size:16px;margin-right:10px}
+.log-item.right{border-left:3px solid #34d399}
+.log-item.wrong{border-left:3px solid #f87171}
+.log-item .who{color:#fbbf24;font-weight:600}
+.log-item .yr{color:#64748b;font-size:11px;margin-left:6px}
+
+/* ---- Responsive ---- */
+@media (max-width:900px){
+  header{padding:12px 14px;flex-wrap:wrap;gap:8px}
+  header h1{font-size:16px}
+  header .sub{font-size:11px;margin-left:0;order:3;width:100%}
+  .back-link{margin-left:auto;font-size:12px}
+  main{max-width:720px;padding:18px 14px 60px}
+  .hero h2{font-size:24px}
+  .hero p{font-size:12px}
+  .score{min-width:0;flex:1 1 40%;padding:6px 10px;font-size:11px}
+  .score b{font-size:18px}
+  .score .lbl{font-size:9.5px;letter-spacing:.5px}
+  .card{padding:16px;border-radius:12px;margin:12px 0}
+  .clues{grid-template-columns:1fr}
+  .clue{padding:10px 12px}
+  .clue-ic{font-size:20px}
+  .clue-val{font-size:13px}
+  .answer .name{font-size:28px}
+  .answer .en{font-size:14px}
+  .answer .desc{font-size:12.5px;padding:10px 12px}
+}
+@media (max-width:560px){
+  header{padding:10px 12px}
+  header h1{font-size:15px}
+  header .sub{display:none}
+  main{padding:14px 10px 50px}
+  .hero{padding:10px 0 14px}
+  .hero .badge{font-size:11px;padding:4px 10px}
+  .hero h2{font-size:22px}
+  .hero p{font-size:11px}
+  .score-strip{gap:6px}
+  .score{flex:1 1 30%;padding:6px 4px;font-size:10.5px}
+  .score b{font-size:16px}
+  .score .lbl{font-size:9px}
+  .card{padding:14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .q-badge{font-size:11px;padding:3px 10px;margin-bottom:12px}
+  .clue{padding:8px 10px;gap:8px}
+  .clue-ic{font-size:18px}
+  .clue-lbl{font-size:9.5px;letter-spacing:1px}
+  .clue-val{font-size:12.5px}
+  input.guess{font-size:16px;padding:12px 14px;border-radius:8px}
+  .btn-row{gap:6px;justify-content:center}
+  .btn{font-size:12px;padding:8px 12px;border-radius:8px;min-height:40px;flex:1 1 auto}
+  .btn.small{font-size:11px;padding:6px 10px}
+  .answer .name{font-size:24px}
+  .answer .en{font-size:13px}
+  .answer .desc{font-size:11.5px;padding:8px 10px}
+  .log-item{font-size:12px;padding:8px 10px}
+  .log-item .who{font-size:12px}
+  .log-item .icon{font-size:14px;margin-right:6px}
+  .result{font-size:13px;padding:12px}
+  .stats-strip{gap:6px}
+  .stat-chip{padding:6px 10px;font-size:11px}
+  .stat-chip b{font-size:13px}
+  .reveal-mask{filter:blur(4px)}
+}
+/* Touch-friendly buttons */
+@media (pointer:coarse){
+  .btn{min-height:44px;font-size:13.5px}
+  .btn-row{gap:8px}
+  input.guess{font-size:17px;padding:14px 16px}
+  .clue{min-height:56px}
+  .clue-ic{font-size:22px}
+}
+/* Prevent iOS zoom on input focus */
+@media (max-width:560px){
+  input.guess{font-size:16px} /* must be ≥16px to prevent iOS auto-zoom */
+}
+.log-wrap{margin-top:22px}
+
+/* ---- AI 侦探手记（可选增强，不依赖 AI） ---- */
+#aiCard .ai-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#aiCard h3{margin:0;font-size:15px;color:#fbbf24;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399;animation:pulse 1.6s infinite}
+.dot.off{background:#475569;box-shadow:none;animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+#aiState{font-size:11px;color:#64748b;margin-left:auto}
+#aiBody{max-height:340px;overflow-y:auto;font-size:13px;line-height:1.7;color:#cbd5e1;display:flex;flex-direction:column;gap:10px}
+#aiBody .msg{padding:10px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-word}
+#aiBody .msg.user{background:rgba(47,95,208,.18);border:1px solid #2f5fd0;align-self:flex-end;max-width:88%}
+#aiBody .msg.bot{background:rgba(15,23,42,.6);border:1px solid #2b3455;align-self:flex-start;max-width:96%}
+#aiBody .msg.error{color:#f87171;border-color:#f87171}
+#aiBody.empty{color:#64748b;text-align:center;display:block;padding:16px 8px}
+.ai-row{display:flex;gap:8px;margin-top:12px}
+#aiInput{flex:1;background:#0a0f1f;border:1.5px solid #2b3455;color:#e2e8f0;font-size:13px;padding:9px 12px;border-radius:9px;outline:none;font-family:inherit;min-width:0}
+#aiInput:focus{border-color:#fbbf24}
+#aiInput:disabled{opacity:.5}
+.ai-note{font-size:10.5px;color:#64748b;margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🕸️ 你猜他是谁</h1>
+  <span class="sub">Nobel Who Am I · 从线索中猜出诺奖得主</span>
+  <a class="back-link" href="../index.html">← 返回主页</a>
+</header>
+<main>
+  <div class="hero">
+    <div class="badge">NOBEL · QUIZ</div>
+    <h2>你猜他是谁？</h2>
+    <p>从 6 条线索中推断出诺奖得主身份 · 支持中文 / 英文姓名猜测</p>
+  </div>
+
+  <div class="score-strip">
+    <div class="score"><div class="lbl">正确</div><b id="sRight">0</b></div>
+    <div class="score"><div class="lbl">错误</div><b id="sWrong">0</b></div>
+    <div class="score"><div class="lbl">连对</div><b id="sStreak">0</b></div>
+    <div class="score"><div class="lbl">最高</div><b id="sBest">0</b></div>
+    <div class="score"><div class="lbl">总题</div><b id="sTotal">0</b></div>
+  </div>
+
+  <div class="card" id="card"></div>
+
+  <div class="card" id="aiCard">
+    <div class="ai-head">
+      <div class="dot off" id="aiDot"></div>
+      <h3>🤖 AI 侦探手记</h3>
+      <span id="aiState">未配置</span>
+    </div>
+    <div id="aiBody" class="empty">🔒 回答本题（或揭晓答案）后解锁：AI 将依据本体档案深挖这位得主的师承、代表作与范式地位，并可继续追问。答题与计分完全不依赖 AI。</div>
+    <div class="btn-row">
+      <button class="btn primary small" id="aiDossierBtn" disabled>✨ AI 深挖这位得主</button>
+      <button class="btn ghost small" id="aiClearBtn">✕ 清空对话</button>
+    </div>
+    <div class="ai-row">
+      <input id="aiInput" placeholder="回答本题后解锁追问…" disabled>
+      <button class="btn small" id="aiSendBtn" disabled>发送</button>
+    </div>
+    <div class="ai-note">AI 为可选增强，回答基于本站本体（师承 / 论文著作 / 范式）与题目线索，可能出错，请以 Wikipedia 等权威来源为准。</div>
+  </div>
+
+  <div id="logWrap">
+    <div class="log-title">📜 猜谜记录</div>
+    <div id="logList"></div>
+  </div>
+</main>
+
+<script type="module">
+import * as db from '../js/db.js';
+
+await db.initDB(()=>{});
+
+// ---- load pool: multi-category winners + top-tier well-known laureates ----
+const archive = (await db.query(`SELECT nobel_id, name_en, nobel_categories_zh, nobel_years, birth_country, birth_year, death_year, wikipedia_en FROM archive WHERE entity_type='个人'`)).rows;
+const wiki = (await db.query(`SELECT nobel_id, name_zh, desc_zh FROM wiki_summaries`)).rows;
+const wikiMap = {};
+wiki.forEach(w=>{ if(w.nobel_id) wikiMap[w.nobel_id] = w; });
+
+const CATS_ZH = {物理学:'物理学',化学:'化学',生理学或医学:'生理学或医学',文学:'文学',和平:'和平',经济学:'经济学'};
+const CAT_ICONS = {物理学:'⚛️',化学:'⚗️',生理学或医学:'🩺',文学:'📖',和平:'🕊️',经济学:'💰'};
+
+// Build pool: prioritize ones with wiki description (rich clues) + multi-cat (more interesting)
+const pool = [];
+archive.forEach(a=>{
+  const w = wikiMap[a.nobel_id] || {};
+  const cats = (a.nobel_categories_zh||'').split(';').map(s=>s.trim()).filter(Boolean);
+  if(!cats.length) return;
+  if(!w.desc_zh) return;
+  pool.push({
+    pid: a.nobel_id, name_en: a.name_en,
+    name_zh: w.name_zh || '',
+    desc_zh: w.desc_zh || '',
+    cats: cats,
+    years: (a.nobel_years||'').split(';').map(s=>+s.trim()).filter(Boolean),
+    birth_country: a.birth_country || '',
+    birth_year: a.birth_year ? +a.birth_year : null,
+    death_year: a.death_year ? +a.death_year : null,
+    wikipedia: a.wikipedia_en || '',
+    is_multi: cats.length>1,
+    is_repeat: new Set(cats).size===1 && cats.length>1
+  });
+});
+
+// ---- ontology name→person_id matcher（AI 档案 grounding 用；匹配不到则优雅降级）----
+const perRows = (await db.query(`SELECT person_id, name_en, name_zh FROM persons`)).rows;
+function normName(s){
+  if(!s) return '';
+  return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/['’`.·\-]/g,'').replace(/\s+/g,' ').trim();
+}
+const perByEn = new Map(), perByZh = new Map(), perTok = new Map();
+const STOP_TOK = new Set(['j','a','van','de','der','von','jr','la','le','di','da']);
+perRows.forEach(r=>{
+  const e = normName(r.name_en); if(e && !perByEn.has(e)) perByEn.set(e, r.person_id);
+  const z = normName(r.name_zh); if(z && !perByZh.has(z)) perByZh.set(z, r.person_id);
+  const toks = [...new Set(e.split(' '))].filter(t=>t && !STOP_TOK.has(t));
+  if(toks.length){ const k = toks.sort().join('|'); if(!perTok.has(k)) perTok.set(k, []); perTok.get(k).push(r.person_id); }
+});
+function matchOntology(p){
+  const en = normName(p.name_en);
+  if(en && perByEn.has(en)) return perByEn.get(en);
+  const zh = normName(p.name_zh);
+  if(zh && perByZh.has(zh)) return perByZh.get(zh);
+  const toks = [...new Set(en.split(' '))].filter(t=>t && !STOP_TOK.has(t));
+  if(toks.length){
+    const hits = new Set();
+    for(const [k, ids] of perTok){
+      const ks = k.split('|');
+      if(ks.every(t=>toks.includes(t)) || toks.every(t=>ks.includes(t))) ids.forEach(i=>hits.add(i));
+    }
+    if(hits.size===1) return [...hits][0];
+  }
+  return null;
+}
+pool.forEach(p=>{ p.opid = matchOntology(p); });
+
+// shuffle
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+const state = {
+  idx: 0, deck: shuffle([...pool]), pool: [...pool],
+  right: 0, wrong: 0, streak: 0, best: 0, total: 0,
+  log: [],
+  revealed: false, answered: false
+};
+
+// Load localStorage
+try{
+  const saved = JSON.parse(localStorage.getItem('nobel_guess')||'{}');
+  if(saved){ Object.assign(state,saved); state.revealed=false; state.answered=false; }
+}catch(e){}
+
+function save(){ try{ localStorage.setItem('nobel_guess',JSON.stringify(state)); }catch(e){} }
+
+// ---- render ----
+function fmtYears(yrs){
+  if(!yrs||!yrs.length) return '—';
+  return yrs.join(' / ');
+}
+function fmtLife(by,dy){
+  if(by&&dy) return `${by}–${dy}`;
+  if(by) return `${by}–`;
+  return '—';
+}
+function maskName(n){
+  if(!n) return '？';
+  return n.split('').map((c,i)=>i===0?c:'？').join('');
+}
+function render(){
+  const p = state.deck[state.idx % state.deck.length];
+  // pick "primary" category/year (first)
+  const primaryCat = p.cats[0] || '—';
+  const primaryYear = p.years[0] || '—';
+  const primaryAge = (p.birth_year && primaryYear) ? (primaryYear - p.birth_year) : null;
+
+  let catsHtml = p.cats.map((c,i)=>{
+    const color = {物理学:'#60a5fa',化学:'#f87171',生理学或医学:'#34d399',文学:'#fbbf24',和平:'#c084fc',经济学:'#f97316'}[c] || '#94a3b8';
+    return `<span style="color:${color}">${CAT_ICONS[c]||''} ${c}</span>`;
+  }).join(' · ');
+
+  const clues = [
+    {icon:CAT_ICONS[primaryCat]||'🏆',lbl:'诺奖类别',val:`<span style="color:#fbbf24">${primaryCat}</span>`, extra: p.is_multi?`（共 ${p.cats.length} 项）`:''},
+    {icon:'📅',lbl:'获奖年份',val:`<span style="color:#93c5fd">${fmtYears(p.years)}</span>`, extra: primaryAge?`（${primaryAge} 岁）`:''},
+    {icon:'🌍',lbl:'出生国',val:p.birth_country?`<span>${p.birth_country}</span>`:'—'},
+    {icon:'⏳',lbl:'生卒年',val:fmtLife(p.birth_year,p.death_year)},
+    {icon:'📝',lbl:'一句简介',val:`<span class="reveal-mask ${state.revealed?'on':''}" id="revealDesc">「${p.desc_zh}」</span><div class="clue-val hint">点击解锁全文</div>`},
+    {icon:'🧩',lbl:'身份线索',val: p.is_multi?'<span style="color:#fbbf24;font-weight:700">✨ 跨奖得主</span>':(p.is_repeat?'<span style="color:#fbbf24;font-weight:700">🎯 两度获奖</span>':'<span style="color:#94a3b8">单次获奖</span>')}
+  ];
+
+  const cardHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span class="q-badge">Q${state.total+1} · ${maskName(p.name_zh||p.name_en)}</span>
+      <span style="font-size:11px;color:#64748b">#${String((state.total % 999)+1).padStart(3,'0')}</span>
+    </div>
+    <div class="clues">
+      ${clues.map(c=>`<div class="clue">
+        <div class="clue-ic">${c.icon}</div>
+        <div class="clue-body">
+          <div class="clue-lbl">${c.lbl}</div>
+          <div class="clue-val">${c.val}${c.extra?`<span style="color:#64748b;font-size:11px;margin-left:6px">${c.extra}</span>`:''}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div style="text-align:center;font-size:20px;margin:14px 0;color:#fbbf24">🎯 这是哪位诺奖得主？</div>
+    <input type="text" class="guess" id="guessInput" placeholder="输入姓名（中文或英文）…" autocomplete="off" disabled="${state.answered}">
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn primary" id="submitBtn" ${state.answered?'disabled':''}>✅ 提交猜测</button>
+      <button class="btn ghost" id="revealBtn" ${state.answered?'disabled':''}>👁 揭晓答案</button>
+      <button class="btn ghost" id="hintBtn">💡 提示</button>
+      <button class="btn ghost" id="skipBtn">⏭ 跳过</button>
+      <button class="btn ghost" id="resetBtn">🔄 重置分数</button>
+    </div>
+    <div class="result" id="result"></div>
+    <div class="answer" id="answerPanel" style="display:${state.revealed?'block':'none'}">
+      <div class="lbl">The Answer</div>
+      <div class="name">${p.name_zh||p.name_en}</div>
+      <div class="en">${p.name_en}</div>
+      <div class="desc">${p.desc_zh}</div>
+      ${p.wikipedia?`<div style="margin-top:10px"><a href="${p.wikipedia}" target="_blank">→ 查看 Wikipedia 完整词条</a></div>`:''}
+    </div>
+  `;
+  document.getElementById('card').innerHTML = cardHtml;
+
+  // score
+  document.getElementById('sRight').textContent = state.right;
+  document.getElementById('sWrong').textContent = state.wrong;
+  document.getElementById('sStreak').textContent = state.streak;
+  document.getElementById('sBest').textContent = state.best;
+  document.getElementById('sTotal').textContent = state.total;
+
+  // log list
+  const logList = document.getElementById('logList');
+  logList.innerHTML = state.log.length ? state.log.slice(-20).reverse().map(l=>`
+    <div class="log-item ${l.correct?'right':'wrong'}">
+      <div><span class="icon">${l.correct?'✅':'❌'}</span>
+        <span class="who">${l.who}</span>
+        <span class="yr">${l.year||''} · ${l.cat||''}</span>
+        ${l.guess?`<div style="font-size:11px;color:#64748b;margin-top:2px">你的猜测：<code style="background:#0a0f1f;padding:1px 4px;border-radius:3px">${l.guess}</code></div>`:''}
+      </div>
+      ${l.correct?'<span style="color:#34d399;font-weight:600">+1</span>':'<span style="color:#f87171;font-weight:600">连对中断</span>'}
+    </div>
+  `).join('') : '<div style="font-size:12px;color:#64748b;text-align:center;padding:20px">暂无记录</div>';
+
+  bindEvents(p);
+  updateAIPanel();
+}
+
+function bindEvents(p){
+  const submitBtn = document.getElementById('submitBtn');
+  const revealBtn = document.getElementById('revealBtn');
+  const hintBtn = document.getElementById('hintBtn');
+  const skipBtn = document.getElementById('skipBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const input = document.getElementById('guessInput');
+  const revealDesc = document.getElementById('revealDesc');
+
+  if(revealDesc){
+    revealDesc.onclick = ()=>{ state.revealed = true; revealDesc.classList.add('on'); save(); };
+  }
+
+  if(submitBtn && !state.answered){
+    submitBtn.onclick = ()=>{
+      const g = (input.value||'').trim();
+      if(!g){ return; }
+      const lower = g.toLowerCase();
+      const zh = (p.name_zh||'').toLowerCase();
+      const en = (p.name_en||'').toLowerCase();
+      // match rules: full name match OR first token match (e.g. "curie" matches "marie curie")
+      const parts = lower.split(/\s+/).filter(Boolean);
+      const targetParts = [zh,en].filter(Boolean).flatMap(s=>s.split(/\s+/));
+      const tokens = new Set([...parts, ...targetParts]);
+      // simple: any target contains guess OR guess contains target
+      let correct = false;
+      for(const t of [zh,en]){
+        if(!t) continue;
+        if(t.includes(g) || g.includes(t)){ correct = true; break; }
+      }
+      if(!correct && parts.length>=1){
+        // partial credit: exact first name
+        const firstEn = (en.split(' ')[0]||'');
+        if(firstEn && parts[0]===firstEn) correct = true;
+      }
+      finish(correct, g);
+    };
+    input.addEventListener('keydown',e=>{ if(e.key==='Enter') submitBtn.onclick(); });
+  }
+
+  if(revealBtn && !state.answered){
+    revealBtn.onclick = ()=>{
+      state.revealed = true;
+      document.getElementById('answerPanel').style.display = 'block';
+      document.getElementById('revealDesc').classList.add('on');
+      finish(false, '', true);
+    };
+  }
+
+  if(hintBtn){
+    hintBtn.onclick = ()=>{
+      const desc = document.getElementById('revealDesc');
+      if(desc){
+        // progressive reveal: first click show first 8 chars
+        if(!desc.dataset.p1){ desc.dataset.p1='1'; desc.style.filter='blur(2px)'; }
+        else if(!desc.dataset.p2){ desc.dataset.p2='1'; desc.style.filter='blur(0.5px)'; }
+        else { desc.classList.add('on'); desc.style.filter=''; }
+      }
+    };
+  }
+
+  if(skipBtn){
+    skipBtn.onclick = ()=>{
+      next(false, '');
+    };
+  }
+
+  if(resetBtn){
+    resetBtn.onclick = ()=>{
+      if(confirm('确定重置所有分数与记录？')){
+        state.right=0; state.wrong=0; state.streak=0; state.best=0; state.total=0; state.log=[];
+        save(); render();
+      }
+    };
+  }
+}
+
+function finish(correct, guess, revealed){
+  state.answered = true;
+  const p = state.deck[state.idx % state.deck.length];
+  const res = document.getElementById('result');
+  if(correct){
+    state.right++; state.streak++; state.total++;
+    if(state.streak>state.best) state.best = state.streak;
+    res.className='result right';
+    res.innerHTML = `✅ <b>回答正确！</b>「${p.name_zh||p.name_en}」就是他要找的人。连对 <b>${state.streak}</b> 题！`;
+    state.log.push({who:p.name_zh||p.name_en, year:p.years[0]||'', cat:p.cats[0]||'', correct:true, guess});
+  } else {
+    state.wrong++; state.streak=0;
+    if(!revealed) state.total++;
+    res.className='result wrong';
+    if(revealed){
+      res.innerHTML = `👁 <b>已揭晓答案：</b>${p.name_zh||p.name_en}（${p.name_en}）。是否要再来一题？`;
+    } else {
+      res.innerHTML = `❌ <b>不对哦。</b>正确答案是：${p.name_zh||p.name_en}（<i>${p.name_en}</i>）`;
+    }
+    state.log.push({who:p.name_zh||p.name_en, year:p.years[0]||'', cat:p.cats[0]||'', correct:false, guess});
+  }
+  save();
+  // re-render with answered=true state (keeping answerPanel open if right)
+  if(correct){
+    document.getElementById('answerPanel').style.display='block';
+  }
+  render();
+}
+
+function next(){
+  state.idx = (state.idx+1) % state.deck.length;
+  state.answered = false;
+  state.revealed = false;
+  // occasional reshuffle
+  if(state.idx===0) state.deck = shuffle([...state.pool]);
+  resetAIQuestion();
+  save(); render();
+}
+
+// Auto-advance timer after answer
+setTimeout(()=>{
+  const card = document.getElementById('card');
+  card.addEventListener('click',e=>{
+    // Add "Next question" button on answered state
+    if(state.answered){
+      let nb = document.getElementById('nextBtn');
+      if(!nb){
+        nb = document.createElement('button');
+        nb.id='nextBtn';
+        nb.className='btn primary';
+        nb.textContent='⏭ 下一题';
+        nb.style.marginLeft='auto';
+        const btnRow = document.querySelector('.btn-row');
+        if(btnRow) btnRow.appendChild(nb);
+        nb.onclick = next;
+      }
+    }
+  });
+}, 100);
+
+/* ============================================================
+   AI 侦探手记（可选增强）——答题与计分完全不依赖 AI
+   ============================================================ */
+import { loadConfig, hasLLM, normalizeBaseUrl, mixedContentWarning } from '../js/config.js';
+
+const aiDot = document.getElementById('aiDot'), aiState = document.getElementById('aiState'),
+      aiBody = document.getElementById('aiBody'), aiInput = document.getElementById('aiInput'),
+      aiDossierBtn = document.getElementById('aiDossierBtn'), aiSendBtn = document.getElementById('aiSendBtn');
+let aiMsgs = [];       // 当前题目的多轮对话
+let factsCache = null; // 当前题目的本体档案
+let aiBusy = false;
+
+function curP(){ return state.deck[state.idx % state.deck.length]; }
+
+function updateAIPanel(){
+  const on = hasLLM(loadConfig());
+  aiDot.classList.toggle('off', !on);
+  aiState.textContent = on ? '已连接' : '未配置';
+  const locked = !state.answered;
+  aiDossierBtn.disabled = locked || !on || aiBusy;
+  aiSendBtn.disabled = locked || !on || aiBusy || !aiInput.value.trim();
+  aiInput.disabled = locked || !on || aiBusy;
+  aiInput.placeholder = locked ? '回答本题后解锁追问…' : '追问：TA 的导师是谁？这项工作影响了谁？…';
+  if(locked && !aiMsgs.length){
+    aiBody.className = 'empty';
+    aiBody.innerHTML = '🔒 回答本题（或揭晓答案）后解锁：AI 将依据本体档案深挖这位得主的师承、代表作与范式地位，并可继续追问。答题与计分完全不依赖 AI。';
+  }
+}
+function resetAIQuestion(){ aiMsgs = []; factsCache = null; updateAIPanel(); }
+
+function appendMsg(kind, text){
+  aiBody.className = '';
+  const div = document.createElement('div');
+  div.className = 'msg ' + kind;
+  div.textContent = text;
+  aiBody.appendChild(div);
+  aiBody.scrollTop = aiBody.scrollHeight;
+  return div;
+}
+
+/* —— 本体档案：师承 / 论文 / 著作 / 范式 / 诺奖记录（查询失败时优雅降级）—— */
+async function buildFacts(p){
+  if(factsCache) return factsCache;
+  const pid = p.opid ?? (p.opid = matchOntology(p));
+  const lines = [];
+  if(pid){
+    try{
+      const me = (await db.query(`SELECT name_zh, name_en, nationality, birth_year, death_year, nobel_year, nobel_category, nobel_motivation FROM persons WHERE person_id='${pid}'`)).rows[0];
+      if(me) lines.push(`本体档案：${me.name_zh||''}（${me.name_en||''}），${me.nationality||''}，${me.birth_year||'?'}–${me.death_year||''}；${me.nobel_year||''} 年 ${me.nobel_category||''}奖${me.nobel_motivation ? '，获奖理由：' + me.nobel_motivation : ''}`);
+      const mentors = (await db.query(`SELECT COALESCE(a.name_zh, a.name_en) AS n, m.relation_type AS rt, m.start_year AS y
+        FROM mentorship m JOIN persons a ON a.person_id = m.advisor_id WHERE m.student_id = '${pid}' ORDER BY m.start_year`)).rows;
+      if(mentors.length) lines.push(`师承（导师）：` + mentors.slice(0,6).map(x=>`${x.n}${x.rt?`（${x.rt}${x.y ? ' ' + x.y + ' 年起' : ''}）`:''}`).join('、'));
+      const stu = (await db.query(`SELECT COALESCE(s.name_zh, s.name_en) AS n, s.nobel_year AS ny FROM mentorship m
+        JOIN persons s ON s.person_id = m.student_id WHERE m.advisor_id = '${pid}'`)).rows;
+      if(stu.length){
+        const nobelStu = stu.filter(x=>x.ny).length;
+        lines.push(`门下学生共 ${stu.length} 位（诺奖 ${nobelStu} 位）：` +
+          stu.slice().sort((a,b)=>(b.ny||0)-(a.ny||0)).slice(0,10).map(x=>`${x.n}${x.ny?`（诺奖 ${x.ny}）`:''}`).join('、'));
+      }
+      const works = (await db.query(`SELECT w.name_zh AS n, w.year AS y FROM person_work pw JOIN works w ON w.work_id = pw.work_id WHERE pw.person_id = '${pid}' ORDER BY w.year`)).rows;
+      if(works.length) lines.push(`代表性工作：` + works.slice(0,8).map(x=>`${x.n}${x.y?`（${x.y}）`:''}`).join('、'));
+      const papers = (await db.query(`SELECT pp.title_zh AS t, pp.year AS y FROM paper_author pa JOIN papers pp ON pp.paper_id = pa.paper_id WHERE pa.person_id = '${pid}' ORDER BY pp.year`)).rows;
+      if(papers.length) lines.push(`关键论文：` + papers.slice(0,8).map(x=>`《${x.t}》${x.y?`（${x.y}）`:''}`).join('、'));
+      const pgs = (await db.query(`SELECT name, year, description FROM paradigms WHERE founder_id = '${pid}'`)).rows;
+      if(pgs.length) lines.push(`开创范式：` + pgs.map(x=>`${x.name}（${x.year}）——${x.description}`).join('；'));
+      try{
+        const pz = (await db.query(`SELECT year, category, share_note FROM prizes WHERE strpos(';' || laureate_ids || ';', ';${pid};') > 0 ORDER BY year`)).rows;
+        if(pz.length) lines.push(`诺奖记录：` + pz.map(x=>`${x.year} 年 ${x.category} 奖（${x.share_note||''}）`).join('、'));
+      }catch(e){ /* laureate_ids 列类型不兼容时跳过 */ }
+    }catch(e){ /* 档案查询失败时降级为纯线索模式 */ }
+  }
+  if(!lines.length) lines.push('（本体档案未收录该得主，请主要依据题目线索与你的知识回答，并注明不确定处。）');
+  factsCache = lines.join('\n');
+  return factsCache;
+}
+
+const AI_SYS = `你是「诺奖侦探」助手，陪用户玩诺奖猜谜，并在揭晓后深挖得主背景。
+规则：
+- 只依据给出的本体档案与题目线索作答；档案未覆盖处可用你的知识，但须标注「（据一般资料）」；
+- 不编造师承关系、论文名与年份；
+- 中文回答，简洁（一般 ≤200 字），可用短列表；
+- 若用户试图在未揭晓前打听答案，回复：🔒 先作答或揭晓，再来深挖吧。`;
+
+async function aiChat(userContent){
+  const c = loadConfig();
+  const mc = mixedContentWarning(c.baseUrl);
+  if(mc) throw Object.assign(new Error(mc), {code:'MIXED'});
+  aiMsgs.push({role:'user', content:userContent});
+  const ctl = new AbortController();
+  const timer = setTimeout(()=>ctl.abort(), 60000);
+  let res;
+  try{
+    res = await fetch(normalizeBaseUrl(c.baseUrl) + '/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...(c.apiKey ? {Authorization:'Bearer ' + c.apiKey} : {}) },
+      body: JSON.stringify({ model:c.model, temperature:0.6, stream:false,
+        messages:[{role:'system', content:AI_SYS}, ...aiMsgs.slice(-8)] }),
+      signal: ctl.signal });
+  } finally { clearTimeout(timer); }
+  if(!res.ok){
+    const t = await res.text().catch(()=>'');
+    aiMsgs.pop();
+    throw new Error('模型接口返回 ' + res.status + '：' + (t.slice(0,200) || res.statusText));
+  }
+  const d = await res.json();
+  const content = (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '';
+  if(!content){ aiMsgs.pop(); throw new Error('模型返回内容为空'); }
+  aiMsgs.push({role:'assistant', content});
+  return content;
+}
+
+aiDossierBtn.addEventListener('click', async ()=>{
+  if(aiBusy) return;
+  const p = curP();
+  aiBusy = true; updateAIPanel();
+  appendMsg('user', '✨ 深挖这位得主');
+  const thinking = appendMsg('bot', '…正在查阅本体档案…');
+  try{
+    const facts = await buildFacts(p);
+    thinking.remove();
+    appendMsg('bot', await aiChat(
+      `这位诺奖得主已揭晓：\n姓名：${p.name_zh||p.name_en}（${p.name_en||''}）\n获奖：${(p.years||[]).join('/')} 年，${(p.cats||[]).join('/')}奖\n线索简介：${p.desc_zh||''}\n\n${facts}\n\n请写一段 180-260 字的「侦探手记」：融合师承脉络、关键论文/著作、开创的范式与有趣的跨代联系；若本体未收录，则做科普式介绍并注明哪些属于推断。`));
+  }catch(e){
+    thinking.remove();
+    appendMsg('error', '⚠ ' + (e.message || e));
+  }
+  aiBusy = false; updateAIPanel();
+});
+
+async function sendFollowup(){
+  const t = aiInput.value.trim();
+  if(!t || aiBusy) return;
+  aiBusy = true; updateAIPanel();
+  appendMsg('user', t);
+  aiInput.value = '';
+  const thinking = appendMsg('bot', '…');
+  try{
+    await buildFacts(curP());
+    // 首条追问时注入本体档案作为背景；此后依赖对话历史
+    const content = aiMsgs.length === 0 ? t + '\n\n（本体档案：\n' + factsCache + '）' : t;
+    thinking.remove();
+    appendMsg('bot', await aiChat(content));
+  }catch(e){
+    thinking.remove();
+    appendMsg('error', '⚠ ' + (e.message || e));
+  }
+  aiBusy = false; updateAIPanel();
+}
+aiSendBtn.addEventListener('click', sendFollowup);
+aiInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendFollowup(); });
+aiInput.addEventListener('input', updateAIPanel);
+document.getElementById('aiClearBtn').addEventListener('click', resetAIQuestion);
+
+render();
+</script>
+</body>
+</html>

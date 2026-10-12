@@ -110,6 +110,73 @@ a.laureate:hover { color:var(--accent); }
 .tt-mot { color:var(--text-secondary); font-size:12px; margin-top:3px; font-style:italic; }
 .tt-link { margin-top:7px; font-size:11.5px; color:var(--accent); }
 
+.annal-view { display:block; }
+.river-view { display:none; }
+main.view-river .annal-view { display:none; }
+main.view-river .river-view { display:block; }
+main.view-river .decade-bar { display:none; }
+.main-grid { display:grid; grid-template-columns:1fr; gap:8px; align-items:stretch; }
+.river-wrap {
+  position:relative; background:var(--panel); border:1px solid var(--border);
+  border-radius:12px; padding:16px; margin-top:8px;
+}
+#riverSvg { width:100%; height:520px; display:block; }
+.river-cat-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.river-cat-btn {
+  font-family:inherit; font-size:12.5px; padding:6px 14px; border-radius:999px;
+  border:1px solid var(--border); background:var(--panel-2); color:var(--text-secondary);
+  cursor:pointer; transition:all .15s;
+}
+.river-cat-btn.active { color:#fff; font-weight:600; }
+.river-cat-btn:hover { transform:translateY(-1px); }
+.river-legend { display:flex; gap:14px; font-size:11.5px; color:var(--text-secondary); margin-top:8px; flex-wrap:wrap }
+.river-legend .item { display:flex; align-items:center; gap:5px; }
+.river-legend .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
+.river-stats { display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; }
+.river-stat { background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:12px; color:var(--text-secondary); }
+.river-stat b { color:var(--accent); font-size:14px; }
+
+/* ===== AI 面板 ===== */
+.ai-btn {
+  position:fixed; bottom:22px; right:22px; z-index:40;
+  background:linear-gradient(135deg,var(--accent),#d97706); color:#fff;
+  border:0; border-radius:999px; padding:10px 18px; font-weight:700;
+  font-family:inherit; font-size:13px; cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);
+}
+.ai-btn:hover { transform:translateY(-1px); }
+.ai-panel {
+  position:fixed; top:64px; right:22px; width:380px; max-width:calc(100vw - 32px); z-index:35;
+  background:var(--panel); border:1px solid var(--border-strong,var(--border)); border-radius:14px;
+  padding:14px 16px; box-shadow:0 16px 48px rgba(0,0,0,.25);
+  display:none;
+}
+.ai-panel.on { display:block; }
+.ai-panel .ai-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ai-panel .ai-head h3 { margin:0; font-size:14px; font-weight:700; color:var(--accent); flex:1; }
+.ai-panel .ai-head .ai-close { background:none; border:0; color:var(--text-secondary); cursor:pointer; font-size:16px; padding:2px 6px; }
+.ai-panel .ai-head .ai-close:hover { color:var(--text-primary); }
+.ai-panel .ai-state { font-size:11px; color:var(--text-muted); margin-bottom:8px; }
+.ai-panel .ai-body {
+  max-height:60vh; overflow-y:auto; font-size:12.5px; line-height:1.65;
+  padding:10px 12px; background:var(--panel-2); border-radius:8px; border:1px solid var(--border);
+}
+.ai-panel .ai-body.empty { color:var(--text-muted); font-size:12px; }
+.ai-panel .ai-body .error { color:#dc2626; }
+.ai-panel .ai-body .ok { color:#059669; font-size:11px; margin-top:6px; }
+.ai-panel .ai-cta {
+  margin-top:10px; background:linear-gradient(135deg,var(--accent),#d97706); color:#fff;
+  border:0; border-radius:8px; padding:9px 14px; font-weight:600; font-size:12.5px; cursor:pointer;
+  font-family:inherit; width:100%;
+}
+.ai-panel .ai-cta:hover { filter:brightness(1.05); }
+.ai-panel .ai-cta:disabled { opacity:.5; cursor:not-allowed; }
+.ai-panel .ai-input {
+  margin-top:8px; width:100%; background:var(--panel-2); border:1px solid var(--border);
+  color:var(--text-primary); border-radius:8px; padding:8px 10px; font-family:inherit; font-size:12.5px; outline:none;
+}
+.ai-panel .ai-input:focus { border-color:var(--accent); }
+
 @media (max-width:1080px) {
   .annal-grid { grid-template-columns:64px repeat(6,minmax(150px,1fr)); overflow-x:auto; }
   main { overflow-x:auto; }
@@ -122,29 +189,61 @@ a.laureate:hover { color:var(--accent); }
   <a class="back-link" href="../index.html">← 返回主页</a>
   <h1>📅 诺奖年谱</h1>
   <span style="font-size:12px;color:var(--text-muted)">1901–2026 六类奖项 · 悬停名字查看简介</span>
-  <input type="search" class="search-box" id="searchBox" placeholder="搜索年份或得主，如：2012 / 莫言 / Curie">
-  <button class="sort-btn" id="sortBtn">倒序 ↑</button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div id="viewSwitch" style="display:flex;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:2px">
+      <button class="vs-btn active" data-view="annal" style="border:0;background:var(--accent);color:#fff;font-family:inherit;font-size:12.5px;padding:5px 12px;border-radius:999px;cursor:pointer">📋 年谱</button>
+      <button class="vs-btn" data-view="river" style="border:0;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:12.5px;padding:5px 12px;border-radius:999px;cursor:pointer">⏳ 河流</button>
+    </div>
+    <input type="search" class="search-box" id="searchBox" placeholder="搜索年份或得主，如：2012 / 莫言 / Curie">
+    <button class="sort-btn" id="sortBtn">倒序 ↑</button>
+  </div>
 </div>
 
 <div class="decade-bar" id="decadeBar"></div>
 
-<main>
-  <div class="annal-grid" id="grid">
-    <div></div>
-    <div class="col-head 物理学">🔭 物理学</div>
-    <div class="col-head 化学">⚗️ 化学</div>
-    <div class="col-head 生理学或医学">🧬 生理/医学</div>
-    <div class="col-head 文学">📖 文学</div>
-    <div class="col-head 和平">☮️ 和平</div>
-    <div class="col-head 经济学">📊 经济学</div>
+<main id="mainWrap">
+  <div class="annal-view">
+    <div class="annal-grid" id="grid">
+      <div></div>
+      <div class="col-head 物理学">🔭 物理学</div>
+      <div class="col-head 化学">⚗️ 化学</div>
+      <div class="col-head 生理学或医学">🧬 生理/医学</div>
+      <div class="col-head 文学">📖 文学</div>
+      <div class="col-head 和平">☮️ 和平</div>
+      <div class="col-head 经济学">📊 经济学</div>
+    </div>
+    <div id="noResult" class="no-result" style="display:none">没有匹配的年份或得主</div>
   </div>
-  <div id="noResult" class="no-result" style="display:none">没有匹配的年份或得主</div>
+
+  <div class="river-view">
+    <div class="river-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="font-size:13px;color:var(--text-secondary)">
+          <b style="color:var(--text-primary)">📊 1901–2026 学科河流</b> · 每格 5 人（点大小=当年该学科授奖数量，颜色=学科）
+        </div>
+        <div class="river-cat-btns" id="riverCatBtns"></div>
+      </div>
+      <svg id="riverSvg"></svg>
+      <div class="river-legend" id="riverLegend"></div>
+      <div class="river-stats" id="riverStats"></div>
+    </div>
+  </div>
 </main>
 
 <div class="tt-tip" id="ttTip"></div>
 
+<button class="ai-btn" id="aiBtn">✨ AI 解读年谱</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head"><h3>✨ 年谱 AI 解读</h3><button class="ai-close" id="aiClose">✕</button></div>
+  <div class="ai-state" id="aiState">加载配置中…</div>
+  <div class="ai-body empty" id="aiBody">点击下方按钮，让 AI 分析当前视图的授奖格局、学科分布与历史脉络。</div>
+  <button class="ai-cta" id="aiAsk">生成解读</button>
+  <input class="ai-input" id="aiFollow" placeholder="追问：哪个年代物理学奖最密集？">
+</div>
+
 <script type="module">
 import * as db from '../js/db.js';
+import { hasLLM, ask, askStream, friendlyError } from '../js/ai.js';
 
 await db.initDB(()=>{});
 
@@ -362,6 +461,366 @@ document.getElementById('grid').addEventListener('mouseout', (e)=>{
   const cur = e.target.closest('.laureate.has-tip');
   if (cur && (!e.relatedTarget || !cur.contains(e.relatedTarget))) tt.style.display = 'none';
 });
+
+/* ---------------- View Switch: 年谱 / 河流 ---------------- */
+let currentView = 'annal';
+const mainWrap = document.getElementById('mainWrap');
+const viewSwitchBtns = document.querySelectorAll('.vs-btn');
+function setView(v){
+  currentView = v;
+  viewSwitchBtns.forEach(b=>{
+    const on = b.dataset.view === v;
+    b.classList.toggle('active', on);
+    b.style.background = on ? 'var(--accent)' : 'transparent';
+    b.style.color = on ? '#fff' : 'var(--text-secondary)';
+  });
+  mainWrap.classList.toggle('view-river', v === 'river');
+  if (v === 'river') renderRiver();
+}
+viewSwitchBtns.forEach(b=> b.addEventListener('click', ()=>setView(b.dataset.view)));
+
+/* ---------------- 河流视图（原时光机内容移植） ---------------- */
+const CAT_COLORS = {
+  '物理学':'#60a5fa','化学':'#f87171','生理学或医学':'#34d399','文学':'#fbbf24','和平':'#c084fc','经济学':'#f97316'
+};
+let riverVisible = new Set(CATS);
+let riverHover = null;
+
+const riverCatBtns = document.getElementById('riverCatBtns');
+CATS.forEach(c=>{
+  const b = document.createElement('button');
+  b.className = 'river-cat-btn active';
+  b.style.background = CAT_COLORS[c];
+  b.style.borderColor = CAT_COLORS[c];
+  b.style.color = '#fff';
+  b.style.fontWeight = '600';
+  b.textContent = c;
+  b.dataset.cat = c;
+  b.onclick = ()=>{
+    if (riverVisible.has(c)){ riverVisible.delete(c); b.classList.remove('active'); b.style.color='var(--text-secondary)'; b.style.background='var(--panel-2)'; b.style.borderColor='var(--border)'; }
+    else { riverVisible.add(c); b.classList.add('active'); b.style.color='#fff'; b.style.background=CAT_COLORS[c]; b.style.borderColor=CAT_COLORS[c]; }
+    renderRiver();
+  };
+  riverCatBtns.appendChild(b);
+});
+
+const riverLegend = document.getElementById('riverLegend');
+CATS.forEach(c=>{
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.innerHTML = `<span class="dot" style="background:${CAT_COLORS[c]}"></span>${c}`;
+  riverLegend.appendChild(item);
+});
+
+const riverStats = document.getElementById('riverStats');
+function updateRiverStats(visRecords){
+  const total = visRecords.length;
+  const byCat = {};
+  visRecords.forEach(r=> byCat[r.category] = (byCat[r.category]||0)+1);
+  const peakCat = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+  const decadeMap = {};
+  visRecords.forEach(r=>{ const d=Math.floor(r.year/10)*10; decadeMap[d]=(decadeMap[d]||0)+1; });
+  const peakDecade = Object.entries(decadeMap).sort((a,b)=>b[1]-a[1])[0];
+  riverStats.innerHTML = `
+    <div class="river-stat">📊 总数：<b>${total}</b></div>
+    ${peakCat?`<div class="river-stat">🏆 最多学科：<b>${peakCat[0]}</b>（${peakCat[1]}）</div>`:''}
+    ${peakDecade?`<div class="river-stat">📈 最多年代：<b>${peakDecade[0]}s</b>（${peakDecade[1]}）</div>`:''}
+    <div class="river-stat">📅 跨度：<b>1901–2026</b></div>
+  `;
+}
+
+function renderRiver(){
+  const svg = document.getElementById('riverSvg');
+  const w = svg.clientWidth || svg.parentElement.clientWidth - 32;
+  const h = 520;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = '';
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // 数据：每年×学科
+  const cellMap = {}; // key = `${year}|${cat}` -> [records]
+  records.forEach(r=>{
+    if (!riverVisible.has(r.category)) return;
+    const k = r.year+'|'+r.category;
+    (cellMap[k] ||= []).push(r);
+  });
+  const years = Object.keys(cellMap).map(k=>Number(k.split('|')[0])).sort((a,b)=>a-b);
+  const maxPerYear = Math.max(1, ...years.map(y=>{
+    const cnt = CATS.filter(c=>riverVisible.has(c)).reduce((acc,c)=>acc+(cellMap[y+'|'+c]?.length||0),0);
+    return cnt;
+  }));
+  const visCats = CATS.filter(c=>riverVisible.has(c));
+
+  const padL = 40, padR = 20, padT = 20, padB = 32;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const y0 = 1901, y1 = 2026;
+  const xScale = y => padL + ((y - y0) / (y1 - y0)) * plotW;
+
+  // 网格 + 年份刻度
+  for (let y=1900; y<=2020; y+=20){
+    const x = xScale(y);
+    const line = document.createElementNS(NS,'line');
+    line.setAttribute('x1',x); line.setAttribute('x2',x);
+    line.setAttribute('y1',padT); line.setAttribute('y2',padT+plotH);
+    line.setAttribute('stroke','var(--border)'); line.setAttribute('stroke-dasharray','2,3');
+    svg.appendChild(line);
+    const t = document.createElementNS(NS,'text');
+    t.setAttribute('x',x); t.setAttribute('y',padT+plotH+18);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','11'); t.setAttribute('fill','var(--text-muted)');
+    t.textContent = y;
+    svg.appendChild(t);
+  }
+
+  // 学科轨道 y 位置
+  const laneH = plotH / Math.max(1, visCats.length);
+  const catY = {};
+  visCats.forEach((c,i)=>{ catY[c] = padT + laneH*(i+0.5); });
+
+  // 各学科基线
+  visCats.forEach(c=>{
+    const y = catY[c];
+    const path = document.createElementNS(NS,'path');
+    const pts = [];
+    // 沿轨道画一条柔和的波浪线：以每年该学科人数驱动高度扰动
+    for (let yr=y0; yr<=y1; yr++){
+      const list = cellMap[yr+'|'+c] || [];
+      const amp = list.length ? Math.min(18, 4 + list.length*3) : 0;
+      const x = xScale(yr);
+      pts.push(`${x},${y - amp}`);
+    }
+    path.setAttribute('d', 'M ' + pts.join(' L '));
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke', CAT_COLORS[c]);
+    path.setAttribute('stroke-width','1.2');
+    path.setAttribute('stroke-opacity','.35');
+    svg.appendChild(path);
+    // 学科标签
+    const lbl = document.createElementNS(NS,'text');
+    lbl.setAttribute('x', padL-8); lbl.setAttribute('y', y+4);
+    lbl.setAttribute('text-anchor','end');
+    lbl.setAttribute('font-size','11'); lbl.setAttribute('font-weight','600');
+    lbl.setAttribute('fill', CAT_COLORS[c]);
+    lbl.textContent = c;
+    svg.appendChild(lbl);
+  });
+
+  // 圆点：每年每学科一个点，半径按当年该学科授奖数
+  const dots = [];
+  years.forEach(y=>{
+    visCats.forEach(c=>{
+      const list = cellMap[y+'|'+c];
+      if (!list || !list.length) return;
+      const r = Math.max(3, Math.min(14, 3 + list.length*1.6));
+      const cx = xScale(y), cy = catY[c];
+      const circle = document.createElementNS(NS,'circle');
+      circle.setAttribute('cx',cx); circle.setAttribute('cy',cy);
+      circle.setAttribute('r',r);
+      circle.setAttribute('fill', CAT_COLORS[c]);
+      circle.setAttribute('fill-opacity','.85');
+      circle.setAttribute('stroke', '#fff');
+      circle.setAttribute('stroke-width','.8');
+      circle.style.cursor = 'pointer';
+      circle.style.transition = 'transform .1s';
+      circle.addEventListener('mouseenter', e=>{
+        circle.setAttribute('r', r+2);
+        showRiverTip(y, c, list, e);
+      });
+      circle.addEventListener('mousemove', moveTip);
+      circle.addEventListener('mouseleave', e=>{
+        circle.setAttribute('r', r);
+        tt.style.display = 'none';
+      });
+      svg.appendChild(circle);
+      dots.push({y, c, list});
+    });
+  });
+
+  updateRiverStats(dots.flatMap(d=>d.list));
+}
+
+function showRiverTip(year, cat, list, e){
+  const names = list.map(r=>{
+    const zh = r.nameZh || r.nameEn;
+    return `${zh}${r.portion && r.portion !== '1' ? ` (${r.portion})` : ''}`;
+  }).join('、');
+  const mot = list[0].motivation ? list[0].motivation.slice(0, 260) + (list[0].motivation.length>260?'…':'') : '';
+  tt.innerHTML = `
+    <div class="tt-name">${esc(year)} ${esc(cat)}奖</div>
+    <div class="tt-desc-zh">${esc(names)}</div>
+    ${mot?`<div class="tt-mot">${esc(mot)}</div>`:''}
+    <div class="tt-link">共 ${list.length} 人 · 点击"📋 年谱"查看详情</div>
+  `;
+  tt.style.display = 'block';
+  moveTip(e);
+}
+
+/* ---------------- AI 面板 ---------------- */
+(function initAI(){
+  const btn = document.getElementById('aiBtn');
+  const panel = document.getElementById('aiPanel');
+  const stateEl = document.getElementById('aiState');
+  const body = document.getElementById('aiBody');
+  const cta = document.getElementById('aiAsk');
+  const closeBtn = document.getElementById('aiClose');
+  const follow = document.getElementById('aiFollow');
+
+  const SYSTEM_PROMPT = `你是诺贝尔奖研究专家。基于用户提供的年谱数据摘要，用简体中文回答，控制在 220–350 字之间，包含 3 个要点：
+1) 学科/时间分布的整体格局
+2) 值得关注的历史节点或异常
+3) 一句话总结（可加建议）
+使用 **加粗** 强调关键数字，允许分点（- 开头）。不添加寒暄、不添加 emoji 之外的多余符号。`;
+
+  function buildContext(){
+    const kw = document.getElementById('searchBox').value.trim().toLowerCase();
+    let pool = records.slice();
+    if (kw){
+      pool = pool.filter(r=>
+        String(r.year).includes(kw)
+        || (r.nameZh||'').toLowerCase().includes(kw)
+        || r.nameEn.toLowerCase().includes(kw)
+        || r.motivation.toLowerCase().includes(kw));
+    }
+    const byCat = {};
+    pool.forEach(r=> byCat[r.category] = (byCat[r.category]||0)+1);
+    const decadeMap = {};
+    pool.forEach(r=>{ const d=Math.floor(r.year/10)*10; decadeMap[d]=(decadeMap[d]||0)+1; });
+    const topDecades = Object.entries(decadeMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const topCats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    const recentYears = Object.keys(byYear).map(Number).sort((a,b)=>b-a).slice(0,10);
+    const recentExamples = recentYears.flatMap(y=> (byYear[y]?.['物理学']||byYear[y]?.['化学']||[]).slice(0,1).map(r=>`  - ${y} ${r.category}: ${r.nameZh||r.nameEn}`));
+    return {
+      total: pool.length,
+      byCat,
+      topDecades,
+      topCats,
+      recentExamples: recentExamples.slice(0,6).join('\n'),
+      filtered: !!kw,
+      keyword: kw,
+      view: currentView
+    };
+  }
+
+  function ctxPrompt(c){
+    return [
+      `【视图】${c.view==='river'?'河流视图':'年谱视图'}${c.filtered?' · 搜索:'+c.keyword:''}`,
+      `【总数】${c.total} 条`,
+      `【学科分布】` + c.topCats.map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【最热年代 Top5】` + c.topDecades.map(([k,v])=>`${k}s:${v}`).join(' · '),
+      c.recentExamples ? `【近 10 年示例】\n${c.recentExamples}` : ''
+    ].filter(Boolean).join('\n');
+  }
+
+  function renderMd(text){
+    if (!text) return '';
+    const lines = String(text).split('\n');
+    let html = '', inList = false, inCode = false;
+    for (let line of lines){
+      if (line.startsWith('```')){
+        if (inCode){ html += '</pre>'; inCode=false; }
+        else { if(inList){ html += '</ul>'; inList=false; } html += '<pre style="background:var(--panel);padding:8px;border-radius:6px;font-size:11.5px;overflow-x:auto">'; inCode=true; }
+        continue;
+      }
+      if (inCode){ html += line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); continue; }
+      let t = line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+      t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      t = t.replace(/\*(.+?)\*/g, '<i>$1</i>');
+      if (/^\s*[-*]\s+/.test(line)){
+        if (!inList){ html += '<ul style="margin:6px 0;padding-left:18px">'; inList=true; }
+        html += `<li>${t.replace(/^\s*[-*]\s+/,'')}</li>`;
+        continue;
+      }
+      if (inList){ html += '</ul>'; inList=false; }
+      if (line.trim()) html += `<p style="margin:4px 0">${t}</p>`;
+    }
+    if (inList) html += '</ul>';
+    if (inCode) html += '</pre>';
+    return html;
+  }
+
+  function offlineInterpret(c){
+    const top = c.topCats.slice(0,3).map(([k,v])=>`${k}(${v})`).join('、');
+    const dec = c.topDecades.slice(0,3).map(([k,v])=>`${k}s(${v})`).join('、');
+    return `<p><b>📋 离线解读</b>（未配置 LLM，使用本地数据聚合）</p>
+      <ul>
+        <li>当前显示 <b>${c.total}</b> 条记录，Top 学科：${top}</li>
+        <li>授奖最密集年代：${dec}</li>
+        <li>${c.filtered ? '当前处于搜索筛选态（关键词：'+esc(c.keyword)+'）' : '当前展示全部记录'}</li>
+        <li>💡 若需更深入的洞察，可在 <code>js/ai.js</code> 中配置 OpenAI 兼容端点</li>
+      </ul>`;
+  }
+
+  let history = [];
+
+  async function runGenerate(){
+    const c = buildContext();
+    const userPrompt = ctxPrompt(c);
+    cta.disabled = true; cta.textContent = '生成中…';
+    if (hasLLM()){
+      body.innerHTML = '<div class="empty">思考中…</div>';
+      stateEl.textContent = '正在调用 LLM…';
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: userPrompt}];
+      try {
+        let acc = '';
+        for await (const chunk of askStream(history)){
+          acc += chunk;
+          body.classList.remove('empty');
+          body.innerHTML = renderMd(acc);
+        }
+        history.push({role:'assistant', content: acc});
+        stateEl.textContent = '✅ 已生成 · 可继续追问';
+      } catch (err){
+        body.classList.add('empty');
+        body.innerHTML = `<div class="error">❌ ${esc(friendlyError(err))}</div>`;
+        stateEl.textContent = '调用失败';
+      }
+    } else {
+      body.classList.remove('empty');
+      body.innerHTML = offlineInterpret(c);
+      stateEl.textContent = '离线模式（未配置 LLM）';
+    }
+    cta.disabled = false; cta.textContent = '重新生成';
+  }
+
+  async function runFollow(){
+    const q = follow.value.trim();
+    if (!q) return;
+    if (!hasLLM()){
+      body.classList.remove('empty');
+      body.innerHTML += `<p style="color:var(--text-muted);margin-top:10px"><b>Q:</b> ${esc(q)}</p><p style="color:var(--text-muted)">离线模式不支持追问，请配置 LLM 后重试。</p>`;
+      follow.value = '';
+      return;
+    }
+    if (!history.length){
+      const c = buildContext();
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: ctxPrompt(c)}];
+    }
+    history.push({role:'user', content: q});
+    follow.value = '';
+    body.innerHTML += `<p style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)"><b>Q:</b> ${esc(q)}</p>`;
+    cta.disabled = true;
+    try {
+      let acc = '';
+      for await (const chunk of askStream(history)){
+        acc += chunk;
+      }
+      history.push({role:'assistant', content: acc});
+      body.innerHTML += renderMd(acc);
+      body.scrollTop = body.scrollHeight;
+    } catch (err){
+      body.innerHTML += `<p style="color:#dc2626">❌ ${esc(friendlyError(err))}</p>`;
+    }
+    cta.disabled = false;
+  }
+
+  btn.onclick = ()=> panel.classList.toggle('on');
+  closeBtn.onclick = ()=> panel.classList.remove('on');
+  cta.onclick = runGenerate;
+  follow.addEventListener('keydown', e=>{ if (e.key === 'Enter') runFollow(); });
+
+  // LLM 未配置则隐藏入口
+  if (!hasLLM()) btn.style.display = 'none';
+})();
 
 render();
 </script>

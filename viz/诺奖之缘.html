@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>诺奖之缘 · 跨奖联结图谱</title>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../lib/vendors/d3.v7.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0f172a;color:#e2e8f0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+header{padding:14px 22px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:14px;position:sticky;top:0;background:#0f172a;z-index:10}
+header h1{font-size:18px;margin:0;font-weight:600}
+header .sub{font-size:12px;color:#64748b;margin-left:auto}
+.back-link{color:#94a3b8;text-decoration:none;font-size:13px}
+.back-link:hover{color:#e2e8f0}
+main{max-width:1400px;margin:0 auto;padding:22px}
+h2{font-size:15px;color:#cbd5e1;margin:22px 0 10px 0;font-weight:600}
+h2 .en{font-size:11px;color:#64748b;margin-left:8px;font-weight:400}
+.desc{font-size:12.5px;color:#94a3b8;line-height:1.7;max-width:920px;margin-bottom:14px}
+.desc code{background:#1e293b;color:#93c5fd;padding:1px 5px;border-radius:3px;font-size:11.5px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:8px}
+.card{background:linear-gradient(160deg,#131a30,#182046);border:1px solid #2b3455;border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--gc,#fbbf24)}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.name{font-size:16px;font-weight:600;color:#fbbf24;line-height:1.3}
+.name .en{display:block;font-size:12px;color:#64748b;font-weight:400;margin-top:2px;font-style:italic}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:10.5px;padding:2px 8px;border-radius:4px;border:1px solid;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.tag-cat{background:rgba(251,191,36,.08);color:#fbbf24;border-color:#8a6410}
+.tag-year{background:rgba(59,130,246,.08);color:#93c5fd;border-color:#334155}
+.tag-when{background:#2f5fd0;color:#fff;border-color:#2f5fd0;font-weight:600}
+.tag-repeat{background:#f97316;color:#fff;border-color:#f97316;font-weight:600}
+.card-timeline{height:44px;background:#0a0f1f;border:1px solid #2b3455;border-radius:8px;margin:8px 0;position:relative;overflow:hidden}
+.card-meta{font-size:12px;color:#94a3b8;display:flex;flex-wrap:wrap;gap:12px}
+.card-meta .sep{color:#334155}
+.card-desc{font-size:11.5px;color:#64748b;line-height:1.5;margin-top:6px;border-top:1px dashed #2b3455;padding-top:6px}
+#netWrap{position:relative}
+#netSvg{width:100%;height:560px;background:#0a0f1f;border:1px solid #1e293b;border-radius:12px;cursor:grab}
+#netSvg:active{cursor:grabbing}
+.net-tip{position:fixed;display:none;z-index:20;max-width:340px;background:rgba(15,23,42,.97);border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#e2e8f0;font-size:12px;pointer-events:none;line-height:1.55;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.net-tip b{color:#fbbf24;font-weight:600}
+.net-tip .row{display:flex;gap:8px;align-items:center}
+.net-tip .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.net-tip .hint{color:#64748b;font-size:10.5px;margin-top:6px;border-top:1px dashed #334155;padding-top:6px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:#94a3b8;margin-top:10px;padding:10px 14px;background:#131a30;border:1px solid #1e293b;border-radius:8px;align-items:center}
+.legend .item{display:flex;align-items:center;gap:5px}
+.legend .line{width:18px;height:2px}
+.legend .dot{width:9px;height:9px;border-radius:50%}
+.stats-strip{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+.stat-chip{background:#131a30;border:1px solid #1e293b;border-radius:10px;padding:10px 16px;font-size:13px;color:#94a3b8}
+.stat-chip b{color:#fbbf24;font-size:17px;font-weight:600;margin:0 4px}
+
+/* ---- Responsive ---- */
+@media (max-width:900px){
+  header{padding:12px 14px;flex-wrap:wrap;gap:8px}
+  header h1{font-size:16px}
+  header .sub{font-size:11px;margin-left:0;order:3;width:100%}
+  .back-link{margin-left:auto;font-size:12px}
+  main{padding:16px 12px}
+  .desc{font-size:12px}
+  .cards{grid-template-columns:1fr}
+  #netSvg{height:420px}
+  .legend{font-size:11px;padding:8px 10px;gap:10px}
+  .legend .hint{display:none}
+  .stat-chip{padding:8px 12px;font-size:11.5px;flex:1 1 40%}
+  .stat-chip b{font-size:15px}
+  h2{font-size:14px}
+  h2 .en{display:block;margin-left:0;margin-top:2px}
+}
+@media (max-width:560px){
+  header h1{font-size:15px}
+  header .sub{display:none}
+  main{padding:12px 8px}
+  .desc{font-size:11.5px}
+  .card{padding:12px 14px;border-radius:10px}
+  .name{font-size:15px}
+  .name .en{font-size:11px}
+  .card-timeline{height:40px}
+  .card-meta{font-size:11px;gap:8px}
+  .card-desc{font-size:10.5px}
+  #netSvg{height:340px}
+  .stat-chip{flex:1 1 50%;padding:6px 8px;font-size:10.5px}
+  .stat-chip b{font-size:13px}
+  .legend{font-size:10.5px;flex-direction:column;align-items:flex-start;gap:6px}
+  .tag{font-size:9.5px;padding:1px 6px}
+  .net-tip{max-width:260px;font-size:11px}
+}
+@media (max-width:900px){
+  .net-tip{position:absolute;max-width:240px}
+}
+/* Touch-friendly */
+@media (pointer:coarse){
+  .node circle:first-child{stroke-width:3}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🤝 诺奖之缘</h1>
+  <span class="sub">跨奖联结图谱 · Multi-Category Laureates</span>
+  <a class="back-link" href="../index.html">← 返回主页</a>
+</header>
+<main>
+  <div class="desc">
+    1901–2026 · 126 年间，只有极少数人<b style="color:#fbbf24">跨越多个奖项</b>或<b style="color:#fbbf24">两度获奖</b>——他们是诺奖史上最稀有的身影。<br>
+    本页将 <b>7 位跨奖/多奖得主</b>置于网络中心，用边表示"同奖不同年""同奖同年"和"跨奖"三种联结，展示学术史上真正跨越学科边界的人物与时刻。
+  </div>
+
+  <h2>🏆 七位跨奖/多奖得主 <span class="en">Multi-Category Laureates</span></h2>
+  <div class="cards" id="cards"></div>
+
+  <h2>🕸️ 跨奖联结网络 <span class="en">Force-Directed Network</span></h2>
+  <div id="netWrap">
+    <svg id="netSvg"></svg>
+  </div>
+  <div class="legend">
+    <div class="item"><span class="dot" style="background:#fbbf24"></span>跨奖得主</div>
+    <div class="item"><span class="dot" style="background:#60a5fa"></span>物理学</div>
+    <div class="item"><span class="dot" style="background:#f87171"></span>化学</div>
+    <div class="item"><span class="dot" style="background:#34d399"></span>生理学或医学</div>
+    <div class="item"><span class="dot" style="background:#c084fc"></span>和平</div>
+    <div class="item"><span class="dot" style="background:#f97316"></span>经济学</div>
+    <div class="item"><span class="line" style="background:#fbbf24"></span>跨奖</div>
+    <div class="item"><span class="line" style="background:#93c5fd"></span>同奖不同年</div>
+    <div class="item"><span class="line" style="background:#94a3b8"></span>同奖同年</div>
+    <div class="item" style="margin-left:auto;color:#64748b">提示：滚轮缩放 · 拖拽节点 · 双击重置</div>
+  </div>
+  <div class="stats-strip" id="stats"></div>
+</main>
+
+<div class="net-tip" id="netTip"></div>
+
+<script type="module">
+import * as db from '../js/db.js';
+
+await db.initDB(()=>{});
+
+const CATS = ['物理学','化学','生理学或医学','文学','和平','经济学'];
+const COLORS = {物理学:'#60a5fa',化学:'#f87171',生理学或医学:'#34d399',文学:'#fbbf24',和平:'#c084fc',经济学:'#f97316'};
+const ACCENT = '#fbbf24';
+
+// ---- load ----
+const archive = (await db.query(`SELECT nobel_id, name_en, nobel_categories_zh, nobel_years, birth_country, birth_year, death_year, wikipedia_en FROM archive WHERE entity_type='个人'`)).rows;
+const wiki = (await db.query(`SELECT nobel_id, name_zh, desc_zh FROM wiki_summaries`)).rows;
+const wikiMap = {};
+wiki.forEach(w=>{ if(w.nobel_id) wikiMap[w.nobel_id] = w; });
+
+// ---- derive person list (dedup by nobel_id) ----
+const byId = {};
+archive.forEach(a=>{ if(!byId[a.nobel_id]) byId[a.nobel_id] = a; });
+const persons = Object.values(byId);
+
+// ---- multi-category winners ----
+const multiWinners = persons.filter(p=>(p.nobel_categories_zh||'').includes(';'));
+
+// ---- render cards ----
+const cardsEl = document.getElementById('cards');
+function fmtYears(s){
+  if(!s) return '—';
+  const parts = s.split(';').map(x=>x.trim()).filter(Boolean);
+  if(parts.length===1) return `<span class="tag tag-year">🏆 ${parts[0]}</span>`;
+  return parts.map(y=>`<span class="tag tag-year">🏆 ${y}</span>`).join(' ');
+}
+function renderCard(p){
+  const w = wikiMap[p.nobel_id] || {};
+  const cats = (p.nobel_categories_zh||'').split(';').map(s=>s.trim());
+  const years = (p.nobel_years||'').split(';').map(s=>+s.trim()).filter(Boolean);
+  const isGenuineCross = new Set(cats).size !== 1;
+  const span = years.length>1 ? years[years.length-1]-years[0] : 0;
+  const by = p.birth_year ? +p.birth_year : 0;
+  const dy = p.death_year ? +p.death_year : 0;
+  const life = (by&&dy) ? `${by}–${dy}` : (by ? `${by}–` : '');
+  return `<div class="card" style="--gc:${isGenuineCross?ACCENT:'#3b82f6'}">
+    <div class="card-head">
+      <div class="name">${w.name_zh||p.name_en}<span class="en">${p.name_en}</span></div>
+      <div class="tags">${cats.map(c=>`<span class="tag" style="background:${COLORS[c]}22;color:${COLORS[c]};border-color:${COLORS[c]}66">${c}</span>`).join('')}</div>
+    </div>
+    <div class="tags" style="margin-bottom:6px">${fmtYears(p.nobel_years)}</div>
+    <div class="card-timeline"><svg viewBox="0 0 340 44" width="100%" height="44" preserveAspectRatio="none">
+      <line x1="12" y1="30" x2="328" y2="30" stroke="#334155" stroke-width="2"/>
+      <line x1="12" y1="30" x2="328" y2="30" stroke="url(#grad${p.nobel_id})" stroke-width="3"/>
+      ${years.map((y,i)=>{
+        const x = 12 + ((y-1901)/(2026-1901))*316;
+        return `<circle cx="${x}" cy="30" r="${isGenuineCross?7:5}" fill="${COLORS[cats[i]]}" stroke="#fff" stroke-width="1.5"/>
+                <text x="${x}" y="14" text-anchor="middle" fill="${COLORS[cats[i]]}" font-size="10" font-weight="600">${y}</text>
+                <text x="${x}" y="42" text-anchor="middle" fill="#94a3b8" font-size="9">${cats[i]}</text>`;
+      }).join('')}
+    </svg></div>
+    <div class="card-meta">
+      ${p.birth_country ? `<span>🌍 ${p.birth_country}</span>`:''}
+      ${life ? `<span>📅 ${life}</span>`:''}
+      ${years.length>1 ? `<span>⏱ ${span} 年跨越</span>`:''}
+    </div>
+    ${w.desc_zh?`<div class="card-desc">${w.desc_zh}</div>`:''}
+  </div>`;
+}
+cardsEl.innerHTML = multiWinners.map(renderCard).join('');
+
+// ---- build force network ----
+// Nodes: multi-category winners + all their award years+categories as peer nodes
+// Edges: 
+//   CROSS: multi_winner -> year_node (if genuine cross-category)
+//   SAME_YEAR: year_node -> year_node (multiple winners in same year, same category)
+//   SELF: multi_winner to their two awards (link the two year-nodes they're connected to)
+
+// Build award events: for each winner, expand their categories x years
+const events = [];
+multiWinners.forEach(p=>{
+  const cats = (p.nobel_categories_zh||'').split(';').map(s=>s.trim()).filter(Boolean);
+  const years = (p.nobel_years||'').split(';').map(s=>+s.trim()).filter(Boolean);
+  cats.forEach((c,i)=>{
+    if(years[i]) events.push({
+      pid: p.nobel_id, name_en: p.name_en, name_zh: wikiMap[p.nobel_id]?.name_zh,
+      cat: c, year: years[i], is_multi: cats.length>1, is_repeat: new Set(cats).size===1 && cats.length>1
+    });
+  });
+});
+
+// Node: for each (year,cat) pair, create a group node; plus person nodes
+const eventKeys = new Set(events.map(e=>e.year+'|'+e.cat));
+const eventGroups = [...eventKeys].map(k=>{
+  const [y,c] = k.split('|');
+  const win = events.filter(e=>e.year==y && e.cat==c);
+  return {id:'ev|'+k, type:'event', year:+y, cat:c, count:win.length, winners:win};
+});
+
+// Node groups: multi-category people
+const people = multiWinners.map(p=>({
+  id:'p|'+p.nobel_id, type:'person', name_en:p.name_en,
+  name_zh: wikiMap[p.nobel_id]?.name_zh, cats:(p.nobel_categories_zh||'').split(';').map(s=>s.trim()),
+  years:(p.nobel_years||'').split(';').map(s=>+s.trim()).filter(Boolean),
+  birth_country:p.birth_country, birth_year:p.birth_year, death_year:p.death_year,
+  wikipedia:p.wikipedia_en, is_multi:cats=>new Set((p.nobel_categories_zh||'').split(';').map(s=>s.trim())).size>1
+}));
+
+const nodes = [...people.map(p=>({...p, color:ACCENT, r:18})),
+               ...eventGroups.map(e=>({...e, color:COLORS[e.cat], r:8+e.count*3}))];
+
+// Links:
+const links = [];
+// multi-person to each event they won
+multiWinners.forEach(p=>{
+  const cats = (p.nobel_categories_zh||'').split(';').map(s=>s.trim());
+  const years = (p.nobel_years||'').split(';').map(s=>+s.trim()).filter(Boolean);
+  cats.forEach((c,i)=>{ if(years[i]) links.push({source:'p|'+p.nobel_id, target:'ev|'+years[i]+'|'+c, type:'multi'}); });
+});
+// same year + same category peers (only if ≥2 winners)
+const byYrCat = {};
+events.forEach(e=>{
+  const k = e.year+'|'+e.cat;
+  if(!byYrCat[k]) byYrCat[k] = [];
+  byYrCat[k].push(e);
+});
+// connect multi_winner people who share an event node
+// (implicit via shared event node; no direct link needed)
+
+// Additional cross-link: multi_winner pairs who share birth_country
+const byCountry = {};
+multiWinners.forEach(p=>{ if(p.birth_country) (byCountry[p.birth_country] = byCountry[p.birth_country]||[]).push(p.nobel_id); });
+
+const svg = d3.select('#netSvg');
+const W = svg.node().clientWidth, H = svg.node().clientHeight;
+svg.attr('viewBox',`0 0 ${W} ${H}`);
+
+const g = svg.append('g');
+const zoom = d3.zoom().scaleExtent([0.25,4]).on('zoom',e=>g.attr('transform',e.transform));
+svg.call(zoom).on('dblclick.zoom',null);
+svg.on('dblclick',()=>{
+  svg.transition().duration(600).call(zoom.transform,d3.zoomIdentity);
+  resetHighlight();
+});
+
+const sim = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d=>d.id).distance(d=>d.type==='multi'?80:150).strength(0.7))
+  .force('charge', d3.forceManyBody().strength(d=>d.type==='person'?-420:-140))
+  .force('center', d3.forceCenter(W/2, H/2))
+  .force('collide', d3.forceCollide().radius(d=>d.r+4))
+  .force('x', d3.forceX(W/2).strength(0.03))
+  .force('y', d3.forceY(H/2).strength(0.03));
+
+const link = g.append('g').attr('stroke-linecap','round')
+  .selectAll('line').data(links).enter().append('line')
+  .attr('stroke','#fbbf24').attr('stroke-width',1.6).attr('stroke-opacity',0.55);
+
+const node = g.append('g')
+  .selectAll('g.node').data(nodes).enter().append('g').attr('class','node')
+  .call(d3.drag()
+    .on('start',(e,d)=>{ if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+    .on('drag',(e,d)=>{ d.fx=e.x; d.fy=e.y; })
+    .on('end',(e,d)=>{ if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+node.append('circle')
+  .attr('r',d=>d.r)
+  .attr('fill',d=>d.color)
+  .attr('stroke','#0f172a').attr('stroke-width',2);
+
+node.filter(d=>d.type==='event').append('circle')
+  .attr('r',d=>d.r+3)
+  .attr('fill','none')
+  .attr('stroke',d=>d.color).attr('stroke-opacity',0.35).attr('stroke-width',1.5);
+
+node.append('text')
+  .attr('dy',d=>d.r+12)
+  .attr('text-anchor','middle')
+  .attr('fill',d=>d.type==='person'?'#fbbf24':'#e2e8f0')
+  .attr('font-size',d=>d.type==='person'?11:9.5)
+  .attr('font-weight',d=>d.type==='person'?600:400)
+  .text(d=>d.type==='person'?(d.name_zh||d.name_en):(d.year+'·'+d.cat));
+
+// tooltip
+const tip = d3.select('#netTip');
+node.on('mouseover',(e,d)=>{
+  let html='';
+  if(d.type==='person'){
+    const w = wikiMap[d.id.split('|')[1]]||{};
+    html = `<b>${w.name_zh||d.name_en}</b>`;
+    if(d.name_en && d.name_zh) html += `<br><span style="font-size:11px;color:#94a3b8">${d.name_en}</span>`;
+    html += `<div style="margin-top:4px">奖项：<span style="color:${ACCENT}">`;
+    html += d.cats.map(c=>`<span style="color:${COLORS[c]}">${c}</span>`).join(' · ');
+    html += `</span></div>`;
+    html += `<div>年份：${d.years.join(' / ')}</div>`;
+    if(d.birth_country) html += `<div>出生国：${d.birth_country}</div>`;
+    if(d.birth_year) html += `<div>生卒：${d.birth_year}${d.death_year?'–'+d.death_year:'–'}</div>`;
+    if(d.wikipedia) html += `<a href="${d.wikipedia}" target="_blank" style="color:#93c5fd;font-size:10.5px">→ Wikipedia</a>`;
+    html += `<div class="hint">点击事件节点看同年同奖的其他得主</div>`;
+  } else {
+    html = `<b>${d.year}年 · ${d.cat}奖</b>`;
+    html += `<div style="margin-top:4px">获奖人数：${d.count}</div>`;
+    html += `<div style="margin-top:4px;font-size:11.5px">得主：</div>`;
+    d.winners.forEach(w=>{ html += `· ${w.name_zh||w.name_en}<br>`; });
+    html += `<div class="hint">跨奖得主在此以 ${ACCENT} 高亮</div>`;
+  }
+  tip.html(html).style('display','block')
+     .style('left',Math.min(e.clientX+14,innerWidth-360)+'px')
+     .style('top',Math.min(e.clientY+14,innerHeight-260)+'px');
+}).on('mousemove',e=>{
+  tip.style('left',Math.min(e.clientX+14,innerWidth-360)+'px')
+     .style('top',Math.min(e.clientY+14,innerHeight-260)+'px');
+}).on('mouseout',()=>{ tip.style('display','none'); });
+
+function highlight(d){
+  const relIds = new Set([d.id]);
+  links.forEach(l=>{
+    const s = l.source.id||l.source, t = l.target.id||l.target;
+    if(s===d.id) relIds.add(t);
+    if(t===d.id) relIds.add(s);
+  });
+  node.attr('opacity',n=>relIds.has(n.id)?1:0.15);
+  link.attr('stroke-opacity',l=>{
+    const s = l.source.id||l.source, t = l.target.id||l.target;
+    return (s===d.id||t===d.id)?0.95:0.05;
+  });
+}
+function resetHighlight(){
+  node.attr('opacity',1);
+  link.attr('stroke-opacity',0.55);
+}
+node.on('click',(e,d)=>{
+  if(d.type==='person') highlight(d); else {
+    // highlight event cluster
+    const winners = new Set(d.winners.map(w=>'p|'+w.pid));
+    winners.add(d.id);
+    const relIds = new Set(winners);
+    node.attr('opacity',n=>relIds.has(n.id)?1:0.15);
+    link.attr('stroke-opacity',l=>{
+      const s = l.source.id||l.source, t = l.target.id||l.target;
+      return (relIds.has(s)||relIds.has(t))?0.95:0.05;
+    });
+  }
+});
+
+sim.on('tick',()=>{
+  link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+      .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  node.attr('transform',d=>`translate(${d.x},${d.y})`);
+});
+
+// stats
+const genuineCross = multiWinners.filter(p=>new Set((p.nobel_categories_zh||'').split(';').map(s=>s.trim())).size>1);
+const repeatSame = multiWinners.filter(p=>new Set((p.nobel_categories_zh||'').split(';').map(s=>s.trim())).size===1);
+const totalEvents = events.length;
+document.getElementById('stats').innerHTML = `
+  <div class="stat-chip">总计 <b>${multiWinners.length}</b> 位跨奖/多奖得主</div>
+  <div class="stat-chip">真正跨奖（不同学科）<b>${genuineCross.length}</b> 位</div>
+  <div class="stat-chip">同奖两度获颁 <b>${repeatSame.length}</b> 位</div>
+  <div class="stat-chip">涉及奖项 <b>${totalEvents}</b> 次</div>
+  <div class="stat-chip" style="color:#64748b">占全部 <b>${persons.length}</b> 位得主 <b>${(multiWinners.length/persons.length*100).toFixed(2)}%</b></div>
+`;
+</script>
+</body>
+</html>
