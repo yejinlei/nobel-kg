@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>得主跟踪 · Nobel Tracker</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#1a2350 0%,#0f172a 40%,#0a0f1f 100%);color:#e2e8f0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+header{padding:14px 22px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:14px;position:sticky;top:0;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);z-index:20}
+header h1{font-size:18px;margin:0;font-weight:600}
+header .sub{font-size:12px;color:#64748b;margin-left:auto}
+.back-link{color:#94a3b8;text-decoration:none;font-size:13px}
+.back-link:hover{color:#e2e8f0}
+
+/* ====== Layout ====== */
+.layout{max-width:1400px;margin:0 auto;padding:20px 22px 80px;display:grid;grid-template-columns:1fr 1.15fr;gap:20px}
+@media(max-width:1000px){.layout{grid-template-columns:1fr;padding:14px}}
+
+/* ====== Panels ====== */
+.panel{background:linear-gradient(160deg,#131a30,#182046);border:1px solid #2b3455;border-radius:14px;padding:18px;box-shadow:0 8px 32px rgba(0,0,0,.35)}
+.panel h2{font-size:14px;margin:0 0 12px 0;font-weight:600;color:#e2e8f0;display:flex;align-items:center;gap:8px}
+.panel h2 .count{background:#2f5fd0;color:#fff;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700}
+.panel h2 .hint{color:#64748b;font-size:11px;font-weight:400;margin-left:auto}
+
+/* ====== Hero strip ====== */
+.hero{max-width:1400px;margin:20px auto 0;padding:18px 22px 0}
+.hero h2.big{font-size:28px;margin:0 0 6px 0;font-weight:800;background:linear-gradient(135deg,#fbbf24,#f87171,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0;font-size:13px;color:#94a3b8;line-height:1.6}
+.hero-strip{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.stat{background:#131a30;border:1px solid #2b3455;border-radius:10px;padding:8px 14px;font-size:11px;color:#94a3b8}
+.stat b{display:block;color:#fbbf24;font-size:18px;font-weight:700;line-height:1.2;margin-top:2px}
+
+/* ====== Search ====== */
+.search-wrap{position:relative;margin-bottom:12px}
+input.search{width:100%;background:#0a0f1f;border:1.5px solid #2b3455;color:#fbbf24;font-size:14px;padding:11px 14px 11px 38px;border-radius:10px;font-weight:500;outline:none;transition:border-color .15s;font-family:inherit}
+input.search:focus{border-color:#fbbf24}
+input.search::placeholder{color:#475569;font-weight:400}
+.search-ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#475569;font-size:14px;pointer-events:none}
+
+.filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+select.filter{background:#0a0f1f;border:1px solid #2b3455;color:#cbd5e1;font-size:12px;padding:6px 10px;border-radius:8px;outline:none;font-family:inherit;cursor:pointer}
+select.filter:focus{border-color:#fbbf24}
+
+/* ====== List ====== */
+.list{max-height:calc(100vh - 240px);overflow-y:auto;padding-right:4px}
+.list::-webkit-scrollbar{width:6px}
+.list::-webkit-scrollbar-track{background:transparent}
+.list::-webkit-scrollbar-thumb{background:#2b3455;border-radius:3px}
+.list::-webkit-scrollbar-thumb:hover{background:#4b5b8a}
+
+.item{background:rgba(15,23,42,.5);border:1px solid #2b3455;border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s}
+.item:hover{border-color:#fbbf24;background:rgba(251,191,36,.04)}
+.item.active{border-color:#fbbf24;background:rgba(251,191,36,.08);box-shadow:0 0 0 1px #fbbf24}
+.item .st{font-size:20px;flex-shrink:0;line-height:1;filter:grayscale(1) opacity(.5);transition:filter .15s}
+.item .st.on{filter:grayscale(0) opacity(1);text-shadow:0 0 12px rgba(251,191,36,.6)}
+.item .body{flex:1;min-width:0}
+.item .name{font-size:14px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .meta{font-size:11px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .tag{display:inline-block;background:#1e293b;color:#94a3b8;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px;font-weight:500}
+.item .tag.won{color:#fbbf24;background:rgba(251,191,36,.1)}
+.item .tag.alive{color:#34d399;background:rgba(52,211,153,.1)}
+.item .tag.deceased{color:#64748b;background:#1e293b}
+.item .age{font-size:11px;color:#94a3b8;font-weight:500;flex-shrink:0}
+
+/* ====== Detail ====== */
+.detail-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:#64748b;font-size:13px;text-align:center;line-height:1.7}
+.detail-empty .ic{font-size:42px;margin-bottom:12px;opacity:.4}
+
+.dhead{display:flex;gap:14px;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #2b3455}
+.dhead .st-big{font-size:32px;cursor:pointer;line-height:1;filter:grayscale(1) opacity(.5);transition:filter .15s;flex-shrink:0}
+.dhead .st-big.on{filter:grayscale(0) opacity(1);text-shadow:0 0 12px rgba(251,191,36,.6)}
+.dhead .info{flex:1;min-width:0}
+.dhead .name-zh{font-size:22px;font-weight:700;color:#fbbf24;margin:0 0 2px 0}
+.dhead .name-en{font-size:14px;color:#94a3b8;font-style:italic;margin:0 0 8px 0}
+.dhead .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.dhead .tag{background:#1e293b;color:#cbd5e1;font-size:11px;padding:3px 10px;border-radius:999px;font-weight:500}
+.dhead .tag.cat{background:linear-gradient(135deg,#fbbf24,#f97316);color:#0f172a;font-weight:700}
+
+.dfacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.fact{background:rgba(15,23,42,.5);border:1px solid #2b3455;border-radius:8px;padding:10px 12px}
+.fact .lbl{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px}
+.fact .val{font-size:14px;color:#e2e8f0;font-weight:600;line-height:1.3}
+.fact .val.dim{color:#94a3b8;font-weight:400}
+
+.dsec{margin-top:16px}
+.dsec-h{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px dashed #2b3455;display:flex;align-items:center;gap:8px}
+.dsec-h .add{color:#fbbf24;text-transform:none;letter-spacing:0;font-size:11px;cursor:pointer;margin-left:auto;border:none;background:none;font-weight:600;font-family:inherit}
+.dsec-h .add:hover{text-decoration:underline}
+
+/* Notes timeline */
+.note{background:rgba(15,23,42,.5);border:1px solid #2b3455;border-left:3px solid #fbbf24;border-radius:8px;padding:10px 12px;margin-bottom:8px;position:relative}
+.note .hdr{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.note .date{font-size:11px;color:#fbbf24;font-weight:600}
+.note .body{font-size:13px;color:#cbd5e1;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.note .body a{color:#93c5fd;text-decoration:none;border-bottom:1px dashed #334155}
+.note .body a:hover{color:#fbbf24}
+.note .del{position:absolute;top:8px;right:8px;background:none;border:none;color:#475569;font-size:12px;cursor:pointer;padding:2px 6px;border-radius:4px;opacity:0;transition:opacity .15s}
+.note:hover .del{opacity:1}
+.note .del:hover{color:#f87171;background:rgba(248,113,113,.1)}
+.note .links{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.note .link-btn{background:#1e293b;color:#93c5fd;font-size:11px;padding:3px 10px;border-radius:6px;text-decoration:none;border:1px solid #2b3455;transition:all .15s}
+.note .link-btn:hover{border-color:#3b82f6;background:rgba(59,130,246,.1)}
+
+.empty-note{color:#64748b;font-size:12px;font-style:italic;text-align:center;padding:12px;background:rgba(15,23,42,.3);border:1px dashed #2b3455;border-radius:8px}
+
+/* Quick add note */
+.qadd{background:rgba(15,23,42,.5);border:1px solid #2b3455;border-radius:8px;padding:10px;margin-top:10px;display:none}
+.qadd.on{display:block}
+.qadd textarea{width:100%;background:#0a0f1f;border:1px solid #2b3455;color:#e2e8f0;font-size:13px;padding:8px 10px;border-radius:6px;outline:none;resize:vertical;font-family:inherit;line-height:1.5;min-height:56px}
+.qadd textarea:focus{border-color:#fbbf24}
+.qadd input.url{width:100%;background:#0a0f1f;border:1px solid #2b3455;color:#e2e8f0;font-size:12px;padding:7px 10px;border-radius:6px;outline:none;margin-top:6px;font-family:inherit}
+.qadd input.url:focus{border-color:#fbbf24}
+.qadd .actions{display:flex;gap:8px;margin-top:8px}
+.qadd .actions button{background:#2f5fd0;border:1px solid #2f5fd0;color:#fff;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-family:inherit;transition:all .15s}
+.qadd .actions button:hover{transform:translateY(-1px)}
+.qadd .actions button.ghost{background:transparent;color:#cbd5e1;border-color:#334155}
+.qadd .actions button.danger{background:transparent;color:#f87171;border-color:#334155}
+
+/* Actions */
+.dactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid #2b3455}
+.abtn{background:#1e293b;color:#cbd5e1;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer;font-weight:500;font-family:inherit;border:1px solid #2b3455;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.abtn:hover{border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,.06)}
+.abtn.primary{background:linear-gradient(135deg,#fbbf24,#f97316);border-color:#f97316;color:#0f172a;font-weight:700}
+.abtn.primary:hover{color:#0f172a;box-shadow:0 4px 12px rgba(251,191,36,.4)}
+
+/* ====== Loading ====== */
+.loading{position:fixed;inset:0;background:#0a0f1f;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;z-index:9999}
+.loading .spinner{width:36px;height:36px;border:3px solid #2b3455;border-top-color:#fbbf24;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ====== Toast ====== */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#e2e8f0;padding:10px 20px;border-radius:10px;font-size:13px;border:1px solid #2b3455;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:9998;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div class="spinner"></div>
+  <p id="loadingText">正在加载得主名录…</p>
+</div>
+
+<header>
+  <a href="../index.html" class="back-link">← 返回智能体</a>
+  <h1>🔔 得主跟踪</h1>
+  <span class="sub" id="subStat">—</span>
+</header>
+
+<div class="hero">
+  <h2 class="big">关注你在意的诺奖得主</h2>
+  <p>星标收藏、添加动态笔记、管理链接。数据只存本地浏览器，可随时导出 JSON。</p>
+  <div class="hero-strip">
+    <div class="stat">关注数<b id="stTracked">0</b></div>
+    <div class="stat">笔记数<b id="stNotes">0</b></div>
+    <div class="stat">在世<b id="stAlive">—</b></div>
+    <div class="stat">已故<b id="stDeceased">—</b></div>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- ========== 左：搜索 + 候选列表 ========== -->
+  <section class="panel">
+    <h2>🔍 得主名录 <span class="hint">按姓名 / 中文 / 学科 / 年份 / 国籍搜索</span></h2>
+    <div class="search-wrap">
+      <span class="search-ic">🔍</span>
+      <input id="search" class="search" type="text" placeholder="搜索姓名 / 关键词…（支持中文/英文/学科/年份/国籍）" autocomplete="off">
+    </div>
+    <div class="filter-row">
+      <select id="fCat" class="filter">
+        <option value="">全部学科</option>
+      </select>
+      <select id="fStatus" class="filter">
+        <option value="">全部状态</option>
+        <option value="alive">在世</option>
+        <option value="deceased">已故</option>
+        <option value="tracked">仅关注</option>
+      </select>
+      <select id="fSort" class="filter">
+        <option value="year-desc">获奖年份 新→旧</option>
+        <option value="year-asc">获奖年份 旧→新</option>
+        <option value="name-asc">姓名 A→Z</option>
+      </select>
+      <button id="btnOnlyTracked" class="filter" style="background:#1e293b;color:#cbd5e1;border:1px solid #2b3455;border-radius:8px;padding:6px 10px;cursor:pointer;font-family:inherit">★ 只看关注</button>
+    </div>
+    <div id="list" class="list"></div>
+  </section>
+
+  <!-- ========== 右：详情 ========== -->
+  <section class="panel" id="detailPanel">
+    <div class="detail-empty">
+      <div class="ic">👈</div>
+      <div>点击左侧任何得主查看详情<br>星标加入收藏 · 添加笔记跟踪动态</div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'nobel_tracker_v1';
+const CURRENT_YEAR = 2026;
+
+// ============================================================
+// State
+// ============================================================
+let ALL = [];            // 全部得主
+let TRACKED = {};        // { pid: {notes: [{ts,text,url}], addedAt} }
+let CURRENT = null;      // 当前选中的 pid
+let onlyTracked = false;
+
+function load(){
+  try { TRACKED = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch { TRACKED = {}; }
+}
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(TRACKED));
+}
+
+// ============================================================
+// Utils
+// ============================================================
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(t._t);
+  t._t = setTimeout(()=>t.classList.remove('on'), 2200);
+}
+function statusOf(p){ return p.death_year ? 'deceased' : 'alive'; }
+function ageOf(p){
+  if (p.death_year) return `${p.death_year - p.birth_year} 岁离世`;
+  if (!p.birth_year) return '';
+  return `${CURRENT_YEAR - p.birth_year} 岁`;
+}
+function fmtDate(ts){
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function yearsList(s){ return String(s||'').split(/[;、,]/).map(x=>x.trim()).filter(Boolean); }
+
+// Markdown-lite：仅转义 HTML + 支持链接（http...）+ 保留换行
+function renderNoteText(t){
+  const s = esc(t);
+  return s
+    .replace(/(https?:\/\/[^\s<>]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\n/g, '<br>');
+}
+
+// ============================================================
+// Data load
+// ============================================================
+async function loadData(){
+  try {
+    const res = await fetch('../data/tracked_laureates.json');
+    ALL = await res.json();
+    document.getElementById('loading').style.display = 'none';
+    return true;
+  } catch (e) {
+    document.getElementById('loadingText').textContent = '加载失败：' + e.message;
+    return false;
+  }
+}
+
+// ============================================================
+// Render: filters
+// ============================================================
+function renderFilters(){
+  const cats = new Set();
+  ALL.forEach(p => yearsList(p.nobel_categories).forEach(c => cats.add(c)));
+  const sel = document.getElementById('fCat');
+  [...cats].sort().forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    sel.appendChild(o);
+  });
+}
+
+// ============================================================
+// Render: list
+// ============================================================
+function filterList(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const cat = document.getElementById('fCat').value;
+  const st = document.getElementById('fStatus').value;
+  const sort = document.getElementById('fSort').value;
+
+  let arr = ALL.slice();
+  if (onlyTracked) arr = arr.filter(p => TRACKED[p.laureate_pid]);
+  if (cat) arr = arr.filter(p => (p.nobel_categories||'').includes(cat));
+  if (st === 'alive') arr = arr.filter(p => !p.death_year);
+  if (st === 'deceased') arr = arr.filter(p => !!p.death_year);
+  if (q) {
+    arr = arr.filter(p => {
+      const hay = [p.name_en, p.name_zh, p.nationality, p.nobel_years, p.nobel_categories]
+                  .map(x=>(x||'').toLowerCase()).join(' ');
+      return hay.includes(q);
+    });
+  }
+  if (sort === 'year-desc') arr.sort((a,b)=>String(b.nobel_years).localeCompare(String(a.nobel_years)));
+  else if (sort === 'year-asc') arr.sort((a,b)=>String(a.nobel_years).localeCompare(String(b.nobel_years)));
+  else arr.sort((a,b)=>String(a.name_en||'').localeCompare(String(b.name_en||'')));
+
+  return arr;
+}
+
+function renderList(){
+  const arr = filterList();
+  const el = document.getElementById('list');
+  el.innerHTML = '';
+
+  const show = Math.min(arr.length, 200);
+  for (let i=0; i<show; i++){
+    const p = arr[i];
+    const t = TRACKED[p.laureate_pid];
+    const st = statusOf(p);
+    const div = document.createElement('div');
+    div.className = 'item' + (CURRENT === p.laureate_pid ? ' active' : '');
+    div.dataset.pid = p.laureate_pid;
+
+    const life = p.death_year
+      ? `<span class="tag deceased">${p.birth_year}–${p.death_year}</span>`
+      : `<span class="tag alive">${p.birth_year}–</span>`;
+
+    const noteCount = t ? t.notes.length : 0;
+    const noteBadge = noteCount ? `<span class="tag" style="color:#f87171;background:rgba(248,113,113,.1)">${noteCount} 笔记</span>` : '';
+
+    div.innerHTML = `
+      <span class="st${t ? ' on' : ''}" title="${t ? '点击取消关注' : '点击关注'}">${t ? '⭐' : '☆'}</span>
+      <div class="body">
+        <div class="name">${esc(p.name_zh || p.name_en)}</div>
+        <div class="meta">
+          ${esc(p.name_en || '')}
+          <span class="tag won">${esc(p.nobel_years)}·${esc((p.nobel_categories||'').split(/[;、,]/).map(s=>s.trim()).slice(0,2).join('/')||'')}</span>
+          ${life}
+          ${noteBadge}
+        </div>
+      </div>
+      <span class="age">${esc(ageOf(p))}</span>
+    `;
+    div.addEventListener('click', e => {
+      if (e.target.classList.contains('st')) {
+        e.stopPropagation();
+        toggleTrack(p.laureate_pid);
+        return;
+      }
+      selectPid(p.laureate_pid);
+    });
+    el.appendChild(div);
+  }
+
+  if (arr.length > show){
+    const more = document.createElement('div');
+    more.className = 'empty-note';
+    more.textContent = `显示前 ${show} 条，共 ${arr.length} 条 · 请用搜索/筛选缩小范围`;
+    el.appendChild(more);
+  }
+  if (arr.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'empty-note';
+    empty.textContent = onlyTracked
+      ? '还没有关注的得主 · 点击上方星标添加'
+      : '无匹配结果';
+    el.appendChild(empty);
+  }
+}
+
+// ============================================================
+// Track / untrack
+// ============================================================
+function toggleTrack(pid){
+  if (TRACKED[pid]){
+    delete TRACKED[pid];
+    toast('已取消关注');
+  } else {
+    TRACKED[pid] = { notes: [], addedAt: Date.now() };
+    toast('已关注 · 可添加笔记跟踪动态');
+  }
+  save();
+  renderStats();
+  renderList();
+  if (CURRENT === pid) renderDetail();
+}
+
+function ensureTracked(pid){
+  if (!TRACKED[pid]) TRACKED[pid] = { notes: [], addedAt: Date.now() };
+}
+
+// ============================================================
+// Detail
+// ============================================================
+function selectPid(pid){
+  CURRENT = pid;
+  renderList();
+  renderDetail();
+}
+
+function renderDetail(){
+  const panel = document.getElementById('detailPanel');
+  if (!CURRENT){
+    panel.innerHTML = `
+      <div class="detail-empty">
+        <div class="ic">👈</div>
+        <div>点击左侧任何得主查看详情<br>星标加入收藏 · 添加笔记跟踪动态</div>
+      </div>`;
+    return;
+  }
+  const p = ALL.find(x => x.laureate_pid === CURRENT);
+  if (!p) return;
+  const t = TRACKED[CURRENT];
+  const st = statusOf(p);
+  const isTracked = !!t;
+
+  const cats = (p.nobel_categories||'').split(/[;、,]/).map(s=>s.trim()).filter(Boolean);
+  const years = yearsList(p.nobel_years);
+
+  const wikidata = p.wikipedia_en ? p.wikipedia_en : (p.name_en ? `https://en.wikipedia.org/wiki/${encodeURIComponent(p.name_en.replace(/ /g,'_'))}` : '');
+
+  panel.innerHTML = `
+    <div class="dhead">
+      <span class="st-big${isTracked ? ' on' : ''}" id="stBig" title="${isTracked ? '点击取消关注' : '点击关注'}">${isTracked ? '⭐' : '☆'}</span>
+      <div class="info">
+        <h2 class="name-zh" style="margin:0">${esc(p.name_zh || p.name_en)}</h2>
+        <p class="name-en">${esc(p.name_en || '')}</p>
+        <div class="tags">
+          ${cats.map(c => `<span class="tag cat">${esc(c)}</span>`).join('')}
+          <span class="tag">${esc(years.join(' · '))}</span>
+          <span class="tag ${st}">${st === 'alive' ? '在世' : '已故'}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dfacts">
+      <div class="fact"><div class="lbl">出生</div><div class="val">${esc(p.birth_year || '—')}</div></div>
+      <div class="fact"><div class="lbl">去世</div><div class="val ${p.death_year ? '' : 'dim'}">${esc(p.death_year || '在世')}</div></div>
+      <div class="fact"><div class="lbl">年龄</div><div class="val">${esc(ageOf(p) || '—')}</div></div>
+      <div class="fact"><div class="lbl">国籍</div><div class="val">${esc(p.nationality || '—')}</div></div>
+      <div class="fact"><div class="lbl">性别</div><div class="val">${esc(p.gender === 'male' ? '男' : p.gender === 'female' ? '女' : '—')}</div></div>
+      <div class="fact"><div class="lbl">本地编号</div><div class="val dim" style="font-family:monospace;font-size:12px">${esc(p.laureate_pid)}</div></div>
+    </div>
+
+    <div class="dsec">
+      <div class="dsec-h">
+        📝 动态笔记
+        <button class="add" id="btnAddNote">＋ 添加</button>
+      </div>
+      <div id="notesWrap"></div>
+      <div id="qAddWrap" class="qadd">
+        <textarea id="noteText" placeholder="写点什么… 例：2026年宣布获得某学术奖项；发表新著作；健康状况…"></textarea>
+        <input class="url" id="noteUrl" placeholder="参考链接（可选，如新闻 URL）">
+        <div class="actions">
+          <button id="btnSaveNote">保存笔记</button>
+          <button class="ghost" id="btnCancelNote">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dactions">
+      <button class="abtn primary" id="btnAskAgent">🤖 问智能体</button>
+      <button class="abtn" id="btnWiki">📖 Wikipedia</button>
+      <button class="abtn" id="btnExport">📤 导出</button>
+      <button class="abtn danger" id="btnUntrack" style="color:#f87171;border-color:#334155">🗑 取消关注</button>
+    </div>
+  `;
+
+  // bindings
+  document.getElementById('stBig').addEventListener('click', () => toggleTrack(CURRENT));
+  document.getElementById('btnAddNote').addEventListener('click', () => {
+    ensureTracked(CURRENT);
+    document.getElementById('qAddWrap').classList.add('on');
+    document.getElementById('noteText').focus();
+  });
+  document.getElementById('btnCancelNote').addEventListener('click', () => {
+    document.getElementById('qAddWrap').classList.remove('on');
+    document.getElementById('noteText').value = '';
+    document.getElementById('noteUrl').value = '';
+  });
+  document.getElementById('btnSaveNote').addEventListener('click', () => {
+    const text = document.getElementById('noteText').value.trim();
+    const url = document.getElementById('noteUrl').value.trim();
+    if (!text){ toast('笔记内容为空'); return; }
+    ensureTracked(CURRENT);
+    const note = { id: uid(), ts: Date.now(), text };
+    if (url) note.url = url;
+    TRACKED[CURRENT].notes.unshift(note);
+    save();
+    renderDetail();
+    renderList();
+    renderStats();
+    toast('笔记已保存');
+  });
+  document.getElementById('btnAskAgent').addEventListener('click', () => {
+    const kw = p.name_en || p.name_zh || '';
+    window.open('../index.html#ask=' + encodeURIComponent(`介绍一下 ${p.name_zh || p.name_en} (${p.nobel_years} ${cats.join('/')}) 的师承和学术背景`), '_blank');
+  });
+  document.getElementById('btnWiki').addEventListener('click', () => {
+    if (wikidata) window.open(wikidata, '_blank');
+    else toast('无 Wikipedia 链接');
+  });
+  document.getElementById('btnExport').addEventListener('click', () => exportAll());
+  document.getElementById('btnUntrack').addEventListener('click', () => {
+    if (!confirm(`确认取消关注「${p.name_zh || p.name_en}」？\n将同时删除该得主的 ${TRACKED[CURRENT]?.notes?.length || 0} 条笔记。`)) return;
+    toggleTrack(CURRENT);
+  });
+
+  // 渲染笔记
+  const wrap = document.getElementById('notesWrap');
+  const notes = TRACKED[CURRENT]?.notes || [];
+  if (!isTracked){
+    wrap.innerHTML = `<div class="empty-note">尚未关注 · 点击 ⭐ 或下方「添加」开始跟踪</div>`;
+  } else if (notes.length === 0){
+    wrap.innerHTML = `<div class="empty-note">暂无笔记 · 点击「＋ 添加」记录动态</div>`;
+  } else {
+    wrap.innerHTML = '';
+    notes.forEach(n => {
+      const div = document.createElement('div');
+      div.className = 'note';
+      div.innerHTML = `
+        <div class="hdr">
+          <span class="date">📅 ${fmtDate(n.ts)}</span>
+          <button class="del" title="删除">✕</button>
+        </div>
+        <div class="body">${renderNoteText(n.text)}</div>
+        ${n.url ? `<div class="links"><a class="link-btn" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">🔗 参考链接</a></div>` : ''}
+      `;
+      div.querySelector('.del').addEventListener('click', () => {
+        if (!confirm('删除这条笔记？')) return;
+        TRACKED[CURRENT].notes = TRACKED[CURRENT].notes.filter(x => x.id !== n.id);
+        save();
+        renderDetail();
+        renderList();
+        renderStats();
+      });
+      wrap.appendChild(div);
+    });
+  }
+}
+
+// ============================================================
+// Export
+// ============================================================
+function exportAll(){
+  const data = {};
+  Object.keys(TRACKED).forEach(pid => {
+    const p = ALL.find(x => x.laureate_pid === pid);
+    data[pid] = {
+      name_zh: p?.name_zh, name_en: p?.name_en,
+      nobel_years: p?.nobel_years, nobel_categories: p?.nobel_categories,
+      addedAt: TRACKED[pid].addedAt,
+      notes: TRACKED[pid].notes,
+    };
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `nobel-tracker-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('已导出 JSON');
+}
+
+// ============================================================
+// Stats
+// ============================================================
+function renderStats(){
+  const trackedIds = Object.keys(TRACKED);
+  const noteCount = trackedIds.reduce((s,pid) => s + (TRACKED[pid].notes?.length || 0), 0);
+  let alive=0, dec=0;
+  trackedIds.forEach(pid => {
+    const p = ALL.find(x => x.laureate_pid === pid);
+    if (!p) return;
+    if (p.death_year) dec++; else alive++;
+  });
+  document.getElementById('stTracked').textContent = trackedIds.length;
+  document.getElementById('stNotes').textContent = noteCount;
+  document.getElementById('stAlive').textContent = alive;
+  document.getElementById('stDeceased').textContent = dec;
+  document.getElementById('subStat').textContent = `${trackedIds.length} 关注 · ${noteCount} 笔记 · 本地存储`;
+}
+
+// ============================================================
+// Bind + boot
+// ============================================================
+function bind(){
+  ['search','fCat','fStatus','fSort'].forEach(id => {
+    document.getElementById(id).addEventListener('input', renderList);
+    document.getElementById(id).addEventListener('change', renderList);
+  });
+  document.getElementById('btnOnlyTracked').addEventListener('click', () => {
+    onlyTracked = !onlyTracked;
+    document.getElementById('btnOnlyTracked').style.background = onlyTracked ? 'linear-gradient(135deg,#fbbf24,#f97316)' : '#1e293b';
+    document.getElementById('btnOnlyTracked').style.color = onlyTracked ? '#0f172a' : '#cbd5e1';
+    document.getElementById('btnOnlyTracked').style.borderColor = onlyTracked ? '#f97316' : '#2b3455';
+    document.getElementById('btnOnlyTracked').style.fontWeight = onlyTracked ? '700' : 'normal';
+    renderList();
+  });
+}
+
+(async function boot(){
+  load();
+  const ok = await loadData();
+  if (!ok) return;
+  renderFilters();
+  bind();
+  renderStats();
+  renderList();
+
+  // URL 参数支持：?pid=XXX 直接选中
+  const sp = new URLSearchParams(location.search);
+  const pid = sp.get('pid');
+  if (pid && ALL.some(p => p.laureate_pid === pid)) selectPid(pid);
+})();
+</script>
+</body>
+</html>

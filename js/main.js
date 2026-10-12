@@ -97,6 +97,9 @@ function boot() {
   bindEvents();
   updateModeUI();
 
+  // 支持 URL hash：#ask=... 预填并自动发送（供外部页面如 viz/得主跟踪.html 跳转）
+  handleHashAsk();
+
   // 遮罩默认隐藏：不阻断用户浏览页面
   if (el.loadingOverlay) el.loadingOverlay.classList.add('hidden');
 
@@ -266,6 +269,19 @@ function updateModeUI() {
 }
 
 /* ------------------------- 事件绑定 ------------------------- */
+
+function handleHashAsk() {
+  const hash = location.hash || '';
+  if (!hash.startsWith('#ask=')) return;
+  const text = decodeURIComponent(hash.slice(5));
+  if (!text.trim()) return;
+  // 清 hash，避免刷新重复触发
+  history.replaceState(null, '', location.pathname + location.search);
+  el.userInput.value = text;
+  autoResize();
+  // 延到下一 tick 再发送，确保 DB 状态与事件监听都已就绪
+  setTimeout(() => send(), 50);
+}
 
 function bindEvents() {
   el.saveSettings.addEventListener('click', onSaveSettings);
