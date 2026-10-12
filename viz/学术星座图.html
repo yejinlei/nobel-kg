@@ -9,24 +9,65 @@
 <style>
 body { margin:0; background: radial-gradient(ellipse at 50% 30%, #101736 0%, #05070f 70%); overflow:hidden; font-family:var(--font); }
 #sky { display:block; cursor:grab; }
-.hud { position:fixed; top:16px; left:16px; color:#c7d2fe; z-index:10; pointer-events:none; }
+.hud { position:fixed; top:16px; left:16px; color:#c7d2fe; z-index:10; pointer-events:none; max-width:440px; }
 .hud h1 { font-size:19px; margin:0 0 4px 0; color:#e0e7ff; }
 .hud p { font-size:12px; margin:0; color:#8b93b8; }
 .back-link { position:fixed; top:14px; right:16px; z-index:10; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:#c7d2fe; padding:5px 13px; border-radius:999px; text-decoration:none; font-size:12.5px; }
 .back-link:hover { background:rgba(255,255,255,.16); }
-.legend { position:fixed; bottom:14px; left:16px; z-index:10; display:flex; gap:14px; font-size:12px; color:#aab3d6; }
+.legend { position:fixed; bottom:14px; left:16px; z-index:10; display:flex; gap:14px; font-size:12px; color:#aab3d6; flex-wrap:wrap; max-width:calc(100vw - 220px); }
 .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; }
 .tip { position:fixed; display:none; z-index:20; max-width:320px; background:rgba(13,18,40,.94); border:1px solid rgba(129,140,248,.4); border-radius:10px; padding:11px 14px; color:#e2e8f0; font-size:12.5px; pointer-events:none; box-shadow:0 8px 30px rgba(0,0,0,.5); }
 .tip h4 { margin:0 0 4px 0; color:#fbbf24; font-size:14px; }
 .tip .en { color:#8b93b8; font-weight:400; font-size:11.5px; }
 .star { animation: twinkle 3s ease-in-out infinite; }
 @keyframes twinkle { 0%,100% { opacity:1; } 50% { opacity:.55; } }
+
+/* AI 面板 */
+.ai-panel { position:fixed; top:60px; right:16px; width:360px; max-width:calc(100vw - 32px); z-index:15; background:linear-gradient(160deg,rgba(20,26,58,.94),rgba(15,20,44,.96)); border:1px solid rgba(129,140,248,.35); border-radius:14px; padding:14px 16px; color:#e2e8f0; box-shadow:0 12px 40px rgba(0,0,0,.5); backdrop-filter:blur(8px); }
+.ai-panel.collapsed { padding:10px 14px; }
+.ai-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ai-head h3 { margin:0; font-size:13.5px; color:#fbbf24; letter-spacing:.5px; }
+.ai-head .dot { width:8px; height:8px; border-radius:50%; background:#34d399; box-shadow:0 0 8px #34d399; animation:pulse 1.6s infinite; }
+.ai-head .dot.off { background:#64748b; box-shadow:none; animation:none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.ai-body { max-height:60vh; overflow-y:auto; font-size:12.5px; line-height:1.7; color:#cbd5f5; }
+.ai-body.empty { color:#8b93b8; text-align:center; padding:14px 0; }
+.ai-body .name { color:#fbbf24; font-weight:700; }
+.ai-body .en { color:#8b93b8; font-size:11.5px; font-style:italic; }
+.ai-body .students { margin-top:8px; padding-top:8px; border-top:1px dashed rgba(129,140,248,.3); font-size:11.5px; color:#8b93b8; }
+.ai-actions { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+.ai-btn { background:rgba(47,95,208,.35); border:1px solid rgba(129,140,248,.4); color:#e0e7ff; font-size:11.5px; padding:6px 10px; border-radius:8px; cursor:pointer; font-family:inherit; transition:all .15s; }
+.ai-btn:hover { background:rgba(47,95,208,.6); transform:translateY(-1px); }
+.ai-btn:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+.ai-btn.gold { background:linear-gradient(135deg,#fbbf24,#f97316); color:#0f172a; border-color:transparent; font-weight:700; }
+.ai-btn.gold:disabled { background:#334155; color:#64748b; }
+.ai-btn.mini { padding:3px 8px; font-size:10.5px; }
+
+/* 星座保存弹窗 */
+.save-modal { position:fixed; inset:0; z-index:30; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+.save-modal.show { display:flex; }
+.save-box { background:#131a30; border:1px solid #4b5b8a; border-radius:14px; padding:20px 22px; width:420px; max-width:calc(100vw - 40px); color:#e2e8f0; }
+.save-box h3 { margin:0 0 10px; font-size:15px; color:#fbbf24; }
+.save-box label { display:block; font-size:11px; color:#8b93b8; margin:8px 0 4px; letter-spacing:1px; text-transform:uppercase; }
+.save-box input { width:100%; background:#0a0f1f; border:1.5px solid #2b3455; color:#fbbf24; padding:10px 12px; border-radius:8px; font-size:14px; font-weight:600; outline:none; font-family:inherit; }
+.save-box input:focus { border-color:#fbbf24; }
+.save-box textarea { width:100%; background:#0a0f1f; border:1px solid #2b3455; color:#cbd5e1; padding:8px 10px; border-radius:8px; font-size:12px; font-family:inherit; min-height:60px; resize:vertical; }
+.save-row { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+
+/* 已保存星座列表 */
+.saved-list { position:fixed; bottom:52px; right:16px; z-index:14; background:rgba(13,18,40,.9); border:1px solid rgba(129,140,248,.25); border-radius:10px; padding:8px 12px; font-size:11.5px; color:#8b93b8; max-width:280px; max-height:180px; overflow-y:auto; }
+.saved-list .row { padding:3px 0; cursor:pointer; display:flex; justify-content:space-between; gap:8px; }
+.saved-list .row:hover { color:#fbbf24; }
+.saved-list .row .x { color:#64748b; cursor:pointer; padding:0 4px; }
+.saved-list .row .x:hover { color:#f87171; }
+.saved-title { font-size:10.5px; color:#64748b; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+.error { color:#f87171; font-size:11px; padding:6px 0; line-height:1.5; }
 </style>
 </head>
 <body>
 <div class="hud">
   <h1>✨ 学术星座图</h1>
-  <p>每颗星星是一位学者 · 星光大小 = 门下诺奖学生数 · 连线 = 师承 · 点击星星点亮它的星座</p>
+  <p>每颗星星是一位学者 · 星光大小 = 门下诺奖学生数 · 连线 = 师承 · 点击星星点亮它的星座 · 让 AI 为你撰写这段星空的叙事</p>
 </div>
 <a class="back-link" href="../index.html">← 返回主页</a>
 <div class="legend">
@@ -39,8 +80,47 @@ body { margin:0; background: radial-gradient(ellipse at 50% 30%, #101736 0%, #05
 <div class="tip" id="tip"></div>
 <svg id="sky"></svg>
 
+<!-- AI 叙事面板 -->
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head">
+    <div class="dot" id="aiDot"></div>
+    <h3>🌌 AI 星座叙事</h3>
+    <span id="aiState" style="font-size:11px;color:#64748b;margin-left:auto">未配置</span>
+  </div>
+  <div class="ai-body empty" id="aiBody">
+    点击任意星星（或"点亮星座"），然后按 <b style="color:#fbbf24">✨ AI 叙事</b> 按钮，让大模型根据这位学者的师承关系撰写一段星空寓言。
+  </div>
+  <div class="ai-actions">
+    <button class="ai-btn gold" id="aiNarrateBtn" disabled>✨ AI 叙事</button>
+    <button class="ai-btn" id="aiSaveBtn" disabled>💾 保存为星座</button>
+    <button class="ai-btn" id="aiClearBtn">✕ 清空</button>
+  </div>
+</div>
+
+<!-- 已保存星座 -->
+<div class="saved-list" id="savedList" style="display:none">
+  <div class="saved-title">💫 我的星座</div>
+  <div id="savedItems"></div>
+</div>
+
+<!-- 保存对话框 -->
+<div class="save-modal" id="saveModal">
+  <div class="save-box">
+    <h3>💫 为这颗星座命名</h3>
+    <label>星座名（例如：索末菲星域）</label>
+    <input id="saveName" placeholder="给这个星座取个名字…">
+    <label>叙事（可编辑 AI 生成内容）</label>
+    <textarea id="saveDesc"></textarea>
+    <div class="save-row">
+      <button class="ai-btn" id="saveCancel">取消</button>
+      <button class="ai-btn gold" id="saveOk">保存</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import * as db from '../js/db.js';
+import * as ai from '../js/ai.js';
 
 await db.initDB(()=>{});
 const persons = (await db.query('SELECT person_id,name_zh,name_en,nobel_year,nobel_category,nationality,birth_year,death_year,note FROM persons')).rows;
@@ -58,7 +138,6 @@ const svg = d3.select('#sky').attr('width',W).attr('height',H);
 const g = svg.append('g');
 svg.call(d3.zoom().scaleExtent([.2,5]).on('zoom',e=>g.attr('transform',e.transform)));
 
-// 背景随机小星
 const bg = g.append('g');
 for (let i=0;i<180;i++) bg.append('circle')
   .attr('cx',Math.random()*W).attr('cy',Math.random()*H)
@@ -84,7 +163,6 @@ const node = g.append('g').selectAll('g').data(nodes).join('g').call(d3.drag()
   .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
   .on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}));
 
-// 光晕 + 星体
 node.append('circle').attr('r',d=>d.r*2.2).attr('fill',d=>catColor(d.nobel_category)).attr('opacity',.12);
 node.append('circle')
   .attr('class','star')
@@ -93,7 +171,7 @@ node.append('circle')
   .attr('stroke','#fff').attr('stroke-opacity',.85).attr('stroke-width',d=>d.nobel_year?1.6:.6)
   .style('animation-delay',()=> (Math.random()*3)+'s')
   .on('mouseover',showTip).on('mouseout',hideTip)
-  .on('click',(e,d)=>lightUp(d));
+  .on('click',(e,d)=>{ lightUp(d); syncAIPanel(d); });
 
 node.append('text')
   .text(d=> (d.name_zh||d.name_en||'').slice(0,5))
@@ -113,14 +191,15 @@ function showTip(e,d){
     <div>${d.birth_year||'?'}–${d.death_year||''} ｜ ${d.nationality||''}</div>
     ${d.nobel_year?`<div style="color:#fbbf24;margin-top:3px">🏆 ${d.nobel_year} 年 ${d.nobel_category}奖</div>`:'<div style="color:#8b93b8;margin-top:3px">未获诺奖 · 名师</div>'}
     ${cnt[d.person_id]?`<div style="margin-top:3px">门下诺奖学生：${cnt[d.person_id]} 位</div>`:''}
-    ${d.note?`<div style="color:#aab3d6;margin-top:4px">${d.note.slice(0,70)}</div>`:''}`;
+    ${d.note?`<div style="color:#aab3d6;margin-top:4px">${d.note.slice(0,70)}</div>`:''}
+    <div style="color:#64748b;margin-top:6px;font-size:11px">点击「AI 叙事」为这段星空撰写诗笺</div>`;
   tip.style.display='block';
   tip.style.left=Math.min(e.clientX+14,innerWidth-340)+'px';
   tip.style.top=Math.min(e.clientY+14,innerHeight-180)+'px';
 }
 function hideTip(){ tip.style.display='none'; }
 
-// 点击点亮星座（该学者的全部师承相连边与节点）
+// 点击点亮星座
 let lit = null;
 function lightUp(d){
   if (lit===d.person_id){ lit=null; node.attr('opacity',1); link.attr('opacity',1); return; }
@@ -135,6 +214,204 @@ function lightUp(d){
   link.attr('stroke-opacity',(l,i)=>litLinks.has(i)?.9:.04)
       .attr('stroke',(l,i)=>litLinks.has(i)?'#fbbf24':'#818cf8');
 }
+
+/* ---------- AI 叙事 ---------- */
+const aiDot = document.getElementById('aiDot');
+const aiState = document.getElementById('aiState');
+const aiBody = document.getElementById('aiBody');
+const aiNarrateBtn = document.getElementById('aiNarrateBtn');
+const aiSaveBtn = document.getElementById('aiSaveBtn');
+const aiClearBtn = document.getElementById('aiClearBtn');
+
+function refreshAIState(){
+  if (ai.hasLLM()) { aiDot.classList.remove('off'); aiState.textContent='已连接'; }
+  else { aiDot.classList.add('off'); aiState.textContent='未配置'; }
+}
+refreshAIState();
+
+// 当前选中人物 + 已有叙事
+let current = null;
+let currentNarration = '';
+
+function syncAIPanel(d){
+  current = d;
+  currentNarration = '';
+  aiBody.classList.add('empty');
+  aiBody.innerHTML = `已选中：<span class="name">${d.name_zh||d.name_en}</span><span class="en">${d.name_en||''}</span><br><span style="color:#8b93b8;font-size:11px">点击「✨ AI 叙事」生成星座诗笺</span>`;
+  aiNarrateBtn.disabled = !ai.hasLLM();
+  aiSaveBtn.disabled = true;
+}
+
+const SYSTEM = `你是「诺奖学术星空」叙事者。给出一位学者时，请撰写一段星空寓言（60-100 字，富有文学性）。
+
+必须遵守：
+- 不编造事实，只能使用给出的名单；
+- 强调师承传承的意象（恒星、行星、轨道、引力、光年、星群）；
+- 如果这位学者没获诺奖但培养出多位诺奖学生，突出「未名之星照亮群星」的意象；
+- 若门下为 0，用「孤独星」的意象；
+- 输出仅正文，不要 markdown 标记、不要重复问题。`;
+
+function collectStudents(scholarPid){
+  const arr = [];
+  edges.forEach(e=>{
+    if (e.advisor_id === scholarPid) {
+      const s = persons.find(p=>p.person_id===e.student_id);
+      if (s && s.nobel_year) arr.push({name:s.name_zh||s.name_en, cat:s.nobel_category, year:s.nobel_year});
+    }
+  });
+  return arr;
+}
+
+function collectMentors(scholarPid){
+  const arr = [];
+  edges.forEach(e=>{
+    if (e.student_id === scholarPid) {
+      const m = persons.find(p=>p.person_id===e.advisor_id);
+      if (m) arr.push({name:m.name_zh||m.name_en, year:e.start_year});
+    }
+  });
+  return arr;
+}
+
+aiNarrateBtn.addEventListener('click', async ()=>{
+  if (!current) return;
+  if (!ai.hasLLM()) {
+    aiBody.classList.remove('empty');
+    aiBody.innerHTML = '<div class="error">⚠ 尚未配置 LLM，请前往首页「设置」填写 baseUrl / apiKey / model 后再来。</div>';
+    return;
+  }
+  aiNarrateBtn.disabled = true;
+  aiBody.classList.remove('empty');
+  aiBody.innerHTML = '<div style="color:#8b93b8">🌌 正在让 AI 为这段星空撰写叙事…</div>';
+
+  const students = collectStudents(current.person_id);
+  const mentors = collectMentors(current.person_id);
+  const user = [
+    `学者：${current.name_zh||current.name_en} ${current.name_en?('('+current.name_en+')'):' '}`,
+    `国籍：${current.nationality||'未收录'}，生卒：${current.birth_year||'?'}–${current.death_year||''}`,
+    current.nobel_year ? `获奖：${current.nobel_year} 年 ${current.nobel_category} 诺奖` : '未获诺奖，但为学术先驱',
+    current.note ? `备注：${current.note}` : '',
+    `门下诺奖学生（共 ${students.length} 位）：${students.length ? students.map(s=>`${s.name}(${s.cat}${s.year?' '+s.year:''})`).join('、') : '暂无'}`,
+    `师承来源（${mentors.length} 位）：${mentors.length ? mentors.map(m=>`${m.name}${m.year?'('+m.year+')':''}`).join('、') : '暂无（学术源头或跨代）'}`,
+    `请把这段信息编织成 60-100 字的星空寓言。`,
+  ].filter(Boolean).join('\n');
+
+  try {
+    currentNarration = await ai.ask(SYSTEM, user, { temperature: 0.8, timeoutMs: 45000 });
+    renderNarration();
+  } catch (e) {
+    aiBody.innerHTML = `<div class="error">⚠ ${ai.friendlyError(e)}</div>`;
+  } finally {
+    aiNarrateBtn.disabled = !ai.hasLLM();
+  }
+});
+
+function renderNarration(){
+  if (!current) return;
+  const students = collectStudents(current.person_id);
+  aiBody.classList.remove('empty');
+  aiBody.innerHTML = `
+    <div style="margin-bottom:8px">
+      <span class="name">✨ ${current.name_zh||current.name_en}</span>
+      <span class="en">${current.name_en||''}</span>
+    </div>
+    <div>${currentNarration}</div>
+    ${students.length ? `<div class="students">
+      <div style="color:#64748b;margin-bottom:3px">门下诺奖学生 · ${students.length} 位</div>
+      <div style="color:#cbd5f5">${students.map(s=>`<span style="color:${catColor(s.cat)}">●</span> ${s.name} <span style="color:#64748b">${s.cat}${s.year?' · '+s.year:''}</span>`).join('<br>')}</div>
+    </div>` : ''}`;
+  aiSaveBtn.disabled = false;
+}
+
+aiClearBtn.addEventListener('click', ()=>{
+  aiBody.classList.add('empty');
+  aiBody.innerHTML = '点击任意星星（或"点亮星座"），然后按 <b style="color:#fbbf24">✨ AI 叙事</b> 按钮，让大模型根据这位学者的师承关系撰写一段星空寓言。';
+  current = null;
+  currentNarration = '';
+  aiSaveBtn.disabled = true;
+  if (lit) { lit = null; node.attr('opacity',1); link.attr('stroke-opacity',.28).attr('stroke','#818cf8'); }
+});
+
+/* ---------- 星座保存 ---------- */
+const saveModal = document.getElementById('saveModal');
+const saveName = document.getElementById('saveName');
+const saveDesc = document.getElementById('saveDesc');
+const STORAGE_KEY = 'nobel_constellations_v1';
+
+function loadSaved(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); } catch(e){ return []; }
+}
+function saveAll(arr){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch(e){}
+}
+function renderSavedList(){
+  const arr = loadSaved();
+  const box = document.getElementById('savedItems');
+  const wrap = document.getElementById('savedList');
+  if (!arr.length) { wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  box.innerHTML = arr.map((c,i)=>`
+    <div class="row" data-idx="${i}">
+      <span>💫 ${c.name} <span style="color:#64748b">· ${c.center_zh||''}</span></span>
+      <span class="x" data-del="${i}">✕</span>
+    </div>
+  `).join('');
+  box.querySelectorAll('.row').forEach(row=>{
+    row.addEventListener('click', e=>{
+      if (e.target.dataset.del !== undefined) return;
+      const idx = +row.dataset.idx;
+      const c = arr[idx];
+      // 找到中心节点并点亮
+      const found = nodes.find(n => (n.name_zh||n.name_en) === c.center_zh || n.person_id === c.center_pid);
+      if (found) {
+        // 中央视化
+        const t = d3.zoomTransform(svg.node());
+        const k = Math.max(1, Math.min(2, t.k));
+        svg.transition().duration(600).call(d3.zoom().scaleExtent([.2,5]).on('zoom',e=>g.attr('transform',e.transform)).transform, d3.zoomIdentity.scale(k).translate(W/2-found.x*k, H/2-found.y*k));
+        lightUp(found);
+        syncAIPanel(found);
+        currentNarration = c.narration || '';
+        renderNarration();
+      }
+    });
+  });
+  box.querySelectorAll('[data-del]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      const arr = loadSaved();
+      arr.splice(+el.dataset.del, 1);
+      saveAll(arr);
+      renderSavedList();
+    });
+  });
+}
+renderSavedList();
+
+aiSaveBtn.addEventListener('click', ()=>{
+  if (!current) return;
+  saveName.value = '';
+  saveDesc.value = currentNarration || '';
+  saveModal.classList.add('show');
+  setTimeout(()=>saveName.focus(), 50);
+});
+document.getElementById('saveCancel').addEventListener('click', ()=>saveModal.classList.remove('show'));
+document.getElementById('saveOk').addEventListener('click', ()=>{
+  const name = saveName.value.trim();
+  if (!name) { saveName.focus(); return; }
+  const arr = loadSaved();
+  arr.push({
+    name, center_pid: current.person_id, center_zh: current.name_zh||current.name_en,
+    narration: saveDesc.value.trim(),
+    created: Date.now(),
+  });
+  saveAll(arr);
+  saveModal.classList.remove('show');
+  renderSavedList();
+  aiBody.insertAdjacentHTML('beforeend', '<div style="color:#34d399;margin-top:8px;font-size:11.5px">💾 已保存为「' + name + '」</div>');
+});
+
+// 支持配置变化
+setInterval(refreshAIState, 5000);
 </script>
 </body>
 </html>

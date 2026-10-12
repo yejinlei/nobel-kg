@@ -47,7 +47,7 @@
  },
  "works": {
   "source": "04_代表性工作.csv",
-  "rows": 57,
+  "rows": 133,
   "columns": [
    "work_id",
    "name_zh",
@@ -72,7 +72,7 @@
  },
  "papers": {
   "source": "12_论文著作.csv",
-  "rows": 68,
+  "rows": 144,
   "columns": [
    "paper_id",
    "title",
@@ -141,7 +141,7 @@
  },
  "person_work": {
   "source": "09_关系_人物工作.csv",
-  "rows": 65,
+  "rows": 150,
   "columns": [
    "rel_id",
    "person_id",
@@ -165,7 +165,7 @@
  },
  "paper_author": {
   "source": "13_关系_论文作者.csv",
-  "rows": 67,
+  "rows": 152,
   "columns": [
    "rel_id",
    "paper_id",
@@ -177,7 +177,7 @@
  },
  "paper_lineage": {
   "source": "19_关系_论文师承.csv",
-  "rows": 35,
+  "rows": 63,
   "columns": [
    "relation_id",
    "student_paper_id",
@@ -211,7 +211,7 @@
  },
  "collaboration": {
   "source": "16_关系_合作.csv",
-  "rows": 12,
+  "rows": 26,
   "columns": [
    "edge_id",
    "person_a_id",
@@ -223,7 +223,7 @@
  },
  "paradigms": {
   "source": "17_研究范式.csv",
-  "rows": 23,
+  "rows": 47,
   "columns": [
    "paradigm_id",
    "name",

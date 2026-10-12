@@ -134,6 +134,25 @@ input.guess::placeholder{color:#475569;font-weight:400}
   input.guess{font-size:16px} /* must be ≥16px to prevent iOS auto-zoom */
 }
 .log-wrap{margin-top:22px}
+
+/* ---- AI 侦探手记（可选增强，不依赖 AI） ---- */
+#aiCard .ai-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#aiCard h3{margin:0;font-size:15px;color:#fbbf24;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399;animation:pulse 1.6s infinite}
+.dot.off{background:#475569;box-shadow:none;animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+#aiState{font-size:11px;color:#64748b;margin-left:auto}
+#aiBody{max-height:340px;overflow-y:auto;font-size:13px;line-height:1.7;color:#cbd5e1;display:flex;flex-direction:column;gap:10px}
+#aiBody .msg{padding:10px 12px;border-radius:10px;white-space:pre-wrap;word-break:break-word}
+#aiBody .msg.user{background:rgba(47,95,208,.18);border:1px solid #2f5fd0;align-self:flex-end;max-width:88%}
+#aiBody .msg.bot{background:rgba(15,23,42,.6);border:1px solid #2b3455;align-self:flex-start;max-width:96%}
+#aiBody .msg.error{color:#f87171;border-color:#f87171}
+#aiBody.empty{color:#64748b;text-align:center;display:block;padding:16px 8px}
+.ai-row{display:flex;gap:8px;margin-top:12px}
+#aiInput{flex:1;background:#0a0f1f;border:1.5px solid #2b3455;color:#e2e8f0;font-size:13px;padding:9px 12px;border-radius:9px;outline:none;font-family:inherit;min-width:0}
+#aiInput:focus{border-color:#fbbf24}
+#aiInput:disabled{opacity:.5}
+.ai-note{font-size:10.5px;color:#64748b;margin-top:8px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -158,6 +177,24 @@ input.guess::placeholder{color:#475569;font-weight:400}
   </div>
 
   <div class="card" id="card"></div>
+
+  <div class="card" id="aiCard">
+    <div class="ai-head">
+      <div class="dot off" id="aiDot"></div>
+      <h3>🤖 AI 侦探手记</h3>
+      <span id="aiState">未配置</span>
+    </div>
+    <div id="aiBody" class="empty">🔒 回答本题（或揭晓答案）后解锁：AI 将依据本体档案深挖这位得主的师承、代表作与范式地位，并可继续追问。答题与计分完全不依赖 AI。</div>
+    <div class="btn-row">
+      <button class="btn primary small" id="aiDossierBtn" disabled>✨ AI 深挖这位得主</button>
+      <button class="btn ghost small" id="aiClearBtn">✕ 清空对话</button>
+    </div>
+    <div class="ai-row">
+      <input id="aiInput" placeholder="回答本题后解锁追问…" disabled>
+      <button class="btn small" id="aiSendBtn" disabled>发送</button>
+    </div>
+    <div class="ai-note">AI 为可选增强，回答基于本站本体（师承 / 论文著作 / 范式）与题目线索，可能出错，请以 Wikipedia 等权威来源为准。</div>
+  </div>
 
   <div id="logWrap">
     <div class="log-title">📜 猜谜记录</div>
@@ -200,6 +237,39 @@ archive.forEach(a=>{
     is_repeat: new Set(cats).size===1 && cats.length>1
   });
 });
+
+// ---- ontology name→person_id matcher（AI 档案 grounding 用；匹配不到则优雅降级）----
+const perRows = (await db.query(`SELECT person_id, name_en, name_zh FROM persons`)).rows;
+function normName(s){
+  if(!s) return '';
+  return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/['’`.·\-]/g,'').replace(/\s+/g,' ').trim();
+}
+const perByEn = new Map(), perByZh = new Map(), perTok = new Map();
+const STOP_TOK = new Set(['j','a','van','de','der','von','jr','la','le','di','da']);
+perRows.forEach(r=>{
+  const e = normName(r.name_en); if(e && !perByEn.has(e)) perByEn.set(e, r.person_id);
+  const z = normName(r.name_zh); if(z && !perByZh.has(z)) perByZh.set(z, r.person_id);
+  const toks = [...new Set(e.split(' '))].filter(t=>t && !STOP_TOK.has(t));
+  if(toks.length){ const k = toks.sort().join('|'); if(!perTok.has(k)) perTok.set(k, []); perTok.get(k).push(r.person_id); }
+});
+function matchOntology(p){
+  const en = normName(p.name_en);
+  if(en && perByEn.has(en)) return perByEn.get(en);
+  const zh = normName(p.name_zh);
+  if(zh && perByZh.has(zh)) return perByZh.get(zh);
+  const toks = [...new Set(en.split(' '))].filter(t=>t && !STOP_TOK.has(t));
+  if(toks.length){
+    const hits = new Set();
+    for(const [k, ids] of perTok){
+      const ks = k.split('|');
+      if(ks.every(t=>toks.includes(t)) || toks.every(t=>ks.includes(t))) ids.forEach(i=>hits.add(i));
+    }
+    if(hits.size===1) return [...hits][0];
+  }
+  return null;
+}
+pool.forEach(p=>{ p.opid = matchOntology(p); });
 
 // shuffle
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -309,6 +379,7 @@ function render(){
   `).join('') : '<div style="font-size:12px;color:#64748b;text-align:center;padding:20px">暂无记录</div>';
 
   bindEvents(p);
+  updateAIPanel();
 }
 
 function bindEvents(p){
@@ -423,6 +494,7 @@ function next(){
   state.revealed = false;
   // occasional reshuffle
   if(state.idx===0) state.deck = shuffle([...state.pool]);
+  resetAIQuestion();
   save(); render();
 }
 
@@ -446,6 +518,159 @@ setTimeout(()=>{
     }
   });
 }, 100);
+
+/* ============================================================
+   AI 侦探手记（可选增强）——答题与计分完全不依赖 AI
+   ============================================================ */
+import { loadConfig, hasLLM, normalizeBaseUrl, mixedContentWarning } from '../js/config.js';
+
+const aiDot = document.getElementById('aiDot'), aiState = document.getElementById('aiState'),
+      aiBody = document.getElementById('aiBody'), aiInput = document.getElementById('aiInput'),
+      aiDossierBtn = document.getElementById('aiDossierBtn'), aiSendBtn = document.getElementById('aiSendBtn');
+let aiMsgs = [];       // 当前题目的多轮对话
+let factsCache = null; // 当前题目的本体档案
+let aiBusy = false;
+
+function curP(){ return state.deck[state.idx % state.deck.length]; }
+
+function updateAIPanel(){
+  const on = hasLLM(loadConfig());
+  aiDot.classList.toggle('off', !on);
+  aiState.textContent = on ? '已连接' : '未配置';
+  const locked = !state.answered;
+  aiDossierBtn.disabled = locked || !on || aiBusy;
+  aiSendBtn.disabled = locked || !on || aiBusy || !aiInput.value.trim();
+  aiInput.disabled = locked || !on || aiBusy;
+  aiInput.placeholder = locked ? '回答本题后解锁追问…' : '追问：TA 的导师是谁？这项工作影响了谁？…';
+  if(locked && !aiMsgs.length){
+    aiBody.className = 'empty';
+    aiBody.innerHTML = '🔒 回答本题（或揭晓答案）后解锁：AI 将依据本体档案深挖这位得主的师承、代表作与范式地位，并可继续追问。答题与计分完全不依赖 AI。';
+  }
+}
+function resetAIQuestion(){ aiMsgs = []; factsCache = null; updateAIPanel(); }
+
+function appendMsg(kind, text){
+  aiBody.className = '';
+  const div = document.createElement('div');
+  div.className = 'msg ' + kind;
+  div.textContent = text;
+  aiBody.appendChild(div);
+  aiBody.scrollTop = aiBody.scrollHeight;
+  return div;
+}
+
+/* —— 本体档案：师承 / 论文 / 著作 / 范式 / 诺奖记录（查询失败时优雅降级）—— */
+async function buildFacts(p){
+  if(factsCache) return factsCache;
+  const pid = p.opid ?? (p.opid = matchOntology(p));
+  const lines = [];
+  if(pid){
+    try{
+      const me = (await db.query(`SELECT name_zh, name_en, nationality, birth_year, death_year, nobel_year, nobel_category, nobel_motivation FROM persons WHERE person_id='${pid}'`)).rows[0];
+      if(me) lines.push(`本体档案：${me.name_zh||''}（${me.name_en||''}），${me.nationality||''}，${me.birth_year||'?'}–${me.death_year||''}；${me.nobel_year||''} 年 ${me.nobel_category||''}奖${me.nobel_motivation ? '，获奖理由：' + me.nobel_motivation : ''}`);
+      const mentors = (await db.query(`SELECT COALESCE(a.name_zh, a.name_en) AS n, m.relation_type AS rt, m.start_year AS y
+        FROM mentorship m JOIN persons a ON a.person_id = m.advisor_id WHERE m.student_id = '${pid}' ORDER BY m.start_year`)).rows;
+      if(mentors.length) lines.push(`师承（导师）：` + mentors.slice(0,6).map(x=>`${x.n}${x.rt?`（${x.rt}${x.y ? ' ' + x.y + ' 年起' : ''}）`:''}`).join('、'));
+      const stu = (await db.query(`SELECT COALESCE(s.name_zh, s.name_en) AS n, s.nobel_year AS ny FROM mentorship m
+        JOIN persons s ON s.person_id = m.student_id WHERE m.advisor_id = '${pid}'`)).rows;
+      if(stu.length){
+        const nobelStu = stu.filter(x=>x.ny).length;
+        lines.push(`门下学生共 ${stu.length} 位（诺奖 ${nobelStu} 位）：` +
+          stu.slice().sort((a,b)=>(b.ny||0)-(a.ny||0)).slice(0,10).map(x=>`${x.n}${x.ny?`（诺奖 ${x.ny}）`:''}`).join('、'));
+      }
+      const works = (await db.query(`SELECT w.name_zh AS n, w.year AS y FROM person_work pw JOIN works w ON w.work_id = pw.work_id WHERE pw.person_id = '${pid}' ORDER BY w.year`)).rows;
+      if(works.length) lines.push(`代表性工作：` + works.slice(0,8).map(x=>`${x.n}${x.y?`（${x.y}）`:''}`).join('、'));
+      const papers = (await db.query(`SELECT pp.title_zh AS t, pp.year AS y FROM paper_author pa JOIN papers pp ON pp.paper_id = pa.paper_id WHERE pa.person_id = '${pid}' ORDER BY pp.year`)).rows;
+      if(papers.length) lines.push(`关键论文：` + papers.slice(0,8).map(x=>`《${x.t}》${x.y?`（${x.y}）`:''}`).join('、'));
+      const pgs = (await db.query(`SELECT name, year, description FROM paradigms WHERE founder_id = '${pid}'`)).rows;
+      if(pgs.length) lines.push(`开创范式：` + pgs.map(x=>`${x.name}（${x.year}）——${x.description}`).join('；'));
+      try{
+        const pz = (await db.query(`SELECT year, category, share_note FROM prizes WHERE strpos(';' || laureate_ids || ';', ';${pid};') > 0 ORDER BY year`)).rows;
+        if(pz.length) lines.push(`诺奖记录：` + pz.map(x=>`${x.year} 年 ${x.category} 奖（${x.share_note||''}）`).join('、'));
+      }catch(e){ /* laureate_ids 列类型不兼容时跳过 */ }
+    }catch(e){ /* 档案查询失败时降级为纯线索模式 */ }
+  }
+  if(!lines.length) lines.push('（本体档案未收录该得主，请主要依据题目线索与你的知识回答，并注明不确定处。）');
+  factsCache = lines.join('\n');
+  return factsCache;
+}
+
+const AI_SYS = `你是「诺奖侦探」助手，陪用户玩诺奖猜谜，并在揭晓后深挖得主背景。
+规则：
+- 只依据给出的本体档案与题目线索作答；档案未覆盖处可用你的知识，但须标注「（据一般资料）」；
+- 不编造师承关系、论文名与年份；
+- 中文回答，简洁（一般 ≤200 字），可用短列表；
+- 若用户试图在未揭晓前打听答案，回复：🔒 先作答或揭晓，再来深挖吧。`;
+
+async function aiChat(userContent){
+  const c = loadConfig();
+  const mc = mixedContentWarning(c.baseUrl);
+  if(mc) throw Object.assign(new Error(mc), {code:'MIXED'});
+  aiMsgs.push({role:'user', content:userContent});
+  const ctl = new AbortController();
+  const timer = setTimeout(()=>ctl.abort(), 60000);
+  let res;
+  try{
+    res = await fetch(normalizeBaseUrl(c.baseUrl) + '/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...(c.apiKey ? {Authorization:'Bearer ' + c.apiKey} : {}) },
+      body: JSON.stringify({ model:c.model, temperature:0.6, stream:false,
+        messages:[{role:'system', content:AI_SYS}, ...aiMsgs.slice(-8)] }),
+      signal: ctl.signal });
+  } finally { clearTimeout(timer); }
+  if(!res.ok){
+    const t = await res.text().catch(()=>'');
+    aiMsgs.pop();
+    throw new Error('模型接口返回 ' + res.status + '：' + (t.slice(0,200) || res.statusText));
+  }
+  const d = await res.json();
+  const content = (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '';
+  if(!content){ aiMsgs.pop(); throw new Error('模型返回内容为空'); }
+  aiMsgs.push({role:'assistant', content});
+  return content;
+}
+
+aiDossierBtn.addEventListener('click', async ()=>{
+  if(aiBusy) return;
+  const p = curP();
+  aiBusy = true; updateAIPanel();
+  appendMsg('user', '✨ 深挖这位得主');
+  const thinking = appendMsg('bot', '…正在查阅本体档案…');
+  try{
+    const facts = await buildFacts(p);
+    thinking.remove();
+    appendMsg('bot', await aiChat(
+      `这位诺奖得主已揭晓：\n姓名：${p.name_zh||p.name_en}（${p.name_en||''}）\n获奖：${(p.years||[]).join('/')} 年，${(p.cats||[]).join('/')}奖\n线索简介：${p.desc_zh||''}\n\n${facts}\n\n请写一段 180-260 字的「侦探手记」：融合师承脉络、关键论文/著作、开创的范式与有趣的跨代联系；若本体未收录，则做科普式介绍并注明哪些属于推断。`));
+  }catch(e){
+    thinking.remove();
+    appendMsg('error', '⚠ ' + (e.message || e));
+  }
+  aiBusy = false; updateAIPanel();
+});
+
+async function sendFollowup(){
+  const t = aiInput.value.trim();
+  if(!t || aiBusy) return;
+  aiBusy = true; updateAIPanel();
+  appendMsg('user', t);
+  aiInput.value = '';
+  const thinking = appendMsg('bot', '…');
+  try{
+    await buildFacts(curP());
+    // 首条追问时注入本体档案作为背景；此后依赖对话历史
+    const content = aiMsgs.length === 0 ? t + '\n\n（本体档案：\n' + factsCache + '）' : t;
+    thinking.remove();
+    appendMsg('bot', await aiChat(content));
+  }catch(e){
+    thinking.remove();
+    appendMsg('error', '⚠ ' + (e.message || e));
+  }
+  aiBusy = false; updateAIPanel();
+}
+aiSendBtn.addEventListener('click', sendFollowup);
+aiInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendFollowup(); });
+aiInput.addEventListener('input', updateAIPanel);
+document.getElementById('aiClearBtn').addEventListener('click', resetAIQuestion);
 
 render();
 </script>
