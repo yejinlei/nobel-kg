@@ -55,11 +55,60 @@ body { background: var(--lit-bg); margin: 0; font-family: -apple-system, system-
 .net-link.dim { opacity:.05; }
 .net-link.active { stroke:#ffc107 !important; stroke-opacity:1 !important; stroke-width:2.5px !important; }
 .writer-item.active { background:#f5ede0; border-left:3px solid var(--lit-accent); }
+
+/* ===== AI 面板 ===== */
+.ai-btn {
+  position:fixed; bottom:22px; right:22px; z-index:120;
+  background:linear-gradient(135deg,#8B4513,#D2691E); color:#fff;
+  border:0; border-radius:999px; padding:10px 18px; font-weight:700;
+  font-family:inherit; font-size:13px; cursor:pointer;
+  box-shadow:0 8px 24px rgba(139,69,19,.35);
+}
+.ai-btn:hover { transform:translateY(-1px); }
+.ai-panel {
+  position:fixed; top:24px; right:22px; width:380px; max-width:calc(100vw - 32px); z-index:110;
+  background:#fff; border:1px solid var(--lit-accent); border-radius:14px;
+  padding:14px 16px; box-shadow:0 16px 48px rgba(139,69,19,.3);
+  display:none;
+}
+.ai-panel.on { display:block; }
+.ai-panel .ai-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ai-panel .ai-head h3 { margin:0; font-size:14px; font-weight:700; color:var(--lit-accent); flex:1; }
+.ai-panel .ai-head .ai-close { background:none; border:0; color:#666; cursor:pointer; font-size:16px; padding:2px 6px; }
+.ai-panel .ai-head .ai-close:hover { color:#000; }
+.ai-panel .ai-state { font-size:11px; color:#888; margin-bottom:8px; }
+.ai-panel .ai-body {
+  max-height:60vh; overflow-y:auto; font-size:12.5px; line-height:1.65;
+  padding:10px 12px; background:#faf7f2; border-radius:8px; border:1px solid #efe7dc;
+  color:#334;
+}
+.ai-panel .ai-body.empty { color:#888; font-size:12px; }
+.ai-panel .ai-body .error { color:#dc2626; }
+.ai-panel .ai-cta {
+  margin-top:10px; background:linear-gradient(135deg,#8B4513,#D2691E); color:#fff;
+  border:0; border-radius:8px; padding:9px 14px; font-weight:600; font-size:12.5px; cursor:pointer;
+  font-family:inherit; width:100%;
+}
+.ai-panel .ai-cta:hover { filter:brightness(1.05); }
+.ai-panel .ai-cta:disabled { opacity:.5; cursor:not-allowed; }
+.ai-panel .ai-input {
+  margin-top:8px; width:100%; background:#faf7f2; border:1px solid #efe7dc;
+  color:#334; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:12.5px; outline:none;
+}
+.ai-panel .ai-input:focus { border-color:var(--lit-accent); }
 </style>
 </head>
 <body>
 <a href="../index.html" class="back-link">← 返回主页</a>
 <div class="tooltip-net" id="tip"></div>
+<button class="ai-btn" id="aiBtn">✨ AI 解读文学奖</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head"><h3>✨ 文学奖 AI 解读</h3><button class="ai-close" id="aiClose">✕</button></div>
+  <div class="ai-state" id="aiState">加载配置中…</div>
+  <div class="ai-body empty" id="aiBody">点击下方按钮，让 AI 分析 123 位文学奖得主在流派、体裁、语言与传承维度上的整体格局。</div>
+  <button class="ai-cta" id="aiAsk">生成解读</button>
+  <input class="ai-input" id="aiFollow" placeholder="追问：为什么拉美文学爆发在 60 年代？">
+</div>
 <div class="header">
   <h1>📖 诺贝尔文学奖 · 作品与传承图谱</h1>
   <p>1901-2026 · 123位得主 · 作品、流派、语言、地域的多维可视化</p>
@@ -128,6 +177,7 @@ body { background: var(--lit-bg); margin: 0; font-family: -apple-system, system-
 
 <script type="module">
 import * as db from '../js/db.js';
+import { hasLLM, ask, askStream, friendlyError } from '../js/ai.js';
 const log = msg => document.getElementById('loading').textContent = msg;
 
 await db.initDB(log);
@@ -443,6 +493,190 @@ listItems.forEach((item,idx)=>{
     }, 100);
   };
 });
+
+/* ================= AI 面板 ================= */
+(function initAI(){
+  const btn = document.getElementById('aiBtn');
+  const panel = document.getElementById('aiPanel');
+  const stateEl = document.getElementById('aiState');
+  const body = document.getElementById('aiBody');
+  const cta = document.getElementById('aiAsk');
+  const closeBtn = document.getElementById('aiClose');
+  const follow = document.getElementById('aiFollow');
+
+  const SYSTEM_PROMPT = `你是诺贝尔文学奖研究专家。基于用户提供的文学奖数据摘要，用简体中文回答，控制在 220–350 字之间，包含 3 个要点：
+1) 国家/流派/体裁的整体分布格局
+2) 值得关注的历史节点、代表作家或传承脉络
+3) 一句话总结文学奖的审美取向或演变趋势
+使用 **加粗** 强调关键数字，允许分点（- 开头）。不添加寒暄。`;
+
+  function esc(s){ return String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function buildContext(){
+    const moveName = {};
+    movements.forEach(m=> moveName[m.movement_id] = m.name_zh || m.name_en);
+    const genreName = {};
+    genres.forEach(g=> genreName[g.genre_id] = g.name_zh || g.name_en);
+
+    const moveCountMap = {};
+    wm.forEach(r=>{ const n = moveName[r.movement_id]; if(n) moveCountMap[n]=(moveCountMap[n]||0)+1; });
+    const topMoves = Object.entries(moveCountMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+    const genreCountMap = {};
+    wg.forEach(r=>{ const n = genreName[r.genre_id]; if(n) genreCountMap[n]=(genreCountMap[n]||0)+1; });
+    const topGenres = Object.entries(genreCountMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+    const countryMap = {};
+    writers.forEach(w=>{ if(w.country) countryMap[w.country]=(countryMap[w.country]||0)+1; });
+    const topCountries = Object.entries(countryMap).sort((a,b)=>b[1]-a[1]).slice(0,7);
+
+    const decadeCount = {};
+    writers.forEach(w=>{ const d=Math.floor((w.nobel_year||1900)/10)*10; decadeCount[d]=(decadeCount[d]||0)+1; });
+    const topDecades = Object.entries(decadeCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+    const recent = writers.slice(-8).map(w=>{
+      const ms = (writerMoves[w.writer_id]||[]).map(mid=>moveName[mid]).filter(Boolean).slice(0,2).join('/');
+      const gn = (writerGenres[w.writer_id]||[]).map(gid=>genreName[gid]).filter(Boolean).slice(0,2).join('/');
+      return `  - ${w.nobel_year} ${w.name_en.split(' ').slice(-1)[0]}（${w.country||'—'}）${ms?' · 流派:'+ms:''}${gn?' · 体裁:'+gn:''}`;
+    }).join('\n');
+
+    const influenceCount = influence.length;
+    const influencedFrom = {};
+    influence.forEach(r=> influencedFrom[r.from_writer_id] = (influencedFrom[r.from_writer_id]||0)+1);
+    const topInfluencers = Object.entries(influencedFrom).sort((a,b)=>b[1]-a[1]).slice(0,5)
+      .map(([id,cnt])=>{ const w = writers.find(x=>x.writer_id===id); return w?`${w.name_en.split(' ').slice(-1)[0]}(${cnt})`:''; }).filter(Boolean);
+
+    return {
+      total: writers.length,
+      movementCount: movements.length,
+      genreCount: genres.length,
+      countryCount: countries.size,
+      influenceCount,
+      topMoves, topGenres, topCountries, topDecades, topInfluencers,
+      recent
+    };
+  }
+
+  function ctxPrompt(c){
+    return [
+      `【得主】共 ${c.total} 位 · ${c.countryCount} 国家地区 · ${c.movementCount} 流派 · ${c.genreCount} 体裁 · ${c.influenceCount} 条传承关系`,
+      `【Top 流派】` + c.topMoves.map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【Top 体裁】` + c.topGenres.map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【Top 国家】` + c.topCountries.map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【最多年代】` + c.topDecades.map(([k,v])=>`${k}s:${v}`).join(' · '),
+      c.topInfluencers.length ? `【主要影响者】` + c.topInfluencers.join('、') : '',
+      c.recent ? `【近年得主示例】\n${c.recent}` : ''
+    ].filter(Boolean).join('\n');
+  }
+
+  function renderMd(text){
+    if (!text) return '';
+    const lines = String(text).split('\n');
+    let html = '', inList = false, inCode = false;
+    for (let line of lines){
+      if (line.startsWith('```')){
+        if (inCode){ html += '</pre>'; inCode=false; }
+        else { if(inList){ html += '</ul>'; inList=false; } html += '<pre style="background:#fff;padding:8px;border-radius:6px;font-size:11.5px;overflow-x:auto">'; inCode=true; }
+        continue;
+      }
+      if (inCode){ html += line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); continue; }
+      let t = line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+      t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      t = t.replace(/\*(.+?)\*/g, '<i>$1</i>');
+      if (/^\s*[-*]\s+/.test(line)){
+        if (!inList){ html += '<ul style="margin:6px 0;padding-left:18px">'; inList=true; }
+        html += `<li>${t.replace(/^\s*[-*]\s+/,'')}</li>`;
+        continue;
+      }
+      if (inList){ html += '</ul>'; inList=false; }
+      if (line.trim()) html += `<p style="margin:4px 0">${t}</p>`;
+    }
+    if (inList) html += '</ul>';
+    if (inCode) html += '</pre>';
+    return html;
+  }
+
+  function offlineInterpret(c){
+    const top2m = c.topMoves.slice(0,3).map(([k,v])=>`${k}(${v})`).join('、');
+    const top2c = c.topCountries.slice(0,3).map(([k,v])=>`${k}(${v})`).join('、');
+    return `<p><b>📖 离线解读</b>（未配置 LLM，使用本地数据聚合）</p>
+      <ul>
+        <li>共 <b>${c.total}</b> 位文学奖得主 · ${c.countryCount} 国家 · ${c.influenceCount} 条传承关系</li>
+        <li>Top 流派：${top2m}</li>
+        <li>Top 国家：${top2c}</li>
+        ${c.topInfluencers.length?`<li>主要影响者：${c.topInfluencers.join('、')}</li>`:''}
+        <li>💡 若需更深入洞察，可在 <code>js/ai.js</code> 中配置 OpenAI 兼容端点</li>
+      </ul>`;
+  }
+
+  let history = [];
+
+  async function runGenerate(){
+    const c = buildContext();
+    const userPrompt = ctxPrompt(c);
+    cta.disabled = true; cta.textContent = '生成中…';
+    if (hasLLM()){
+      body.innerHTML = '<div class="empty">思考中…</div>';
+      stateEl.textContent = '正在调用 LLM…';
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: userPrompt}];
+      try {
+        let acc = '';
+        for await (const chunk of askStream(history)){
+          acc += chunk;
+          body.classList.remove('empty');
+          body.innerHTML = renderMd(acc);
+        }
+        history.push({role:'assistant', content: acc});
+        stateEl.textContent = '✅ 已生成 · 可继续追问';
+      } catch (err){
+        body.classList.add('empty');
+        body.innerHTML = `<div class="error">❌ ${esc(friendlyError(err))}</div>`;
+        stateEl.textContent = '调用失败';
+      }
+    } else {
+      body.classList.remove('empty');
+      body.innerHTML = offlineInterpret(c);
+      stateEl.textContent = '离线模式（未配置 LLM）';
+    }
+    cta.disabled = false; cta.textContent = '重新生成';
+  }
+
+  async function runFollow(){
+    const q = follow.value.trim();
+    if (!q) return;
+    if (!hasLLM()){
+      body.classList.remove('empty');
+      body.innerHTML += `<p style="color:#888;margin-top:10px"><b>Q:</b> ${esc(q)}</p><p style="color:#888">离线模式不支持追问，请配置 LLM 后重试。</p>`;
+      follow.value = '';
+      return;
+    }
+    if (!history.length){
+      const c = buildContext();
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: ctxPrompt(c)}];
+    }
+    history.push({role:'user', content: q});
+    follow.value = '';
+    body.innerHTML += `<p style="margin-top:8px;padding-top:8px;border-top:1px dashed #efe7dc"><b>Q:</b> ${esc(q)}</p>`;
+    cta.disabled = true;
+    try {
+      let acc = '';
+      for await (const chunk of askStream(history)) acc += chunk;
+      history.push({role:'assistant', content: acc});
+      body.innerHTML += renderMd(acc);
+      body.scrollTop = body.scrollHeight;
+    } catch (err){
+      body.innerHTML += `<p style="color:#dc2626">❌ ${esc(friendlyError(err))}</p>`;
+    }
+    cta.disabled = false;
+  }
+
+  btn.onclick = ()=> panel.classList.toggle('on');
+  closeBtn.onclick = ()=> panel.classList.remove('on');
+  cta.onclick = runGenerate;
+  follow.addEventListener('keydown', e=>{ if (e.key === 'Enter') runFollow(); });
+
+  if (!hasLLM()) btn.style.display = 'none';
+})();
 </script>
 </body>
 </html>

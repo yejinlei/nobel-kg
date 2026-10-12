@@ -60,11 +60,60 @@ body { background: var(--peace-bg); margin: 0; font-family: -apple-system, syste
 .net-link { stroke-opacity:.4; fill:none; transition:all .2s; }
 .net-link.dim { opacity:.05; }
 .net-link.active { stroke:#ffc107 !important; stroke-opacity:1 !important; stroke-width:2.5px !important; }
+
+/* ===== AI 面板 ===== */
+.ai-btn {
+  position:fixed; bottom:22px; right:22px; z-index:120;
+  background:linear-gradient(135deg,#1e5799,#6B8E23); color:#fff;
+  border:0; border-radius:999px; padding:10px 18px; font-weight:700;
+  font-family:inherit; font-size:13px; cursor:pointer;
+  box-shadow:0 8px 24px rgba(30,87,153,.35);
+}
+.ai-btn:hover { transform:translateY(-1px); }
+.ai-panel {
+  position:fixed; top:24px; right:22px; width:380px; max-width:calc(100vw - 32px); z-index:110;
+  background:#fff; border:1px solid var(--peace-accent); border-radius:14px;
+  padding:14px 16px; box-shadow:0 16px 48px rgba(30,87,153,.3);
+  display:none;
+}
+.ai-panel.on { display:block; }
+.ai-panel .ai-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ai-panel .ai-head h3 { margin:0; font-size:14px; font-weight:700; color:var(--peace-accent); flex:1; }
+.ai-panel .ai-head .ai-close { background:none; border:0; color:#666; cursor:pointer; font-size:16px; padding:2px 6px; }
+.ai-panel .ai-head .ai-close:hover { color:#000; }
+.ai-panel .ai-state { font-size:11px; color:#888; margin-bottom:8px; }
+.ai-panel .ai-body {
+  max-height:60vh; overflow-y:auto; font-size:12.5px; line-height:1.65;
+  padding:10px 12px; background:#f5f9fc; border-radius:8px; border:1px solid #e0ecf5;
+  color:#334;
+}
+.ai-panel .ai-body.empty { color:#888; font-size:12px; }
+.ai-panel .ai-body .error { color:#dc2626; }
+.ai-panel .ai-cta {
+  margin-top:10px; background:linear-gradient(135deg,#1e5799,#6B8E23); color:#fff;
+  border:0; border-radius:8px; padding:9px 14px; font-weight:600; font-size:12.5px; cursor:pointer;
+  font-family:inherit; width:100%;
+}
+.ai-panel .ai-cta:hover { filter:brightness(1.05); }
+.ai-panel .ai-cta:disabled { opacity:.5; cursor:not-allowed; }
+.ai-panel .ai-input {
+  margin-top:8px; width:100%; background:#f5f9fc; border:1px solid #e0ecf5;
+  color:#334; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:12.5px; outline:none;
+}
+.ai-panel .ai-input:focus { border-color:var(--peace-accent); }
 </style>
 </head>
 <body>
 <a href="../index.html" class="back-link">← 返回主页</a>
 <div class="tooltip-net" id="tip"></div>
+<button class="ai-btn" id="aiBtn">✨ AI 解读和平奖</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head"><h3>✨ 和平奖 AI 解读</h3><button class="ai-close" id="aiClose">✕</button></div>
+  <div class="ai-state" id="aiState">加载配置中…</div>
+  <div class="ai-body empty" id="aiBody">点击下方按钮，让 AI 分析 141 位和平奖得主在领域、类型、地区与时间维度上的整体格局。</div>
+  <button class="ai-cta" id="aiAsk">生成解读</button>
+  <input class="ai-input" id="aiFollow" placeholder="追问：环保领域为何上升？">
+</div>
 <div class="header">
   <h1>☮️ 诺贝尔和平奖 · 领域与组织图谱</h1>
   <p>1901-2026 · 141位获奖主体（个人/组织） · 人道、人权、裁军、环保等7大领域</p>
@@ -130,6 +179,7 @@ body { background: var(--peace-bg); margin: 0; font-family: -apple-system, syste
 
 <script type="module">
 import * as db from '../js/db.js';
+import { hasLLM, ask, askStream, friendlyError } from '../js/ai.js';
 const log = msg => document.getElementById('loading').textContent = msg;
 
 await db.initDB(log);
@@ -453,6 +503,184 @@ listItems.forEach((item,idx)=>{
     }, 100);
   };
 });
+
+/* ================= AI 面板 ================= */
+(function initAI(){
+  const btn = document.getElementById('aiBtn');
+  const panel = document.getElementById('aiPanel');
+  const stateEl = document.getElementById('aiState');
+  const body = document.getElementById('aiBody');
+  const cta = document.getElementById('aiAsk');
+  const closeBtn = document.getElementById('aiClose');
+  const follow = document.getElementById('aiFollow');
+
+  const SYSTEM_PROMPT = `你是诺贝尔和平奖研究专家。基于用户提供的和平奖数据摘要，用简体中文回答，控制在 220–350 字之间，包含 3 个要点：
+1) 领域与获奖主体类型的整体格局（个人 vs 组织，7 大领域分布）
+2) 值得关注的历史节点或代表人物（尤其拒领/追授/在任获奖等特殊案例）
+3) 一句话总结和平奖的价值取向或演变趋势
+使用 **加粗** 强调关键数字，允许分点（- 开头）。不添加寒暄。`;
+
+  function esc(s){ return String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function buildContext(){
+    const fieldByName = {};
+    fields.forEach(f=> fieldByName[f.cause_id] = f.name_zh);
+    const fieldCountMap = {};
+    sf.forEach(r=>{ const n = fieldByName[r.cause_id]; if(n) fieldCountMap[n]=(fieldCountMap[n]||0)+1; });
+    const topFields = Object.entries(fieldCountMap).sort((a,b)=>b[1]-a[1]);
+
+    const countryCountMap = {};
+    subjects.forEach(s=>{ if(s.country) countryCountMap[s.country]=(countryCountMap[s.country]||0)+1; });
+    const topCountries = Object.entries(countryCountMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+    const decadeCount = {};
+    subjects.forEach(s=>{ const d=Math.floor((s.nobel_year||1900)/10)*10; decadeCount[d]=(decadeCount[d]||0)+1; });
+    const topDecades = Object.entries(decadeCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+    const declined = subjects.filter(s=>s.declined==='是');
+    const posthumous = subjects.filter(s=>s.posthumous==='是');
+    const inOffice = subjects.filter(s=>s.in_office==='是');
+
+    const recent = subjects.slice(-8).map(s=>{
+      const fs = (subjectFields[s.peace_id]||[]).map(fid=>fieldByName[fid]).filter(Boolean).join('/');
+      return `  - ${s.nobel_year} ${s.subject_type==='组织'?(s.acronym||s.name_en):s.name_en.split(' ').slice(-1)[0]}${fs?' · '+fs:''}`;
+    }).join('\n');
+
+    return {
+      total: subjects.length,
+      person: personSubjects.length,
+      org: orgSubjects.length,
+      countryCount: countries.size,
+      fieldCount: fields.length,
+      topFields, topCountries, topDecades,
+      declined: declined.map(s=>`${s.nobel_year} ${s.name_en.split(' ').slice(-1)[0]}`),
+      posthumous: posthumous.map(s=>`${s.nobel_year} ${s.name_en.split(' ').slice(-1)[0]}`),
+      inOffice: inOffice.map(s=>`${s.nobel_year} ${s.name_en.split(' ').slice(-1)[0]}`),
+      recent
+    };
+  }
+
+  function ctxPrompt(c){
+    return [
+      `【主体】共 ${c.total} 位 · 个人 ${c.person} / 组织 ${c.org} · 覆盖 ${c.fieldCount} 领域 / ${c.countryCount} 国家地区`,
+      `【Top 领域】` + c.topFields.slice(0,7).map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【Top 国家】` + c.topCountries.map(([k,v])=>`${k}:${v}`).join(' · '),
+      `【最多年代】` + c.topDecades.map(([k,v])=>`${k}s:${v}`).join(' · '),
+      c.declined.length ? `【拒领】` + c.declined.join('、') : '',
+      c.posthumous.length ? `【追授】` + c.posthumous.join('、') : '',
+      c.inOffice.length ? `【在任获奖】` + c.inOffice.slice(0,5).join('、') : '',
+      c.recent ? `【近年得主示例】\n${c.recent}` : ''
+    ].filter(Boolean).join('\n');
+  }
+
+  function renderMd(text){
+    if (!text) return '';
+    const lines = String(text).split('\n');
+    let html = '', inList = false, inCode = false;
+    for (let line of lines){
+      if (line.startsWith('```')){
+        if (inCode){ html += '</pre>'; inCode=false; }
+        else { if(inList){ html += '</ul>'; inList=false; } html += '<pre style="background:#fff;padding:8px;border-radius:6px;font-size:11.5px;overflow-x:auto">'; inCode=true; }
+        continue;
+      }
+      if (inCode){ html += line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); continue; }
+      let t = line.replace(/[&<>]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+      t = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      t = t.replace(/\*(.+?)\*/g, '<i>$1</i>');
+      if (/^\s*[-*]\s+/.test(line)){
+        if (!inList){ html += '<ul style="margin:6px 0;padding-left:18px">'; inList=true; }
+        html += `<li>${t.replace(/^\s*[-*]\s+/,'')}</li>`;
+        continue;
+      }
+      if (inList){ html += '</ul>'; inList=false; }
+      if (line.trim()) html += `<p style="margin:4px 0">${t}</p>`;
+    }
+    if (inList) html += '</ul>';
+    if (inCode) html += '</pre>';
+    return html;
+  }
+
+  function offlineInterpret(c){
+    const top3 = c.topFields.slice(0,3).map(([k,v])=>`${k}(${v})`).join('、');
+    const top2c = c.topCountries.slice(0,3).map(([k,v])=>`${k}(${v})`).join('、');
+    return `<p><b>☮️ 离线解读</b>（未配置 LLM，使用本地数据聚合）</p>
+      <ul>
+        <li>共 <b>${c.total}</b> 位和平奖得主：个人 ${c.person} · 组织 ${c.org}</li>
+        <li>Top 领域：${top3}</li>
+        <li>Top 国家/地区：${top2c}</li>
+        <li>特殊案例：拒领 ${c.declined.length}、追授 ${c.posthumous.length}、在任获奖 ${c.inOffice.length}</li>
+        <li>💡 若需更深入洞察，可在 <code>js/ai.js</code> 中配置 OpenAI 兼容端点</li>
+      </ul>`;
+  }
+
+  let history = [];
+
+  async function runGenerate(){
+    const c = buildContext();
+    const userPrompt = ctxPrompt(c);
+    cta.disabled = true; cta.textContent = '生成中…';
+    if (hasLLM()){
+      body.innerHTML = '<div class="empty">思考中…</div>';
+      stateEl.textContent = '正在调用 LLM…';
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: userPrompt}];
+      try {
+        let acc = '';
+        for await (const chunk of askStream(history)){
+          acc += chunk;
+          body.classList.remove('empty');
+          body.innerHTML = renderMd(acc);
+        }
+        history.push({role:'assistant', content: acc});
+        stateEl.textContent = '✅ 已生成 · 可继续追问';
+      } catch (err){
+        body.classList.add('empty');
+        body.innerHTML = `<div class="error">❌ ${esc(friendlyError(err))}</div>`;
+        stateEl.textContent = '调用失败';
+      }
+    } else {
+      body.classList.remove('empty');
+      body.innerHTML = offlineInterpret(c);
+      stateEl.textContent = '离线模式（未配置 LLM）';
+    }
+    cta.disabled = false; cta.textContent = '重新生成';
+  }
+
+  async function runFollow(){
+    const q = follow.value.trim();
+    if (!q) return;
+    if (!hasLLM()){
+      body.classList.remove('empty');
+      body.innerHTML += `<p style="color:#888;margin-top:10px"><b>Q:</b> ${esc(q)}</p><p style="color:#888">离线模式不支持追问，请配置 LLM 后重试。</p>`;
+      follow.value = '';
+      return;
+    }
+    if (!history.length){
+      const c = buildContext();
+      history = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: ctxPrompt(c)}];
+    }
+    history.push({role:'user', content: q});
+    follow.value = '';
+    body.innerHTML += `<p style="margin-top:8px;padding-top:8px;border-top:1px dashed #e0ecf5"><b>Q:</b> ${esc(q)}</p>`;
+    cta.disabled = true;
+    try {
+      let acc = '';
+      for await (const chunk of askStream(history)) acc += chunk;
+      history.push({role:'assistant', content: acc});
+      body.innerHTML += renderMd(acc);
+      body.scrollTop = body.scrollHeight;
+    } catch (err){
+      body.innerHTML += `<p style="color:#dc2626">❌ ${esc(friendlyError(err))}</p>`;
+    }
+    cta.disabled = false;
+  }
+
+  btn.onclick = ()=> panel.classList.toggle('on');
+  closeBtn.onclick = ()=> panel.classList.remove('on');
+  cta.onclick = runGenerate;
+  follow.addEventListener('keydown', e=>{ if (e.key === 'Enter') runFollow(); });
+
+  if (!hasLLM()) btn.style.display = 'none';
+})();
 </script>
 </body>
 </html>

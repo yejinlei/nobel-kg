@@ -132,6 +132,54 @@ h2 .en{font-size:11px;color:#64748b;margin-left:8px;font-weight:400}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:0.01ms !important;transition-duration:0.01ms !important}
 }
+
+/* ===== AI 面板 ===== */
+.ai-btn{
+  position:fixed; bottom:22px; right:22px; z-index:20;
+  background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#111827;
+  border:0; border-radius:999px; padding:11px 20px; font-weight:700;
+  font-family:inherit; font-size:13px; cursor:pointer;
+  box-shadow:0 8px 24px rgba(251,191,36,.35); display:none;
+  align-items:center; gap:6px;
+}
+.ai-btn:hover{ transform:translateY(-1px); box-shadow:0 12px 28px rgba(251,191,36,.45); }
+.ai-panel{
+  position:fixed; top:64px; right:22px; width:380px; max-width:calc(100vw - 32px); z-index:25;
+  background:linear-gradient(160deg,rgba(20,26,58,.96),rgba(15,20,44,.98));
+  border:1px solid rgba(251,191,36,.35); border-radius:14px; padding:14px 16px;
+  color:#e2e8f0; box-shadow:0 16px 48px rgba(0,0,0,.55); backdrop-filter:blur(8px);
+  display:none;
+}
+.ai-panel.on{ display:block; }
+.ai-panel .ai-head{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ai-panel .ai-head h3{ margin:0; font-size:14px; font-weight:700; color:#fbbf24; flex:1; }
+.ai-panel .ai-head .ai-close{
+  background:none; border:0; color:#94a3b8; cursor:pointer; font-size:16px; padding:2px 6px;
+}
+.ai-panel .ai-head .ai-close:hover{ color:#e2e8f0; }
+.ai-panel .ai-state{ font-size:11px; color:#64748b; margin-bottom:8px; }
+.ai-panel .ai-body{
+  max-height:60vh; overflow-y:auto; font-size:12.5px; line-height:1.65;
+  padding:8px 10px; background:rgba(15,23,42,.5); border-radius:8px;
+  border:1px solid #1e293b;
+}
+.ai-panel .ai-body.empty{ color:#64748b; font-size:12px; }
+.ai-panel .ai-body::-webkit-scrollbar{ width:6px; }
+.ai-panel .ai-body::-webkit-scrollbar-thumb{ background:#334155; border-radius:3px; }
+.ai-panel .ai-body .error{ color:#f87171; }
+.ai-panel .ai-body .ok{ color:#34d399; font-size:11px; margin-top:6px; }
+.ai-panel .ai-cta{
+  margin-top:10px; background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#111827;
+  border:0; border-radius:8px; padding:8px 14px; font-weight:600; font-size:12.5px; cursor:pointer;
+  font-family:inherit; width:100%;
+}
+.ai-panel .ai-cta:hover{ filter:brightness(1.08); }
+.ai-panel .ai-cta:disabled{ opacity:.5; cursor:not-allowed; }
+.ai-panel .ai-input{
+  margin-top:8px; width:100%; background:#0f172a; border:1px solid #334155; color:#e2e8f0;
+  border-radius:8px; padding:8px 10px; font-family:inherit; font-size:12.5px; outline:none;
+}
+.ai-panel .ai-input:focus{ border-color:#fbbf24; }
 </style>
 </head>
 <body>
@@ -171,8 +219,22 @@ h2 .en{font-size:11px;color:#64748b;margin-left:8px;font-weight:400}
 
 <div class="map-tip" id="mapTip"></div>
 
+<!-- AI 面板 -->
+<button class="ai-btn" id="aiBtn" title="让 AI 解读当前的知识迁徙格局">✨ AI 解读迁徙</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-head">
+    <h3>✨ 迁徙格局 AI 解读</h3>
+    <button class="ai-close" id="aiClose">✕</button>
+  </div>
+  <div class="ai-state" id="aiState">加载配置中…</div>
+  <div class="ai-body empty" id="aiBody">点击「生成解读」按钮，AI 会基于当前筛选的迁徙弧线，解读这段时期的知识迁徙格局。</div>
+  <button class="ai-cta" id="aiAsk">生成解读</button>
+  <input class="ai-input" id="aiFollow" placeholder="追问：为什么德国出那么多诺奖？">
+</div>
+
 <script type="module">
 import * as db from '../js/db.js';
+import { hasLLM, ask, askStream, friendlyError } from '../js/ai.js';
 
 await db.initDB(()=>{});
 
@@ -778,6 +840,171 @@ window.addEventListener('resize',()=>{
     render();
   }
 });
+
+// ============================================================
+// AI 面板 —— 基于当前筛选解读"知识迁徙格局"
+// 离线兜底：无 LLM 时也生成本地结构化解读（top 弧线 + 国家集中度）
+// ============================================================
+(function initAI(){
+  const btn = document.getElementById('aiBtn');
+  const panel = document.getElementById('aiPanel');
+  const closeBtn = document.getElementById('aiClose');
+  const askBtn = document.getElementById('aiAsk');
+  const follow = document.getElementById('aiFollow');
+  const body = document.getElementById('aiBody');
+  const stateEl = document.getElementById('aiState');
+
+  // 有 LLM 才显示入口按钮
+  if (!hasLLM()) btn.style.display = 'none';
+
+  // 组装当前上下文（数据来自 filteredMigrations 实时结果）
+  function buildContext(){
+    const fm = filteredMigrations();
+    const total = fm.length;
+    const cross = fm.filter(m=>m.cross).length;
+    // top origins / dests / arcs
+    const cnt = (field)=>{
+      const o = {};
+      fm.forEach(m=>{ const k=m[field]; o[k]=(o[k]||0)+1; });
+      return Object.entries(o).sort((a,b)=>b[1]-a[1]);
+    };
+    const topOrig = cnt('birth').slice(0,5);
+    const topDest = cnt('work').slice(0,5);
+    // arc aggregation
+    const arcs = {};
+    fm.forEach(m=>{
+      const k = m.birthCode+'|'+m.workCode;
+      if(!arcs[k]) arcs[k] = {from:m.birth,to:m.work,count:0,cross:m.cross,byCat:{},people:[]};
+      const a = arcs[k]; a.count++; a.byCat[m.cat]=(a.byCat[m.cat]||0)+1; a.people.push(m);
+    });
+    const topArcs = Object.values(arcs).sort((a,b)=>b.count-a.count).slice(0,6);
+    // category distribution
+    const catCnt = {};
+    fm.forEach(m=>{ catCnt[m.cat]=(catCnt[m.cat]||0)+1; });
+    return { total, cross, rate: total?cross/total:0, topOrig, topDest, topArcs, catCnt, cats:[...state.cats], yMin:state.yMin, yMax:state.yMax };
+  }
+
+  function ctxPrompt(c){
+    return [
+      `当前筛选：${c.yMin}–${c.yMax}，类别 ${c.cats.join('/')}`,
+      `共 ${c.total} 位得主，其中跨国 ${c.cross} 位（${(c.rate*100).toFixed(1)}%）`,
+      `Top 出发国：${c.topOrig.map(([k,v])=>`${k}(${v})`).join('、')}`,
+      `Top 目的地：${c.topDest.map(([k,v])=>`${k}(${v})`).join('、')}`,
+      `Top 迁徙弧线：${c.topArcs.map(a=>`${a.from}→${a.to}(${a.count}${a.cross?'跨国':'本土'})`).join('、')}`,
+      `类别分布：${Object.entries(c.catCnt).map(([k,v])=>`${k}(${v})`).join('、')}`
+    ].join('\n');
+  }
+
+  const SYSTEM_PROMPT = `你是诺贝尔奖研究专家。基于下方用户提供的当前筛选数据（时间/类别/迁徙弧线/国家分布），用 200-350 字中文回答：
+1. 这一时期知识迁徙的核心格局（是本土留任为主、还是跨国流动？为什么）
+2. 2-3 个"源国 → 目的地"的显著迁徙弧线及其历史背景
+3. 一个反常识的观察或洞察
+要求：观点鲜明，紧扣数据，不空谈；避免生硬的"作为AI"开场。用 markdown 短段落，最多 4 段。`;
+
+  // 离线兜底：LLM 未配置时也给出结构化解读
+  function offlineInterpret(c){
+    if (c.total === 0) return '<div class="error">当前筛选为空，请调整类别或年份范围。</div>';
+    const top3 = c.topArcs.slice(0,3);
+    const lines = [
+      `<b>📊 当前筛选概览</b>`,
+      `<div style="color:#94a3b8;margin:6px 0 10px 0">· 时段：${c.yMin}–${c.yMax}<br>· 得主：${c.total} 位 · 跨国：${c.cross} 位（${(c.rate*100).toFixed(1)}%）</div>`,
+      `<b>🏁 出发最多 Top 5</b>`,
+      `<ul style="margin:6px 0 10px 0;padding-left:20px;color:#cbd5e1">${c.topOrig.map(([k,v])=>`<li>${k} <b style="color:#fbbf24">${v}</b></li>`).join('')}</ul>`,
+      `<b>🎯 汇聚最多 Top 5</b>`,
+      `<ul style="margin:6px 0 10px 0;padding-left:20px;color:#cbd5e1">${c.topDest.map(([k,v])=>`<li>${k} <b style="color:#fbbf24">${v}</b></li>`).join('')}</ul>`,
+      `<b>🌐 主要迁徙弧线</b>`,
+      `<ul style="margin:6px 0 10px 0;padding-left:20px;color:#cbd5e1">`,
+      top3.map(a=>{
+        const topCat = Object.entries(a.byCat).sort((x,y)=>y[1]-x[1])[0];
+        return `<li><b>${a.from}</b> → <b>${a.to}</b> · ${a.count} 位 · ${a.cross?'<span style="color:#fbbf24">跨国</span>':'<span style="color:#94a3b8">本土</span>'}${topCat?` · 主导 ${topCat[0]}`:''}</li>`;
+      }).join(''),
+      `</ul>`,
+      `<div style="margin-top:10px;padding:8px 10px;background:rgba(59,130,246,.08);border-left:2px solid #60a5fa;font-size:12px">`,
+      `<b>💡 结构化洞察</b>`,
+      c.rate > 0.5
+        ? `<div style="margin-top:4px">跨国比例 <b style="color:#fbbf24">${(c.rate*100).toFixed(0)}%</b>——知识在<b>国际流动</b>中沉淀，诺奖呈现明显的"离散-汇聚"格局。</div>`
+        : `<div style="margin-top:4px">跨国比例仅 <b style="color:#fbbf24">${(c.rate*100).toFixed(0)}%</b>——多数得主<b>在本土成长并发扬</b>，是典型的"本土深耕"阶段。</div>`,
+      `</div>`,
+      `<div style="margin-top:10px;color:#64748b;font-size:11px">配置 LLM 后可获得历史叙事级的深度解读。</div>`
+    ];
+    return lines.join('\n');
+  }
+
+  // 首次状态提示
+  stateEl.textContent = hasLLM() ? '✨ AI 就绪' : '离线模式（未配置 LLM）· 显示结构化解读';
+
+  btn.onclick = ()=>{ panel.classList.add('on'); };
+  closeBtn.onclick = ()=>{ panel.classList.remove('on'); };
+
+  let busy = false;
+  async function doAsk(userText){
+    if (busy) return;
+    const c = buildContext();
+    if (!c.total){
+      body.innerHTML = '<div class="error">当前筛选为空，请先调整类别或年份范围。</div>';
+      return;
+    }
+    busy = true;
+    askBtn.disabled = true;
+    askBtn.textContent = '思考中…';
+    body.classList.remove('empty');
+    body.innerHTML = '<div style="color:#94a3b8">🌐 正在生成解读…</div>';
+
+    if (!hasLLM()){
+      body.innerHTML = offlineInterpret(c);
+      body.insertAdjacentHTML('beforeend', '<div class="ok">📌 离线模式：本地结构化解读</div>');
+    } else {
+      const userPrompt = userText
+        ? `以下是当前筛选数据：\n\n${ctxPrompt(c)}\n\n我的追问：${userText}`
+        : ctxPrompt(c);
+      try {
+        const text = await ask(SYSTEM_PROMPT, userPrompt, { temperature: 0.5, timeoutMs: 60000, maxTokens: 900 });
+        body.innerHTML = renderMd(text);
+        body.insertAdjacentHTML('beforeend', '<div class="ok">✨ AI 解读生成完毕</div>');
+      } catch (e){
+        body.innerHTML = `<div class="error">⚠ ${friendlyError(e)}</div>` +
+          `<div style="color:#94a3b8;margin-top:6px">已切换为离线兜底：</div>` +
+          offlineInterpret(c);
+      }
+    }
+    busy = false;
+    askBtn.disabled = false;
+    askBtn.textContent = '生成解读';
+    body.scrollTop = 0;
+  }
+
+  askBtn.onclick = ()=>{ doAsk(''); };
+  follow.addEventListener('keydown', e=>{
+    if (e.key === 'Enter' && follow.value.trim()) {
+      doAsk(follow.value.trim());
+      follow.value = '';
+    }
+  });
+
+  // 极简 md 渲染（去掉 ``` 代码块、转义 HTML）
+  function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function renderMd(text){
+    // 保护代码块
+    const blocks = [];
+    let t = String(text).replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>{
+      blocks.push(`<pre style="background:#0a0f1f;padding:8px;border-radius:6px;overflow-x:auto;font-size:11.5px;color:#cbd5e1"><code>${esc(code)}</code></pre>`);
+      return `\x00BLOCK${blocks.length-1}\x00`;
+    });
+    t = esc(t);
+    // 加粗 **x** / *x*
+    t = t.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+    t = t.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g,'<i>$1</i>');
+    // 列表 - * 1.
+    t = t.replace(/^([ \t]*[-*])\s+(.+)$/gm,'<div style="padding-left:14px;color:#cbd5e1">· $2</div>');
+    t = t.replace(/^([ \t]*\d+)\.\s+(.+)$/gm,'<div style="padding-left:14px;color:#cbd5e1">$1. $2</div>');
+    // 段落
+    t = t.replace(/\n\n+/g,'</p><p style="margin:6px 0">');
+    t = t.replace(/\n/g,'<br>');
+    t = '<p>'+t+'</p>';
+    t = t.replace(/\x00BLOCK(\d+)\x00/g, (_,i)=>blocks[+i]);
+    return t;
+  }
+})();
 
 </script>
 </body>
