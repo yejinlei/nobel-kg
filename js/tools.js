@@ -728,12 +728,12 @@ export const TOOLS = [
   {
     name: '诺奖得主名录',
     label: '诺奖得主',
-    description: '查询诺奖得主名录。可按年份/学科/关键词过滤。本体收录学术四奖（物理/化学/生理学或医学/经济学）共760+位得主。',
+    description: '查询诺奖得主名录。可按年份/学科/关键词过滤。本体收录六大奖项（物理/化学/生理医学/经济/文学/和平）共 2000+ 位得主。',
     parameters: {
       type: 'object',
       properties: {
         year: { type: 'integer', description: '年份，如1921、2024' },
-        category: { type: 'string', description: '学科：物理学 / 化学 / 生理学或医学 / 经济学（可选）' },
+        category: { type: 'string', description: '学科：物理学 / 化学 / 生理学或医学 / 经济学 / 文学奖 / 和平奖（可选）' },
         keyword: { type: 'string', description: '姓名关键词（中英文均可，可选）' },
         limit: { type: 'integer', description: '返回条数，默认20' },
       },
@@ -749,11 +749,10 @@ export const TOOLS = [
         const stat = await query(`
           SELECT category, COUNT(*) AS cnt, MIN(yr) AS first_year, MAX(yr) AS last_year
           FROM laureates_split
-          WHERE category IN ('物理学','化学','生理学或医学','经济学')
           GROUP BY category ORDER BY category`);
         const tot = await query("SELECT count(*) AS c FROM laureates");
         const core = await query("SELECT count(*) AS c FROM laureates WHERE in_core_network='是'");
-        const lines = [`### 诺奖得主全量名录（v3.0）\n本体收录**学术四奖**（物理/化学/生理医学/经济）：` +
+        const lines = [`### 诺奖得主全量名录\n本体收录**六大奖项**（物理/化学/生理医学/经济/文学/和平）：` +
             `**${tot.rows[0].c} 位**得主（其中 ${core.rows[0].c} 位在高价值师承子图内）。\n`];
         lines.push('**按学科分布**：');
         stat.rows.forEach((r) => lines.push(`- **${r.category}**：${r.cnt} 人（${r.first_year}–${r.last_year}）`));
@@ -766,7 +765,7 @@ export const TOOLS = [
       }
       // 年份查询（用离线预展开的 prize_laureates 表替代 DuckDB UNNEST + LIST）
       if (year) {
-        const catsql = cat ? ` AND pl.category='${cat.replace(/'/g,"''")}'` : " AND pl.category IN ('物理学','化学','生理学或医学','经济学')";
+        const catsql = cat ? ` AND pl.category='${cat.replace(/'/g,"''")}'` : " AND pl.category IN ('物理学','化学','生理学或医学','经济学','文学奖','和平奖')";
         const yrsql = `
           SELECT pl.year AS yr, pl.category, pl.share_note, pl.motivation,
                  COALESCE(p.name_zh, p.name_en) AS name, p.name_en AS name_en
