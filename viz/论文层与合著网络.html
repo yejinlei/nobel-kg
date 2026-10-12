@@ -163,9 +163,10 @@ document.getElementById('main').style.display = '';
 
 /* ---------- 并行取数 ---------- */
 const [kpi, papers, pairs, colab, lineage, journals, lagrows] = await Promise.all([
-  db.query(`SELECT count(*) AS papers, count_if(is_landmark='是') AS lm,
+  db.query(`SELECT count(*) AS papers,
+                   SUM(CASE WHEN is_landmark='是' THEN 1 ELSE 0 END) AS lm,
                    count(DISTINCT journal) AS jr,
-                   count_if(doi IS NOT NULL AND doi <> '') AS doi_n,
+                   SUM(CASE WHEN doi IS NOT NULL AND doi <> '' THEN 1 ELSE 0 END) AS doi_n,
                    min(year) AS ymin, max(year) AS ymax FROM papers`),
   db.query(`SELECT p.paper_id, p.title, p.title_zh, p.authors_display, p.journal, p.year,
                    p.volume_pages, p.doi, p.paper_type, p.is_landmark, p.note,
