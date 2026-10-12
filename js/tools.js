@@ -744,12 +744,11 @@ export const TOOLS = [
       const kw = String(args.keyword || '').trim();
       const lim = Math.max(1, Math.min(200, args.limit ? Math.trunc(args.limit) : 20));
       await loadCore();
-      // 奖项统计
+      // 奖项统计（用离线预展开的 laureates_split 表替代 DuckDB UNNEST）
       if (!year && !cat && !kw) {
         const stat = await query(`
-          SELECT category, COUNT(*) AS cnt, MIN(yr::int) AS first_year, MAX(yr::int) AS last_year
-          FROM (SELECT UNNEST(SPLIT(nobel_categories,';')) AS category,
-                       UNNEST(SPLIT(nobel_years,';')) AS yr FROM laureates)
+          SELECT category, COUNT(*) AS cnt, MIN(yr) AS first_year, MAX(yr) AS last_year
+          FROM laureates_split
           WHERE category IN ('物理学','化学','生理学或医学','经济学')
           GROUP BY category ORDER BY category`);
         const tot = await query("SELECT count(*) AS c FROM laureates");
@@ -765,44 +764,35 @@ export const TOOLS = [
           payload: { total: Number(tot.rows[0].c), core: Number(core.rows[0].c), stats: stat.rows },
         };
       }
-      // 年份查询
+      // 年份查询（用离线预展开的 prize_laureates 表替代 DuckDB UNNEST + LIST）
       if (year) {
-        const catsql = cat ? ` AND pr.category='${cat.replace(/'/g,"''")}'` : " AND pr.category IN ('物理学','化学','生理学或医学','经济学')";
-        // 用 CTE + UNNEST 展开 laureate_ids，避免 LEFT JOIN ON IN (subquery) —— 该形式 DuckDB WASM 不支持
+        const catsql = cat ? ` AND pl.category='${cat.replace(/'/g,"''")}'` : " AND pl.category IN ('物理学','化学','生理学或医学','经济学')";
         const yrsql = `
-          WITH split AS (
-            SELECT pr.year, pr.category, pr.share_note, pr.motivation,
-                   UNNEST(string_split(pr.laureate_ids, ';')) AS pid
-            FROM prizes pr
-            WHERE pr.year::int = ${year} ${catsql}
-          )
-          SELECT split.year::int AS yr, split.category, split.share_note, split.motivation,
-                 LIST(COALESCE(p.name_zh, p.name_en) ORDER BY p.name_en) AS names
-          FROM split
-          LEFT JOIN persons p ON p.person_id = split.pid
-          GROUP BY split.year, split.category, split.share_note, split.motivation
-          ORDER BY split.category`;
+          SELECT pl.year AS yr, pl.category, pl.share_note, pl.motivation,
+                 COALESCE(p.name_zh, p.name_en) AS name, p.name_en AS name_en
+          FROM prize_laureates pl
+          LEFT JOIN persons p ON p.person_id = pl.pid
+          WHERE pl.year = ${year} ${catsql}
+          ORDER BY pl.category, p.name_en`;
         const yr = await query(yrsql);
         if (!yr.rows.length) return { text: `${year} 年${cat || '学术奖项'}没有颁奖记录。`, payload: { year, category: cat } };
+        // 按 (category, share_note, motivation) 聚合成人类可读的分组
+        const groups = new Map();
+        yr.rows.forEach((r) => {
+          const k = `${r.category}|${r.share_note||''}|${r.motivation||''}`;
+          if (!groups.has(k)) groups.set(k, { category: r.category, share_note: r.share_note, motivation: r.motivation, year: r.yr, names: [] });
+          if (r.name) groups.get(k).names.push(r.name);
+        });
+        const aggRows = [...groups.values()];
         const lines = [`### ${year} 年诺贝尔奖（学术奖项）`];
         const blocks=[];
-        yr.rows.forEach((r) => {
-          // DuckDB LIST(...) 在 browser DuckDB-WASM 里可能返回数组也可能被序列化成 JSON 字符串
-          const listify = (v) => {
-            if (Array.isArray(v)) return v;
-            if (typeof v === 'string') {
-              try { const p = JSON.parse(v); if (Array.isArray(p)) return p; } catch(_){}
-              return v ? [v] : [];
-            }
-            return v ? [v] : [];
-          };
-          const namesArr = listify(r.names);
-          const namesStr = namesArr.join('、');
-          lines.push(`\n**${r.category}**（${r.share_note}）——${namesStr}`);
-          if (r.motivation) lines.push(`> ${r.motivation}`);
-          blocks.push({ type: 'card', title: `${year}·${r.category}`, content: namesStr, meta: r.share_note });
+        aggRows.forEach((g) => {
+          const namesStr = g.names.join('、');
+          lines.push(`\n**${g.category}**（${g.share_note||''}）——${namesStr}`);
+          if (g.motivation) lines.push(`> ${g.motivation}`);
+          blocks.push({ type: 'card', title: `${year}·${g.category}`, content: namesStr, meta: g.share_note });
         });
-        return { text: lines.join('\n'), blocks, payload: { year, items: yr.rows } };
+        return { text: lines.join('\n'), blocks, payload: { year, items: aggRows } };
       }
       // 关键词
       if (kw) {
@@ -822,7 +812,7 @@ export const TOOLS = [
         };
       }
       // 只有学科
-      const cr = await query(`SELECT * FROM laureates WHERE nobel_categories LIKE '%${cat.replace(/'/g,"''")}%' ORDER BY nobel_years::int DESC LIMIT ${lim}`);
+      const cr = await query(`SELECT * FROM laureates WHERE nobel_categories LIKE '%${cat.replace(/'/g,"''")}%' ORDER BY CAST(nobel_years AS INTEGER) DESC LIMIT ${lim}`);
       const lines = [`### ${cat}诺奖得主（最近 ${lim} 位）`];
       cr.rows.forEach((r) => {
         const life = r.death_year ? `${r.birth_year}–${r.death_year}` : (r.birth_year ? `${r.birth_year}–` : '');
@@ -895,10 +885,10 @@ export const TOOLS = [
         const tot = await scalar('SELECT count(*) FROM peace_subjects');
         const indiv = await scalar("SELECT count(*) FROM peace_subjects WHERE subject_type='个人'");
         const orgN = await scalar("SELECT count(*) FROM peace_subjects WHERE subject_type='组织'");
-        const yrange = await scalar('SELECT MIN(nobel_year::int)||\'–\'||MAX(nobel_year::int) FROM peace_subjects');
+        const yrange = await scalar("SELECT MIN(nobel_year)||'–'||MAX(nobel_year) FROM peace_subjects");
         const byCountry = await query(`SELECT country, count(*) AS n FROM peace_subjects WHERE country IS NOT NULL AND country <> '' GROUP BY country ORDER BY n DESC LIMIT 12`);
-        const lastYear = await scalar('SELECT MAX(nobel_year::int) FROM peace_subjects');
-        const recent = await query(`SELECT name_en, acronym, subject_type, nobel_year, country, motivation_en FROM peace_subjects WHERE nobel_year::int >= ${Math.max(1900, (lastYear||2026) - 20)} ORDER BY nobel_year::int DESC, name_en`);
+        const lastYear = await scalar('SELECT MAX(nobel_year) FROM peace_subjects');
+        const recent = await query(`SELECT name_en, acronym, subject_type, nobel_year, country, motivation_en FROM peace_subjects WHERE nobel_year >= ${Math.max(1900, (lastYear||2026) - 20)} ORDER BY nobel_year DESC, name_en`);
 
         const lines = [
           '### 诺贝尔和平奖得主 · 全量概览',
@@ -928,7 +918,7 @@ export const TOOLS = [
       // 构建过滤条件
       const esc = (s) => String(s).replace(/'/g, "''");
       const conds = [];
-      if (year) conds.push(`nobel_year::int = ${year}`);
+      if (year) conds.push(`nobel_year = ${year}`);
       if (country) conds.push(`(lower(country) LIKE lower('%${esc(country)}%'))`);
       if (orgOnly) conds.push(`subject_type = '组织'`);
       else if (args.orgOnly === false) conds.push(`subject_type = '个人'`);
@@ -950,13 +940,13 @@ export const TOOLS = [
         if (country) orgWhere = ` WHERE lower(founded_country) LIKE lower('%${esc(country)}%') AND ` + orgConds.join(' OR ');
         else orgWhere = ` WHERE ` + orgConds.join(' OR ');
         try {
-          const orgR = await query(`SELECT org_id, name_en, name_native, acronym, founded_year, founded_country FROM peace_orgs${orgWhere} ORDER BY founded_year::int NULLS LAST, name_en LIMIT ${lim}`);
+          const orgR = await query(`SELECT org_id, name_en, name_native, acronym, founded_year, founded_country FROM peace_orgs${orgWhere} ORDER BY founded_year DESC, name_en LIMIT ${lim}`);
           orgRows = orgR.rows || [];
         } catch (e) { /* ignore */ }
       }
       const where = conds.length ? ' WHERE ' + conds.join(' AND ') : '';
       const sql = `SELECT peace_id, subject_type, name_en, acronym, country, nobel_year, motivation_en
-        FROM peace_subjects${where} ORDER BY nobel_year::int DESC, name_en LIMIT ${lim}`;
+        FROM peace_subjects${where} ORDER BY nobel_year DESC, name_en LIMIT ${lim}`;
       const r = await query(sql);
 
       const subjects = r.rows || [];
@@ -1027,10 +1017,10 @@ export const TOOLS = [
       // 无参数：总览
       if (!year && !country && !gender && !kw) {
         const tot = await scalar('SELECT count(*) FROM writers');
-        const yrange = await scalar('SELECT MIN(nobel_year::int)||\'–\'||MAX(nobel_year::int) FROM writers');
+        const yrange = await scalar("SELECT MIN(nobel_year)||'–'||MAX(nobel_year) FROM writers");
         const byCountry = await query(`SELECT country, count(*) AS n FROM writers WHERE country IS NOT NULL AND country <> '' GROUP BY country ORDER BY n DESC LIMIT 12`);
         const byGender = await query(`SELECT gender, count(*) AS n FROM writers GROUP BY gender ORDER BY n DESC`);
-        const recent = await query(`SELECT name_en, name_native, gender, nobel_year, country, motivation_en FROM writers ORDER BY nobel_year::int DESC LIMIT 10`);
+        const recent = await query(`SELECT name_en, name_native, gender, nobel_year, country, motivation_en FROM writers ORDER BY nobel_year DESC LIMIT 10`);
 
         const lines = [
           '### 诺贝尔文学奖得主 · 全量概览',
@@ -1060,7 +1050,7 @@ export const TOOLS = [
       const gMap = {'男':'male','女':'female','男性':'male','女性':'female','woman':'female','men':'male','women':'female'};
       const genderEn = gMap[gender] || gender;
       const conds = [];
-      if (year) conds.push(`nobel_year::int = ${year}`);
+      if (year) conds.push(`nobel_year = ${year}`);
       if (country) conds.push(`(lower(country) LIKE lower('%${esc(country)}%'))`);
       if (genderEn) conds.push(`lower(gender) = '${esc(genderEn).toLowerCase()}'`);
       if (kw) {
@@ -1069,7 +1059,7 @@ export const TOOLS = [
       }
       const where = conds.length ? ' WHERE ' + conds.join(' AND ') : '';
       const r = await query(`SELECT writer_id, name_en, name_native, gender, birth_year, death_year, country, nobel_year, motivation_en
-        FROM writers${where} ORDER BY nobel_year::int DESC, name_en LIMIT ${lim}`);
+        FROM writers${where} ORDER BY nobel_year DESC, name_en LIMIT ${lim}`);
 
       if (!r.rows.length) return { text: `未找到匹配的文学奖得主。`, payload: { error: 'not_found' } };
 
@@ -1133,10 +1123,10 @@ export const TOOLS = [
         conds.push('(' + orParts.join(' OR ') + ')');
       }
       if (country) conds.push(`lower(founded_country) LIKE lower('%${esc(country)}%')`);
-      if (fb) conds.push(`founded_year::int <= ${fb}`);
-      if (fa) conds.push(`founded_year::int >= ${fa}`);
+      if (fb) conds.push(`founded_year <= ${fb}`);
+      if (fa) conds.push(`founded_year >= ${fa}`);
       const where = conds.length ? ' WHERE ' + conds.join(' AND ') : '';
-      const r = await query(`SELECT org_id, name_en, name_native, acronym, founded_year, founded_country FROM peace_orgs${where} ORDER BY founded_year::int NULLS LAST, name_en`);
+      const r = await query(`SELECT org_id, name_en, name_native, acronym, founded_year, founded_country FROM peace_orgs${where} ORDER BY founded_year DESC, name_en`);
 
       if (!r.rows.length) return { text: `未找到匹配的和平奖获奖组织。`, payload: { error: 'not_found' } };
 

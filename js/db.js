@@ -1,25 +1,34 @@
 /* ============================================================
-   db.js —— DuckDB-WASM 数据层
-   在浏览器本地加载本体论 Parquet 数据并执行 SQL。
-   所有路径基于 document.baseURI 解析，因此在
-   https://<user>.github.io/<repo>/ 这类子路径下同样可用。
+   db.js —— 浏览器端 SQL 数据层（SQLite-WASM 实现）
+
+   从 DuckDB-WASM 迁移到 sql.js 的原因：
+     · DuckDB-WASM ~ 34 MB，编译耗时 30-60 秒；
+     · SQLite-WASM (sql.js) ~ 650 KB wasm + 48 KB js，2-3 秒就绪；
+     · 33 张表 9000 行数据一次性装进内存（2 MB sqlite 文件），查询更快。
+
+   数据加载流程：
+     1. initSqlJs → 加载 wasm（一次）；
+     2. fetch('data/knowledge.sqlite') → Uint8Array（2 MB，Brotli 后 ~ 700 KB）；
+     3. new SQL.Database(buffer) → 数据库已完全在内存中；
+     4. 所有 SQL 查询通过 sqlite3 API 执行。
+
+   API 与旧版本完全兼容，main.js / agent.js / tools.js 无需修改调用方式。
    ============================================================ */
 
-import * as duckdb from '../lib/duckdb.bundle.js';
+/* sql.js 是 UMD 模块，浏览器里 window.initSqlJs 是主导出。
+   这里通过 window.__initSqlJs 显式挂载，再异步取用。 */
 
 let DB = null;
-let CONN = null;
 let READY = false;
 let TABLE_INFO = [];
 let initPromise = null;   // 幂等锁：并发 initDB 调用共享同一次初始化
-let initProgress = null;  // 最近一次注册的全局进度回调，供 initReady 复用
+let initProgress = null;  // 最近一次注册的进度回调
 
 export function isReady() { return READY; }
 export function getTableInfo() { return TABLE_INFO; }
 
 /**
  * 返回一个"总是 resolve"的初始化 Promise，用于首次提问时等待 DB 就绪。
- * 内部会按需触发 initDB（不传 onProgress 回调），保证幂等。
  */
 export function initReady() {
   if (READY) return Promise.resolve();
@@ -30,41 +39,46 @@ export function initReady() {
   return initPromise;
 }
 
-/** 基于本模块 URL 解析资源地址（db.js 位于 js/ 下，资源在项目根）；
- *  用 import.meta.url 而非 document.baseURI，保证 viz/ 等子目录页面调用时
- *  data/ 与 lib/duckdb/ 路径仍然解析到站点根，兼容 GitHub Pages 子路径 */
+/** 资源路径：基于 db.js 所在目录解析，兼容 GitHub Pages 子路径 */
 function assetUrl(relPath) {
   return new URL('../' + relPath, import.meta.url).href;
 }
 
-/** 读取数据清单 */
-async function fetchManifest() {
-  const res = await fetch(assetUrl('data/manifest.json'), { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`数据清单 data/manifest.json 加载失败（HTTP ${res.status}）`);
-  return res.json();
+async function loadSqlJs() {
+  // 幂等：多次调用只加载一次
+  if (window.__initSqlJs) return window.__initSqlJs;
+  if (!window.__sqlJsLoading) {
+    window.__sqlJsLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = assetUrl('lib/sqljs/sql-wasm.js');
+      s.onload = () => {
+        if (typeof window.initSqlJs !== 'function') {
+          reject(new Error('sql.js 加载后未提供 initSqlJs'));
+        } else {
+          window.__initSqlJs = window.initSqlJs;
+          resolve(window.__initSqlJs);
+        }
+      };
+      s.onerror = () => reject(new Error('sql.js 脚本加载失败'));
+      document.head.appendChild(s);
+    });
+  }
+  return window.__sqlJsLoading;
 }
 
-/** 把 Arrow 值转成可安全序列化的普通值 */
-function normalizeValue(v) {
-  if (v === null || v === undefined) return null;
-  if (typeof v === 'bigint') return Number(v);
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  if (typeof v === 'object') {
-    if (typeof v.toString === 'function' && v.constructor && v.constructor.name === 'Decimal') return Number(v.toString());
-    try { return JSON.stringify(v); } catch (_) { return String(v); }
-  }
-  return v;
+async function fetchManifest() {
+  const res = await fetch(assetUrl('data/manifest.json'), { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`数据清单加载失败（HTTP ${res.status}）`);
+  return res.json();
 }
 
 /**
  * 初始化数据库
- * @param {(msg:string)=>void} onProgress 进度回调（用于界面提示）
+ * @param {(msg:string)=>void} onProgress 进度回调
  */
 export async function initDB(onProgress) {
   if (READY) return;
   if (initPromise) {
-    // 已有初始化进行中，复用同一 Promise；若传入了新的进度回调则替换，
-    // 让后到的调用方（比如 initReady）也能收到实时进度。
     if (onProgress) initProgress = onProgress;
     return initPromise;
   }
@@ -76,99 +90,63 @@ export async function initDB(onProgress) {
   return initPromise;
 }
 
-/** 实际的初始化过程（被 initDB / initReady 复用） */
+/** 实际的初始化过程 */
 async function runInit(onProgress) {
   if (READY) return;
   const log = (m) => { try { onProgress && onProgress(m); } catch (_) {} };
 
+  log('正在初始化 SQLite 引擎（WASM 约 640 KB）…');
+  const initSqlJs = await loadSqlJs();
+  const SQL = await initSqlJs({
+    locateFile: (file) => assetUrl('lib/sqljs/' + file),
+  });
+
+  log('正在下载本体数据（约 2 MB SQLite，Brotli 压缩后约 700 KB）…');
+  const res = await fetch(assetUrl('data/knowledge.sqlite'), { cache: 'default' });
+  if (!res.ok) throw new Error(`knowledge.sqlite 加载失败（HTTP ${res.status}）`);
+  const buf = new Uint8Array(await res.arrayBuffer());
+
+  log('正在装载 33 张本体论数据表…');
+  DB = new SQL.Database(buf);
+
+  // 启用 WAL-less 高性能模式（sqlite 全在内存，无需持久化）
+  DB.exec('PRAGMA query_only = ON');
+  DB.exec('PRAGMA temp_store = MEMORY');
+
   log('正在读取数据清单…');
   const manifest = await fetchManifest();
-  const names = Object.keys(manifest);
-
-  log('正在初始化浏览器内数据库引擎（WASM 约 34 MB，首次下载后由 Service Worker 缓存，下次访问零下载）…');
-  // 使用本地 WASM/Worker 资源，避免依赖 CDN 与跨域问题
-  const bundles = duckdb.getJsDelivrBundles();
-  // 覆盖为本地路径
-  const mvpWasm = assetUrl('lib/duckdb/duckdb-mvp.wasm');
-  const mvpWorker = assetUrl('lib/duckdb/duckdb-browser-mvp.worker.js');
-  const ehWasm = assetUrl('lib/duckdb/duckdb-eh.wasm');
-  const ehWorker = assetUrl('lib/duckdb/duckdb-browser-eh.worker.js');
-  const localBundles = {
-    mvp: { mainModule: mvpWasm, mainWorker: mvpWorker },
-    eh: { mainModule: ehWasm, mainWorker: ehWorker },
-    // 兜底：若运行环境被判定为跨源隔离（COI），同样指向已本地化的资源，
-    // 避免取到不存在的文件而初始化失败
-    coi: { mainModule: ehWasm, mainWorker: ehWorker },
-  };
-  let bundle = await duckdb.selectBundle(localBundles);
-  if (!bundle || !bundle.mainModule) bundle = localBundles.eh;
-
-  // 直接用原始 wasm 路径，浏览器通过 HTTP Content-Encoding 自动解压（Brotli 由
-  // 浏览器内核的 C++ 解码器处理，比主线程 DecompressionStream 快一个数量级，且不阻塞 UI）
-  log('正在初始化浏览器内数据库引擎（WASM 约 5.5 MB Brotli，浏览器内核解压）…');
-
-  const workerUrl = URL.createObjectURL(
-    new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
-  );
-  const worker = new Worker(workerUrl);
-
-  let logger = null;
-  try {
-    logger = new duckdb.ConsoleLogger();
-  } catch (_) {
-    logger = null;
-  }
-
-  DB = new duckdb.AsyncDuckDB(logger, worker);
-  await DB.instantiate(bundle.mainModule, bundle.prelude);
-
-  log('正在装载本体论数据表…');
-  CONN = await DB.connect();
-
-  // 并行注册全部 Parquet 文件（registerFileURL 是元数据注册，不触发网络请求）
-  await Promise.all(names.map((name) =>
-    DB.registerFileURL(
-      `${name}.parquet`,
-      assetUrl(`data/${name}.parquet`),
-      duckdb.DuckDBDataProtocol.HTTP,
-      false
-    )
-  ));
-
-  // 用 VIEW 而非物化 TABLE：数据量小（33 张表合计 430 KB），
-  // 查询时 DuckDB 直接读取 parquet 元数据与相关列块，几乎无感；
-  // 避免 CREATE TABLE AS SELECT 对每张表触发两次 parquet 打开与全表拷贝。
-  for (const name of names) {
-    await CONN.query(`CREATE OR REPLACE VIEW "${name}" AS SELECT * FROM "${name}.parquet"`);
-  }
-
-  // 记录行数，供界面展示
   TABLE_INFO = [];
-  for (const name of names) {
-    try {
-      const r = await CONN.query(`SELECT count(*) AS c FROM "${name}"`);
-      const cnt = Number(r.toArray()[0].c);
-      TABLE_INFO.push({ name, rows: cnt, source: manifest[name].source || '' });
-    } catch (_) {
-      TABLE_INFO.push({ name, rows: 0, source: manifest[name].source || '' });
-    }
+  for (const name of Object.keys(manifest)) {
+    const c = DB.exec(`SELECT count(*) AS c FROM "${name}"`);
+    const rows = c.length && c[0].values.length ? Number(c[0].values[0][0]) : 0;
+    TABLE_INFO.push({ name, rows, source: (manifest[name] && manifest[name].source) || '' });
   }
 
   READY = true;
   log('数据库就绪');
 }
 
-/** 执行 SQL，返回 { columns, rows } */
+/** 值规范化：BigInt → Number，其它直接透传 */
+function normalizeValue(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'bigint') return Number(v);
+  return v;
+}
+
+/** 执行 SQL，返回 { columns, rows }；rows 是对象数组 */
 export async function query(sql) {
   if (!READY) throw new Error('数据库尚未就绪');
-  const result = await CONN.query(sql);
-  const columns = result.schema.fields.map((f) => f.name);
-  const rows = result.toArray().map((row) => {
-    const o = {};
-    for (const f of result.schema.fields) o[f.name] = normalizeValue(row[f.name]);
-    return o;
-  });
-  return { columns, rows };
+  const stmt = DB.prepare(sql);
+  const cols = stmt.getColumnNames();
+  const rows = [];
+  while (stmt.step()) {
+    const obj = stmt.getAsObject();
+    // 逐字段规范化（BigInt → Number）
+    for (const k of Object.keys(obj)) obj[k] = normalizeValue(obj[k]);
+    rows.push(obj);
+  }
+  stmt.free();
+  return { columns: cols, rows };
 }
 
 /** 取单值辅助 */

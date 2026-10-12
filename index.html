@@ -85,14 +85,13 @@
       </details>
 
       <details class="settings-details" id="enginesDetails">
-        <summary>🔍 搜索引擎分层配置</summary>
+        <summary>🔍 搜索引擎配置</summary>
         <div class="settings-body">
-          <p class="settings-note" style="margin:0 0 10px 0;">按顺序尝试，每个引擎独立超时，失败静默跳到下一个。跨域（CORS）受限的引擎在国内直连大概率失败，仅在你自建了代理或有 VPN 时才有意义。</p>
+          <p class="settings-note" style="margin:0 0 10px 0;">按顺序尝试，每个引擎独立超时，失败静默跳到下一个。仅保留浏览器端 CORS 明确可用的引擎，其他国内常见引擎（Bing/百度/DDG/Mojeek）实测均被浏览器 CORS 拦截。</p>
           <div id="enginesWrap" class="engines-wrap"></div>
-          <p class="settings-note">顺序：<strong>Tavily → Mojeek → SearxNG → Bing → 维基 → DuckDuckGo</strong>。<br>
-            · 默认启用：<strong>Tavily（需 Key）/ Mojeek / 维基</strong>，零 Key 兜底也够用。<br>
-            · SearxNG：仅自建实例可用（公共实例国内不可达）。<br>
-            · Bing / DuckDuckGo：浏览器 CORS 通常失败，除非走代理。</p>
+          <p class="settings-note">顺序：<strong>Tavily → Wikipedia/Wikidata</strong>。<br>
+            · <strong>Tavily</strong>（默认开，推荐）：需填 Key，官方支持 CORS，国内可用。<br>
+            · <strong>Wikipedia/Wikidata</strong>（默认关）：国内网络下 DNS 会被重定向到不可达 IPv6，实测超时；如果你在有稳定直连的路由上（例如境外网络），可手动勾选启用。</p>
         </div>
       </details>
     </div>

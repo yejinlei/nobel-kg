@@ -9,7 +9,7 @@
    缓存键：URL（同版本内容）；版本切换通过 SW_VERSION 手动清空。
    ============================================================ */
 
-const SW_VERSION = 'v1';
+const SW_VERSION = 'v7-tavily-hardcode';
 const CACHE_NAME = 'nobel-kg-' + SW_VERSION;
 
 // 需要缓存的静态资源前缀（本站同源）
@@ -44,7 +44,15 @@ async function tryCachePut(cache, req, resp) {
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(c => c.addAll(['./', './index.html']).catch(() => {}))
+    caches.open(CACHE_NAME).then(c => c.addAll([
+      './',
+      './index.html',
+      './data/manifest.json',
+      './data/knowledge.sqlite',
+      './lib/sqljs/sql-wasm.js',
+      './lib/sqljs/sql-wasm.wasm',
+      './lib/langgraph.bundle.js',
+    ]).catch(() => {}))
   );
   self.skipWaiting();
 });

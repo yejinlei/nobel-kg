@@ -316,8 +316,7 @@ async function nodeResearch(state) {
   if (!hasWebSearch(cfg)) {
     return { routeKey: 'compose', nextAction: 'compose' };
   }
-  // 分层联网：按启用顺序尝试（Tavily → Mojeek → SearxNG → Bing → 维基 → DuckDuckGo），
-  // 每个引擎独立超时，失败静默跳过，取首个有内容结果
+  // 分层联网：按启用顺序尝试（Tavily → 维基），每个引擎独立超时，失败静默跳过
   let notes = '';
   let src = '';
   try {

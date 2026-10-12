@@ -1,22 +1,19 @@
 /* ============================================================
    wiki.js —— 分层联网检索
-   引擎启用顺序（默认配置下）：
-     1. Tavily    （配 Key 时；官方支持 CORS，国内可用）
-     2. Mojeek    （CORS 头为 *，可能返回 403）
-     3. SearxNG   （用户自建实例；公共实例国内不可达）
-     4. Bing      （cn.bing.com，无 CORS 头，浏览器 fetch 大概率失败）
-     5. Wiki      （中英文维基 + Wikidata，跨域最稳定，结构化）
-     6. DuckDuckGo（html.duckduckgo.com，国内可能被墙）
-   每个引擎独立超时（可通过 UI 调整），失败静默跳过，取首个有内容结果。
-   所有结果统一为 {source, text}，喂给 Agent 加工后再展示。
+   引擎启用顺序：
+     1. Tavily    （默认开；官方支持 CORS，国内可用）
+     2. Wikipedia （默认关；国内网络下 zh/en.wikipedia.org DNS 重定向到
+                   不可达 IPv6，实测 10s 超时。仅在用户手动启用且网络可达时生效）
+   其他常见引擎（Bing / Baidu / DDG / Mojeek / SearxNG）已删除——
+   浏览器端 CORS 结构性不通。
    ============================================================ */
 
 const WIKI_API = 'https://zh.wikipedia.org/w/api.php';
 const WIKI_API_EN = 'https://en.wikipedia.org/w/api.php';
 const WD_ENDPOINT = 'https://www.wikidata.org/sparql';
 
-/** 引擎顺序：从最可能成功到最可能失败，每个独立超时 */
-const ENGINE_ORDER = ['tavily', 'mojeek', 'searxng', 'bing', 'wiki', 'ddg'];
+/** 引擎顺序：Tavily 优先（配 Key 时最稳），其次 Wikipedia */
+const ENGINE_ORDER = ['tavily', 'wiki'];
 
 /**
  * 通用 fetch：加超时
@@ -31,14 +28,17 @@ async function fetchWithTimeout(url, init, timeoutMs) {
   }
 }
 
+const TAVILY_ENDPOINT = 'https://api.tavily.com/search';
+
 /* ============================================================
    引擎 1：Tavily（需 Key）
+   端点硬编码，忽略 localStorage 里可能残留的错误 baseUrl（历史 UI 版本曾允许用户填，
+   常见错误是填成官网 https://tavily.com 而不是 https://api.tavily.com/search，会导致 401）。
    ============================================================ */
 async function engineTavily(query, opts) {
-  const { tavilyKey, timeout, baseUrl } = opts;
+  const { tavilyKey, timeout } = opts;
   if (!tavilyKey) return null;
-  const url = baseUrl || 'https://api.tavily.com/search';
-  const r = await fetchWithTimeout(url, {
+  const r = await fetchWithTimeout(TAVILY_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -61,93 +61,7 @@ async function engineTavily(query, opts) {
 }
 
 /* ============================================================
-   引擎 2：Mojeek（CORS *，可能被 403 拒绝）
-   ============================================================ */
-async function engineMojeek(query, opts) {
-  const { timeout, baseUrl } = opts;
-  const base = baseUrl || 'https://www.mojeek.com/search';
-  const url = `${base}?q=${encodeURIComponent(query)}`;
-  const r = await fetchWithTimeout(url, {
-    headers: { 'Accept': 'text/html' },
-  }, timeout);
-  if (!r.ok) return null;
-  const html = await r.text();
-  const items = parseMojeek(html, 5);
-  if (!items.length) return null;
-  return {
-    source: 'Mojeek',
-    text: items.map((x, i) => `[${i + 1}] ${x.title} — ${x.url}\n    ${x.snippet}`).join('\n\n'),
-  };
-}
-
-function parseMojeek(html, max) {
-  const items = [];
-  // 结果卡片：<li class="result"> > <h2 class="title"><a href="...">title</a></h2> <p class="s">snippet</p>
-  const re = /<li[^>]*class="[^"]*result[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<p[^>]*class="[^"]*s[^"]*"[^>]*>([\s\S]*?)<\/p>/g;
-  let m;
-  while ((m = re.exec(html)) && items.length < max) {
-    const title = stripTags(m[2]);
-    const snippet = stripTags(m[3]);
-    if (title) items.push({ title, url: m[1], snippet: snippet.slice(0, 400) });
-  }
-  return items;
-}
-
-/* ============================================================
-   引擎 3：SearxNG（用户自建实例；公共实例国内不可达）
-   ============================================================ */
-async function engineSearxNG(query, opts) {
-  const { timeout, baseUrl } = opts;
-  if (!baseUrl) return null;
-  const url = `${baseUrl.replace(/\/+$/, '')}/search?q=${encodeURIComponent(query)}&format=json`;
-  const r = await fetchWithTimeout(url, {
-    headers: { 'Accept': 'application/json' },
-  }, timeout);
-  if (!r.ok) return null;
-  const j = await r.json();
-  const items = (j.results || []).slice(0, 5).map((x, i) =>
-    `[${i + 1}] ${x.title} — ${x.url}\n    ${(x.content || '').slice(0, 400)}`);
-  if (!items.length) return null;
-  return {
-    source: 'SearxNG',
-    text: items.join('\n\n'),
-  };
-}
-
-/* ============================================================
-   引擎 4：Bing HTML（cn.bing.com；无 CORS，浏览器 fetch 大概率失败）
-   ============================================================ */
-async function engineBing(query, opts) {
-  const { timeout, baseUrl } = opts;
-  const base = baseUrl || 'https://cn.bing.com/search';
-  const url = `${base.replace(/\/+$/, '')}?q=${encodeURIComponent(query)}&ensearch=0`;
-  const r = await fetchWithTimeout(url, {
-    headers: { 'Accept': 'text/html' },
-  }, timeout);
-  if (!r.ok) return null;
-  const html = await r.text();
-  const items = parseBing(html, 5);
-  if (!items.length) return null;
-  return {
-    source: 'Bing',
-    text: items.map((x, i) => `[${i + 1}] ${x.title} — ${x.url}\n    ${x.snippet}`).join('\n\n'),
-  };
-}
-
-function parseBing(html, max) {
-  const items = [];
-  const re = /<li class="b_algo"[\s\S]*?<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/g;
-  let m;
-  while ((m = re.exec(html)) && items.length < max) {
-    const title = stripTags(m[2]);
-    const snippet = stripTags(m[3]);
-    if (title) items.push({ title, url: m[1], snippet: snippet.slice(0, 400) });
-  }
-  return items;
-}
-
-/* ============================================================
-   引擎 5：Wikipedia + Wikidata（跨域友好，结构化）
+   引擎 2：Wikipedia + Wikidata（跨域友好，结构化）
    ============================================================ */
 export async function wikiSearch(query, opts = {}) {
   const { lang = 'both', exsentences = 5, timeout = 6000 } = opts;
@@ -271,82 +185,18 @@ async function engineWiki(query, opts) {
 }
 
 /* ============================================================
-   引擎 6：DuckDuckGo HTML（国内可能被墙）
-   ============================================================ */
-async function engineDuckDuckGo(query, opts) {
-  const { timeout, baseUrl } = opts;
-  const base = baseUrl || 'https://html.duckduckgo.com/html/';
-  const url = `${base.replace(/\/+$/, '')}?q=${encodeURIComponent(query)}`;
-  const r = await fetchWithTimeout(url, {
-    headers: { 'Accept': 'text/html' },
-  }, timeout);
-  if (!r.ok) return null;
-  const html = await r.text();
-  const items = parseDDG(html, 5);
-  if (!items.length) return null;
-  return {
-    source: 'DuckDuckGo',
-    text: items.map((x, i) => `[${i + 1}] ${x.title} — ${x.url}\n    ${x.snippet}`).join('\n\n'),
-  };
-}
-
-function parseDDG(html, max) {
-  const items = [];
-  const re = /<div[^>]*class="[^"]*result__body[^"]*"[\s\S]*?<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-  let m;
-  while ((m = re.exec(html)) && items.length < max) {
-    const title = stripTags(m[2]);
-    const snippet = stripTags(m[3]);
-    if (title) items.push({ title, url: decodeDDGUrl(m[1]), snippet: snippet.slice(0, 400) });
-  }
-  return items;
-}
-
-function decodeDDGUrl(u) {
-  if (u.includes('uddg=')) {
-    try {
-      const q = new URL(u.startsWith('//') ? 'https:' + u : u);
-      const target = q.searchParams.get('uddg');
-      if (target) return decodeURIComponent(target);
-    } catch (_) { /* ignore */ }
-  }
-  return u;
-}
-
-function stripTags(s) {
-  return (s || '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/* ============================================================
    主入口：webLookup
    按启用顺序遍历引擎，取首个成功结果。
    opts: { tavilyKey, searchEngines }
    ============================================================ */
 const ENGINE_IMPL = {
   tavily: engineTavily,
-  mojeek: engineMojeek,
-  searxng: engineSearxNG,
-  bing:   engineBing,
   wiki:   engineWiki,
-  ddg:    engineDuckDuckGo,
 };
 
 const ENGINE_LABEL = {
   tavily: 'Tavily',
-  mojeek: 'Mojeek',
-  searxng: 'SearxNG',
-  bing: 'Bing',
   wiki: 'Wikipedia/Wikidata',
-  ddg: 'DuckDuckGo',
 };
 
 /**
@@ -366,7 +216,7 @@ export async function webLookup(query, opts = {}) {
     const impl = ENGINE_IMPL[name];
     if (!impl) continue;
     try {
-      const res = await impl(query, { tavilyKey, timeout, baseUrl: c.baseUrl });
+      const res = await impl(query, { tavilyKey, timeout });
       if (res && res.text) return res;
     } catch (e) {
       const reason = (e && e.name === 'AbortError') ? '超时' : (e && e.message) || '失败';
@@ -378,9 +228,8 @@ export async function webLookup(query, opts = {}) {
   if (attempted.length === 0) {
     return {
       source: 'none',
-      text: '（未启用任何联网检索引擎。请到「设置 → 搜索引擎」启用至少一个；'
-        + '国内环境下推荐配置 Tavily Key 或自建 SearxNG；'
-        + 'Bing/DuckDuckGo/Mojeek 等无 CORS 引擎在浏览器端大概率失败）',
+      text: '（未启用任何联网检索引擎。请到「设置 → 搜索引擎」配置 Tavily Key；'
+        + 'Tavily 是目前唯一在国内网络环境下浏览器可直连的搜索引擎）',
     };
   }
 
@@ -388,7 +237,7 @@ export async function webLookup(query, opts = {}) {
     ? '；各引擎失败原因：' + failed.join('；')
     : '（引擎正常返回但无匹配结果，可能是查询过于宽泛或过于未来向）';
   const advice = '\n建议：'
-    + '① 若需要真实外部数据，请配置 Tavily Key（国内环境最稳的引擎）；'
+    + '① 检查 Tavily Key 是否有效（可到 https://app.tavily.com 确认免费额度）；'
     + '② 或改问本体已有范围的问题（物理学/化学/生理医学/经济学 四类学术奖 1901–2026 年）。';
 
   return {

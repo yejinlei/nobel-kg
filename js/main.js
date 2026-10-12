@@ -50,13 +50,9 @@ const el = {
 /** 搜索引擎字段配置：id → { label, hasBaseUrl, hasTimeout, defaultUrl } */
 const ENGINE_FIELDS = {
   tavily:  { label: 'Tavily（需 Key）',        hasBaseUrl: false, defaultUrl: '' },
-  mojeek:  { label: 'Mojeek',                  hasBaseUrl: false, defaultUrl: '' },
-  searxng: { label: 'SearxNG（自建实例）',      hasBaseUrl: true,  defaultUrl: '' },
-  bing:    { label: 'Bing（cn.bing.com）',      hasBaseUrl: false, defaultUrl: '' },
-  ddg:     { label: 'DuckDuckGo',              hasBaseUrl: false, defaultUrl: '' },
   wiki:    { label: 'Wikipedia/Wikidata',      hasBaseUrl: false, defaultUrl: '' },
 };
-const ENGINE_ORDER_UI = ['tavily', 'mojeek', 'searxng', 'bing', 'wiki', 'ddg'];
+const ENGINE_ORDER_UI = ['tavily', 'wiki'];
 
 const QUICK_QUESTIONS = [
   '杨振宁的师承链',
@@ -186,7 +182,7 @@ function renderEngineRows() {
   wrap.innerHTML = ENGINE_ORDER_UI.map((id) => {
     const f = ENGINE_FIELDS[id];
     const base = f.hasBaseUrl
-      ? `<input type="text" class="engine-baseurl" data-engine="${id}" data-field="baseUrl" placeholder="https://your-searxng.example.com">`
+      ? `<input type="text" class="engine-baseurl" data-engine="${id}" data-field="baseUrl" placeholder="https://your-endpoint.example.com">`
       : '';
     return `<div class="engine-row" data-engine="${id}">
       <label class="engine-toggle">

@@ -5,13 +5,19 @@ const path = require('path');
 const zlib = require('zlib');
 
 const TARGETS = [
+  // 新 SQLite-WASM 数据层（主用）
+  'lib/sqljs/sql-wasm.wasm',
+  'lib/sqljs/sql-wasm.js',
+  'data/knowledge.sqlite',
+  // LangGraph Agent 运行时
+  'lib/langgraph.bundle.js',
+  'lib/world-110m.json',
+  // 旧 DuckDB-WASM（保留但不再被 db.js 引用；预压缩以防某些可视化页面仍需要）
   'lib/duckdb/duckdb-eh.wasm',
   'lib/duckdb/duckdb-mvp.wasm',
   'lib/duckdb/duckdb-browser-eh.worker.js',
   'lib/duckdb/duckdb-browser-mvp.worker.js',
   'lib/duckdb.bundle.js',
-  'lib/langgraph.bundle.js',
-  'lib/world-110m.json',
 ];
 
 const QUALITY = 11;
