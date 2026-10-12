@@ -71,34 +71,9 @@ export async function initDB(onProgress) {
   let bundle = await duckdb.selectBundle(localBundles);
   if (!bundle || !bundle.mainModule) bundle = localBundles.eh;
 
-  // --- Brotli 预压缩加速（可选，浏览器不支持时自动降级）---
-  // GitHub Pages 不支持服务端 Brotli，我们预生成 .wasm.br 提交到仓库；
-  // 主线程用 DecompressionStream 解压成 blob URL 传给 worker。
-  // 未支持时 fallback 到原始 wasm 路径。
-  const wasmUrl = bundle.mainModule;
-  const wasmBrUrl = wasmUrl + '.br';
-  const hasDecompressStream = typeof DecompressionStream !== 'undefined';
-  let effectiveWasmUrl = wasmUrl;
-
-  if (hasDecompressStream) {
-    try {
-      log('正在下载并解压 WASM 引擎（Brotli 5.5 MB → 34 MB）…');
-      const brResp = await fetch(wasmBrUrl, { cache: 'force-cache' });
-      if (brResp.ok) {
-        const brBuf = await brResp.arrayBuffer();
-        const blob = new Blob([brBuf]);
-        const dsStream = blob.stream().pipeThrough(new DecompressionStream('br'));
-        const wasmBuf = await new Response(dsStream).arrayBuffer();
-        // 用 blob URL 代替网络 URL，让 worker 内部直接 instantiateStreaming
-        effectiveWasmUrl = URL.createObjectURL(
-          new Blob([wasmBuf], { type: 'application/wasm' })
-        );
-        bundle = Object.assign({}, bundle, { mainModule: effectiveWasmUrl });
-      }
-    } catch (_) {
-      // Brotli 下载/解压失败时降级到原始 wasm
-    }
-  }
+  // 直接用原始 wasm 路径，浏览器通过 HTTP Content-Encoding 自动解压（Brotli 由
+  // 浏览器内核的 C++ 解码器处理，比主线程 DecompressionStream 快一个数量级，且不阻塞 UI）
+  log('正在初始化浏览器内数据库引擎（WASM 约 5.5 MB Brotli，浏览器内核解压）…');
 
   const workerUrl = URL.createObjectURL(
     new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
@@ -115,23 +90,24 @@ export async function initDB(onProgress) {
   DB = new duckdb.AsyncDuckDB(logger, worker);
   await DB.instantiate(bundle.mainModule, bundle.prelude);
 
-  // 清理 blob URL
-  if (effectiveWasmUrl.startsWith('blob:')) {
-    URL.revokeObjectURL(effectiveWasmUrl);
-  }
-
   log('正在装载本体论数据表…');
   CONN = await DB.connect();
 
-  // 注册全部 Parquet 文件
-  for (const name of names) {
-    const url = assetUrl(`data/${name}.parquet`);
-    await DB.registerFileURL(`${name}.parquet`, url, duckdb.DuckDBDataProtocol.HTTP, false);
-  }
+  // 并行注册全部 Parquet 文件（registerFileURL 是元数据注册，不触发网络请求）
+  await Promise.all(names.map((name) =>
+    DB.registerFileURL(
+      `${name}.parquet`,
+      assetUrl(`data/${name}.parquet`),
+      duckdb.DuckDBDataProtocol.HTTP,
+      false
+    )
+  ));
 
-  // 物化为本地表（数据量小，物化后查询更快、SQL 更简洁）
+  // 用 VIEW 而非物化 TABLE：数据量小（33 张表合计 430 KB），
+  // 查询时 DuckDB 直接读取 parquet 元数据与相关列块，几乎无感；
+  // 避免 CREATE TABLE AS SELECT 对每张表触发两次 parquet 打开与全表拷贝。
   for (const name of names) {
-    await CONN.query(`CREATE OR REPLACE TABLE "${name}" AS SELECT * FROM "${name}.parquet"`);
+    await CONN.query(`CREATE OR REPLACE VIEW "${name}" AS SELECT * FROM "${name}.parquet"`);
   }
 
   // 记录行数，供界面展示
