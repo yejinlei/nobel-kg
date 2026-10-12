@@ -585,7 +585,7 @@ async function buildFacts(p){
       const pgs = (await db.query(`SELECT name, year, description FROM paradigms WHERE founder_id = '${pid}'`)).rows;
       if(pgs.length) lines.push(`开创范式：` + pgs.map(x=>`${x.name}（${x.year}）——${x.description}`).join('；'));
       try{
-        const pz = (await db.query(`SELECT year, category, share_note FROM prizes WHERE strpos(';' || laureate_ids || ';', ';${pid};') > 0 ORDER BY year`)).rows;
+        const pz = (await db.query(`SELECT year, category, share_note FROM prizes WHERE instr(';' || coalesce(laureate_ids, '') || ';', ';${pid};') > 0 ORDER BY year`)).rows;
         if(pz.length) lines.push(`诺奖记录：` + pz.map(x=>`${x.year} 年 ${x.category} 奖（${x.share_note||''}）`).join('、'));
       }catch(e){ /* laureate_ids 列类型不兼容时跳过 */ }
     }catch(e){ /* 档案查询失败时降级为纯线索模式 */ }

@@ -204,7 +204,7 @@ const [kpi, papers, pairs, colab, lineage, journals, lagrows] = await Promise.al
             JOIN papers pd ON pd.paper_id = l.advisor_paper_id
             LEFT JOIN fields fs ON fs.field_id = ps.field_id
             LEFT JOIN fields fd ON fd.field_id = pd.field_id`),
-  db.query(`SELECT journal AS j, count(*) AS c, count_if(is_landmark='是') AS lm
+  db.query(`SELECT journal AS j, count(*) AS c, SUM(CASE WHEN is_landmark='是' THEN 1 ELSE 0 END) AS lm
             FROM papers GROUP BY 1 ORDER BY c DESC`),
   db.query(`SELECT DISTINCT pr.person_id, COALESCE(pr.name_zh, pr.name_en, '未知') AS n, pr.nobel_category AS cat, pr.nobel_year AS ny,
                    pp.paper_id, pp.title_zh AS tz, pp.year AS py
